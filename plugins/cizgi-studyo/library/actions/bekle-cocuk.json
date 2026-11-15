@@ -1,0 +1,68 @@
+{
+  "label": {
+    "tr": "Bekle (çocuk, nefes)",
+    "en": "Idle (child, breathing)"
+  },
+  "views": [
+    "front"
+  ],
+  "notes": "Child idle for front rigs: a slow breath (stretch 1.2%), a small weight shift from foot to foot and a head that follows it. Loops seamlessly.",
+  "duration": 2.4,
+  "loop": true,
+  "keys": [
+    {
+      "t": 0,
+      "pose": {
+        "root_sy": 1,
+        "body": 0,
+        "head": 0,
+        "arm_L_upper": -4,
+        "arm_R_upper": 4
+      }
+    },
+    {
+      "t": 0.6,
+      "pose": {
+        "root_sy": 1.012,
+        "body": 2,
+        "head": 3,
+        "arm_L_upper": -3,
+        "arm_R_upper": 6
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 1.2,
+      "pose": {
+        "root_sy": 1,
+        "body": 0,
+        "head": 0,
+        "arm_L_upper": -4,
+        "arm_R_upper": 4
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 1.8,
+      "pose": {
+        "root_sy": 1.012,
+        "body": -2,
+        "head": -3,
+        "arm_L_upper": -6,
+        "arm_R_upper": 3
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 2.4,
+      "pose": {
+        "root_sy": 1,
+        "body": 0,
+        "head": 0,
+        "arm_L_upper": -4,
+        "arm_R_upper": 4
+      },
+      "ease": "inOutSine"
+    }
+  ]
+}

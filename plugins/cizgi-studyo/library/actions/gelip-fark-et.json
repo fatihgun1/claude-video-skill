@@ -3,6 +3,9 @@
     "tr": "Yürüyerek gel, dur, fark et",
     "en": "Walk in, stop, notice"
   },
+  "views": [
+    "profile-right"
+  ],
   "notes": "Profile: one walk cycle (pair with cast.walk {dx, time: 1.2, arrive: true}), settles on the mark, then the eyes and then the head go down toward something on the ground ahead.",
   "duration": 3.4,
   "loop": false,

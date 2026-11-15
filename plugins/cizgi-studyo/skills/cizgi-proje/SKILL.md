@@ -20,7 +20,7 @@ The first time, if `${CLAUDE_PLUGIN_ROOT}/engine/node_modules` is missing, run `
 1. **Ask only what you cannot infer**: the topic or story, and the audience. For ages 0-3 use `"profile": "pedagoji-0-3"` and also follow the `cizgi-pedagoji-0-3` skill. Otherwise use `"genel"`.
 2. **Read the library** before writing anything. Everything an episode may use is a file:
    - characters: `${CLAUDE_PLUGIN_ROOT}/library/characters/<id>/`. `character.json` lists the recolourable `palette_vars`.
-   - actions: `library/actions/<id>.json`
+   - actions: `library/actions/<id>.json`. Each lists the `views` it is made for. Give a cast member only actions whose `views` include its rig's `view` (`character.json`); `dogrula` warns otherwise. Walk and run actions name the `cast.walk` speed in their notes (e.g. `yuru-cocuk` 144, `kos-cocuk` 230 world units per second). Use it so the feet do not slide.
    - backgrounds: `library/backgrounds/<id>.svg`
    - props: `library/props/<id>.svg`
    - sound effects: `library/sfx/<id>.wav` (sources in `KAYNAKLAR.md`)

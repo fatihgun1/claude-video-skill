@@ -1,0 +1,97 @@
+{
+  "label": {
+    "tr": "Şaşır (eller havada)",
+    "en": "Surprised (hands up)"
+  },
+  "views": [
+    "front"
+  ],
+  "notes": "Front rigs: a quick dip, then a small startled hop that stretches the body while both hands fly up beside the head (elbows out, forearms up, a classic startle that reads from the front) and the eyes look up; lands and holds the pose.",
+  "duration": 1.6,
+  "loop": false,
+  "keys": [
+    {
+      "t": 0,
+      "pose": {
+        "root_y": 0,
+        "root_sy": 1,
+        "arm_L_upper": -4,
+        "arm_L_lower": 0,
+        "arm_R_upper": 4,
+        "arm_R_lower": 0,
+        "gaze_y": 0,
+        "head": 0
+      }
+    },
+    {
+      "t": 0.12,
+      "pose": {
+        "root_y": 0,
+        "root_sy": 0.96,
+        "arm_L_upper": -2,
+        "arm_L_lower": 0,
+        "arm_R_upper": 2,
+        "arm_R_lower": 0,
+        "gaze_y": 0,
+        "head": 0
+      },
+      "ease": "inSine"
+    },
+    {
+      "t": 0.3,
+      "pose": {
+        "root_y": -26,
+        "root_sy": 1.06,
+        "arm_L_upper": -95,
+        "arm_L_lower": -72,
+        "arm_R_upper": 95,
+        "arm_R_lower": 72,
+        "gaze_y": -3,
+        "head": 0
+      },
+      "ease": "outCubic"
+    },
+    {
+      "t": 0.5,
+      "pose": {
+        "root_y": 0,
+        "root_sy": 0.97,
+        "arm_L_upper": -90,
+        "arm_L_lower": -68,
+        "arm_R_upper": 90,
+        "arm_R_lower": 68,
+        "gaze_y": -3,
+        "head": 0
+      },
+      "ease": "inCubic"
+    },
+    {
+      "t": 0.7,
+      "pose": {
+        "root_y": 0,
+        "root_sy": 1,
+        "arm_L_upper": -92,
+        "arm_L_lower": -70,
+        "arm_R_upper": 92,
+        "arm_R_lower": 70,
+        "gaze_y": -2,
+        "head": 0
+      },
+      "ease": "outSine"
+    },
+    {
+      "t": 1.6,
+      "pose": {
+        "root_y": 0,
+        "root_sy": 1,
+        "arm_L_upper": -92,
+        "arm_L_lower": -70,
+        "arm_R_upper": 92,
+        "arm_R_lower": 70,
+        "gaze_y": -2,
+        "head": 0
+      },
+      "ease": "inOutSine"
+    }
+  ]
+}

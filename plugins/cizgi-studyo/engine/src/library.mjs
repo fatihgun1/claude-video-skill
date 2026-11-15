@@ -67,8 +67,15 @@ export function checkAction(action, name) {
   if (action.loop && action.keys.at(-1)?.t !== action.duration) {
     errors.push(`${name}: a looping action needs its last key at t=duration`);
   }
+  if (action.views !== undefined) {
+    if (!Array.isArray(action.views) || !action.views.length) errors.push(`${name}: views must be a non-empty list`);
+    else for (const v of action.views) if (!VIEWS.includes(v)) errors.push(`${name}: unknown view "${v}" (${VIEWS.join(", ")})`);
+  }
   return errors;
 }
+
+/** Views a rig can be drawn in (character.json "view"); actions list the ones they suit in "views". */
+export const VIEWS = Object.freeze(["front", "profile-right", "three-quarter-right", "back-three-quarter-right"]);
 
 /**
  * Check world.json and cameras.json; returns errors.

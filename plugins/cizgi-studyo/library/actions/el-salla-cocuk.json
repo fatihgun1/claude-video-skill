@@ -1,0 +1,137 @@
+{
+  "label": {
+    "tr": "El salla (çocuk)",
+    "en": "Wave (child)"
+  },
+  "views": [
+    "front"
+  ],
+  "notes": "Classic 'hi!' wave for front rigs with the arm on the viewer's right: a small dip as anticipation, the elbow comes out to shoulder height, the forearm stands up and swings side to side three times with the hand trailing, the head tilts toward the hand, then the arm comes down.",
+  "duration": 2.2,
+  "loop": false,
+  "keys": [
+    {
+      "t": 0,
+      "pose": {
+        "arm_L_upper": -4,
+        "arm_L_lower": 0,
+        "hand_L": 0,
+        "head": 0,
+        "body": 0,
+        "arm_R_upper": 4,
+        "root_sy": 1
+      }
+    },
+    {
+      "t": 0.2,
+      "pose": {
+        "arm_L_upper": 8,
+        "arm_L_lower": 10,
+        "hand_L": 0,
+        "head": -2,
+        "body": -2,
+        "arm_R_upper": 4,
+        "root_sy": 0.98
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 0.45,
+      "pose": {
+        "arm_L_upper": -105,
+        "arm_L_lower": -50,
+        "hand_L": -8,
+        "head": 6,
+        "body": 3,
+        "arm_R_upper": 8,
+        "root_sy": 1.01
+      },
+      "ease": "outCubic"
+    },
+    {
+      "t": 0.65,
+      "pose": {
+        "arm_L_upper": -100,
+        "arm_L_lower": -30,
+        "hand_L": 18,
+        "head": 5,
+        "body": 2,
+        "arm_R_upper": 6
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 0.85,
+      "pose": {
+        "arm_L_upper": -100,
+        "arm_L_lower": -55,
+        "hand_L": -18,
+        "head": 5,
+        "body": 2,
+        "arm_R_upper": 6
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 1.05,
+      "pose": {
+        "arm_L_upper": -100,
+        "arm_L_lower": -30,
+        "hand_L": 18,
+        "head": 5,
+        "body": 2,
+        "arm_R_upper": 6
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 1.25,
+      "pose": {
+        "arm_L_upper": -100,
+        "arm_L_lower": -55,
+        "hand_L": -18,
+        "head": 5,
+        "body": 2,
+        "arm_R_upper": 6
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 1.45,
+      "pose": {
+        "arm_L_upper": -100,
+        "arm_L_lower": -30,
+        "hand_L": 18,
+        "head": 5,
+        "body": 2,
+        "arm_R_upper": 6
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 1.65,
+      "pose": {
+        "arm_L_upper": -100,
+        "arm_L_lower": -45,
+        "hand_L": 0,
+        "head": 5,
+        "body": 2,
+        "arm_R_upper": 6
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 2.2,
+      "pose": {
+        "arm_L_upper": -4,
+        "arm_L_lower": 0,
+        "hand_L": 0,
+        "head": 0,
+        "body": 0,
+        "arm_R_upper": 4,
+        "root_sy": 1
+      },
+      "ease": "inOutCubic"
+    }
+  ]
+}

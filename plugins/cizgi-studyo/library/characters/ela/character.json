@@ -21,9 +21,9 @@
   "face_y": 512,
   "limits": {
     "arm_L_upper": [-170, 30],
-    "arm_L_lower": [-40, 140],
+    "arm_L_lower": [-100, 140],
     "arm_R_upper": [-30, 170],
-    "arm_R_lower": [-140, 40],
+    "arm_R_lower": [-140, 100],
     "hand_L": [-45, 45],
     "hand_R": [-45, 45],
     "head": [-20, 20],

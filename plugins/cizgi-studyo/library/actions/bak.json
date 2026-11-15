@@ -3,6 +3,9 @@
     "tr": "Elindekine bak",
     "en": "Look at what you hold"
   },
+  "views": [
+    "profile-right"
+  ],
   "notes": "Profile hold: forearm forward at chest height, object upright and still (hand = -90-(upper+lower), the bottle lies across the palm). No turning or shaking; the head settles down toward it.",
   "duration": 3,
   "loop": false,

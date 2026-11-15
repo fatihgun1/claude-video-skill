@@ -1,0 +1,78 @@
+{
+  "label": {
+    "tr": "Göster (kolu uzat, oraya bak)",
+    "en": "Show (reach out, look there)"
+  },
+  "views": [
+    "front"
+  ],
+  "notes": "Front rigs show something to the viewer's right: the arm draws in a little, then reaches out level with a small overshoot, the body leans after it and the eyes look the same way. Holds.",
+  "duration": 2.2,
+  "loop": false,
+  "keys": [
+    {
+      "t": 0,
+      "pose": {
+        "arm_L_upper": -4,
+        "arm_L_lower": 0,
+        "hand_L": 0,
+        "body": 0,
+        "head": 0,
+        "gaze_x": 0,
+        "arm_R_upper": 4
+      }
+    },
+    {
+      "t": 0.25,
+      "pose": {
+        "arm_L_upper": 6,
+        "arm_L_lower": 20,
+        "hand_L": 0,
+        "body": -2,
+        "head": -2,
+        "gaze_x": 3,
+        "arm_R_upper": 4
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 0.5,
+      "pose": {
+        "arm_L_upper": -96,
+        "arm_L_lower": -4,
+        "hand_L": -6,
+        "body": 4,
+        "head": 5,
+        "gaze_x": 6,
+        "arm_R_upper": 8
+      },
+      "ease": "outCubic"
+    },
+    {
+      "t": 0.7,
+      "pose": {
+        "arm_L_upper": -88,
+        "arm_L_lower": 0,
+        "hand_L": 0,
+        "body": 3,
+        "head": 4,
+        "gaze_x": 6,
+        "arm_R_upper": 6
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 2.2,
+      "pose": {
+        "arm_L_upper": -86,
+        "arm_L_lower": 2,
+        "hand_L": 0,
+        "body": 3,
+        "head": 4,
+        "gaze_x": 6,
+        "arm_R_upper": 6
+      },
+      "ease": "inOutSine"
+    }
+  ]
+}

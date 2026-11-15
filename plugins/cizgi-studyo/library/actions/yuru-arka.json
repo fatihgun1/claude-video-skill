@@ -3,6 +3,9 @@
     "tr": "Yürü (arkadan, derinliğe)",
     "en": "Walk away (back 3/4, into depth)"
   },
+  "views": [
+    "back-three-quarter-right"
+  ],
   "notes": "In-place walk seen from behind: legs stay hip-width apart and never rotate; each step lifts one foot (leg_*_lift), the body bobs and shifts weight, arms swing a little. Keep the character in place and use the dolly_ileri camera move on a perspective background; never pair with cast.walk (that reads as side-stepping).",
   "duration": 1.1,
   "loop": true,

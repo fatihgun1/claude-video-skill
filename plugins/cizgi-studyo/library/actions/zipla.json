@@ -1,5 +1,6 @@
 {
   "label": { "tr": "Zıpla", "en": "Jump" },
+  "views": ["front", "three-quarter-right"],
   "duration": 1.0,
   "loop": true,
   "beats": [0.15, 0.82],

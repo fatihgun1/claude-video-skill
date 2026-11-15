@@ -1,5 +1,6 @@
 {
   "label": { "tr": "Bekle", "en": "Idle" },
+  "views": ["front", "three-quarter-right"],
   "duration": 2,
   "loop": true,
   "keys": [

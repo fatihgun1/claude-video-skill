@@ -3,6 +3,9 @@
     "tr": "Fark et (aşağı bak)",
     "en": "Notice (look down)"
   },
+  "views": [
+    "profile-right"
+  ],
   "notes": "Head turns down toward something on the ground ahead; the shoulders follow a little. Holds the last pose.",
   "duration": 1.6,
   "loop": false,

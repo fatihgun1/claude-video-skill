@@ -1,5 +1,6 @@
 {
   "label": { "tr": "Alkış", "en": "Clap" },
+  "views": ["front"],
   "duration": 0.6,
   "loop": true,
   "beats": [0.3],

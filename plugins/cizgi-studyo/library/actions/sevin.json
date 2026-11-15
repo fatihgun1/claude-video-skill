@@ -1,0 +1,173 @@
+{
+  "label": {
+    "tr": "Sevin (zıpla, kollar havada)",
+    "en": "Cheer (hop, arms up)"
+  },
+  "views": [
+    "front"
+  ],
+  "notes": "Joy for front rigs: crouch (squash) as anticipation, hop with both arms thrown up in a V and the legs kicking out a little, squash on landing, arms stay up and give two small pumps.",
+  "duration": 1.8,
+  "loop": false,
+  "keys": [
+    {
+      "t": 0,
+      "pose": {
+        "root_y": 0,
+        "root_sy": 1,
+        "root_sx": 1,
+        "arm_L_upper": -4,
+        "arm_R_upper": 4,
+        "arm_L_lower": 0,
+        "arm_R_lower": 0,
+        "leg_L": 0,
+        "leg_R": 0,
+        "head": 0
+      }
+    },
+    {
+      "t": 0.25,
+      "pose": {
+        "root_y": 0,
+        "root_sy": 0.92,
+        "root_sx": 1.05,
+        "arm_L_upper": 12,
+        "arm_R_upper": -12,
+        "arm_L_lower": 0,
+        "arm_R_lower": 0,
+        "leg_L": 0,
+        "leg_R": 0,
+        "head": 0
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 0.45,
+      "pose": {
+        "root_y": -70,
+        "root_sy": 1.06,
+        "root_sx": 0.97,
+        "arm_L_upper": -125,
+        "arm_R_upper": 125,
+        "arm_L_lower": 15,
+        "arm_R_lower": -15,
+        "leg_L": -10,
+        "leg_R": 10,
+        "head": 0
+      },
+      "ease": "outCubic"
+    },
+    {
+      "t": 0.62,
+      "pose": {
+        "root_y": -82,
+        "root_sy": 1.02,
+        "root_sx": 0.99,
+        "arm_L_upper": -130,
+        "arm_R_upper": 130,
+        "arm_L_lower": 10,
+        "arm_R_lower": -10,
+        "leg_L": -6,
+        "leg_R": 6,
+        "head": 0
+      },
+      "ease": "outSine"
+    },
+    {
+      "t": 0.82,
+      "pose": {
+        "root_y": 0,
+        "root_sy": 0.93,
+        "root_sx": 1.04,
+        "arm_L_upper": -120,
+        "arm_R_upper": 120,
+        "arm_L_lower": 20,
+        "arm_R_lower": -20,
+        "leg_L": 0,
+        "leg_R": 0,
+        "head": 0
+      },
+      "ease": "inCubic"
+    },
+    {
+      "t": 1,
+      "pose": {
+        "root_y": 0,
+        "root_sy": 1,
+        "root_sx": 1,
+        "arm_L_upper": -125,
+        "arm_R_upper": 125,
+        "arm_L_lower": 10,
+        "arm_R_lower": -10,
+        "leg_L": 0,
+        "leg_R": 0,
+        "head": 0
+      },
+      "ease": "outSine"
+    },
+    {
+      "t": 1.2,
+      "pose": {
+        "root_y": -8,
+        "root_sy": 1,
+        "root_sx": 1,
+        "arm_L_upper": -115,
+        "arm_R_upper": 115,
+        "arm_L_lower": 25,
+        "arm_R_lower": -25,
+        "leg_L": 0,
+        "leg_R": 0,
+        "head": 3
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 1.4,
+      "pose": {
+        "root_y": 0,
+        "root_sy": 1,
+        "root_sx": 1,
+        "arm_L_upper": -127,
+        "arm_R_upper": 127,
+        "arm_L_lower": 10,
+        "arm_R_lower": -10,
+        "leg_L": 0,
+        "leg_R": 0,
+        "head": -3
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 1.6,
+      "pose": {
+        "root_y": -8,
+        "root_sy": 1,
+        "root_sx": 1,
+        "arm_L_upper": -115,
+        "arm_R_upper": 115,
+        "arm_L_lower": 25,
+        "arm_R_lower": -25,
+        "leg_L": 0,
+        "leg_R": 0,
+        "head": 3
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 1.8,
+      "pose": {
+        "root_y": 0,
+        "root_sy": 1,
+        "root_sx": 1,
+        "arm_L_upper": -125,
+        "arm_R_upper": 125,
+        "arm_L_lower": 10,
+        "arm_R_lower": -10,
+        "leg_L": 0,
+        "leg_R": 0,
+        "head": 0
+      },
+      "ease": "inOutSine"
+    }
+  ]
+}

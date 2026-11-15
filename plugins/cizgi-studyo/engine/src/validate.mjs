@@ -131,6 +131,30 @@ export function ruleWarnings(episode, rules) {
 }
 
 /**
+ * An action drawn for one view (a profile walk, a front wave) reads wrong on a rig seen
+ * from another side. Actions without "views" are treated as fitting every view.
+ * @param {object} episode
+ * @param {ReturnType<import("./library.mjs").loadLibrary>} lib
+ * @returns {string[]}
+ */
+export function viewWarnings(episode, lib) {
+  const warnings = [];
+  const rigOf = (id) => episode.characters.find((c) => c.id === id)?.rig;
+  for (const scene of episode.scenes) {
+    for (const shot of scene.shots) {
+      for (const m of shot.cast) {
+        const views = lib.actions.get(m.action)?.views;
+        const view = lib.characters.get(rigOf(m.id))?.meta.view || "front";
+        if (views && !views.includes(view)) {
+          warnings.push(`shot ${shot.shot_id}: "${m.action}" is made for ${views.join("/")} views, but ${m.id} (${rigOf(m.id)}) is drawn ${view}`);
+        }
+      }
+    }
+  }
+  return warnings;
+}
+
+/**
  * Validate an episode against the schema and the library.
  * @param {unknown} episode parsed episode JSON
  * @param {ReturnType<import("./library.mjs").loadLibrary>} lib
@@ -179,7 +203,7 @@ export function validateEpisode(episode, lib) {
     }
   }
   const warnings = profile ? ruleWarnings(episode, profile.rules || {}) : [];
-  if (errors.length === 0) warnings.push(...filmWarnings(episode, lib));
+  if (errors.length === 0) warnings.push(...viewWarnings(episode, lib), ...filmWarnings(episode, lib));
   return { ok: errors.length === 0, errors, warnings };
 }
 
