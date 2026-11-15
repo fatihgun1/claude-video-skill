@@ -267,11 +267,25 @@ function captionMarkup(shot) {
     .join("\n      ");
 }
 
+/** The tints scenes give their background layers (scene.katmanlar[*].ton), each once. */
+function layerTints(episode) {
+  // lowercased before counting: #AABBCC and #aabbcc are one filter (the player asks for lowercase)
+  return [...new Set(episode.scenes.flatMap((sc) => Object.values(sc.katmanlar || {}).map((k) => k.ton).filter(Boolean).map((c) => c.toLowerCase())))];
+}
+
+/** A filter that tints a layer: the colour multiplied over it, the layer's own shape kept. */
+const tintFilter = (c) => `<filter id="ton-${c.slice(1)}" color-interpolation-filters="sRGB"><feFlood flood-color="${c}" flood-opacity="0.55"/><feComposite in2="SourceGraphic" operator="in"/><feBlend in2="SourceGraphic" mode="multiply"/></filter>`;
+
 function pageHtml({ episode, timeline, viewport, lib, audioTags, data, props }) {
   const usedBgs = [...new Set(timeline.shots.map((s) => s.bg))];
   const bgs = usedBgs.map((bg) => {
     const depthProps = props.inBackground.filter((p) => p.bg === bg).map((p) => p.markup).join("");
-    return `<g id="bg-${bg}">${prefixIds(svgInner(lib.backgrounds.get(bg)), `bg-${bg}`)}${depthProps}</g>`;
+    // one group per layer, back to front, so the player can move, hide and tint each
+    const layers = lib.layers.get(bg).map((l) => {
+      const id = `bg-${bg}--k-${l.id}`;
+      return `<g id="${id}" data-derinlik="${l.derinlik}">${prefixIds(svgInner(l.svg), id)}</g>`;
+    });
+    return `<g id="bg-${bg}">${layers.join("")}${depthProps}</g>`;
   });
   const chars = episode.characters.map((ch) => characterMarkup(ch, lib, props.held.get(ch.id)));
   const portrait = viewport.height > viewport.width;
@@ -294,7 +308,7 @@ function pageHtml({ episode, timeline, viewport, lib, audioTags, data, props }) 
   <body>
     <div id="root" data-composition-id="main" data-no-timeline data-start="0" data-width="${viewport.width}" data-height="${viewport.height}" data-duration="${timeline.duration}">
       <svg id="sahne" viewBox="0 0 ${viewport.width} ${viewport.height}" xmlns="http://www.w3.org/2000/svg">
-        <defs><filter id="dof" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur id="dof-blur" stdDeviation="0"/></filter></defs>
+        <defs><filter id="dof" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur id="dof-blur" stdDeviation="0"/></filter>${layerTints(episode).map(tintFilter).join("")}</defs>
         <g id="kamera" data-layout-allow-overflow>
           ${bgs.join("\n          ")}
           ${props.ground.join("\n          ")}
@@ -385,6 +399,8 @@ export function compileEpisode(episodePath, lib, outDir, opts = {}) {
   }
 
   const props = propLayer(timeline, episode, lib, viewport);
+  const sceneOf = new Map(episode.scenes.map((sc) => [sc.scene_id, sc]));
+  const usedBgs = [...new Set(timeline.shots.map((s) => s.bg))];
   const data = {
     viewport,
     world: lib.world,
@@ -392,10 +408,12 @@ export function compileEpisode(episodePath, lib, outDir, opts = {}) {
     actions: Object.fromEntries([...lib.actions]),
     characters: episode.characters.map((c) => ({ id: c.id })),
     faces: facesOf(episode, lib),
-    backgrounds: [...new Set(timeline.shots.map((s) => s.bg))],
-    vanishing: Object.fromEntries([...new Set(timeline.shots.map((s) => s.bg))].map((bg) => [bg, vanishingPoint(lib.backgrounds.get(bg))])),
+    backgrounds: usedBgs,
+    vanishing: Object.fromEntries(usedBgs.map((bg) => [bg, vanishingPoint(lib.backgrounds.get(bg))])),
+    layers: Object.fromEntries(usedBgs.map((bg) => [bg, lib.layers.get(bg).map((l) => ({ id: l.id, derinlik: l.derinlik }))])),
     shots: timeline.shots.map((s, i) => ({
       shot_id: s.shot_id, bg: s.bg, start: s.start, end: s.end, cast: s.cast, camera: s.camera,
+      ...(sceneOf.get(s.scene_id)?.katmanlar ? { katmanlar: sceneOf.get(s.scene_id).katmanlar } : {}),
       utterances: s.utterances.map((u) => ({ speaker: u.speaker, start: u.start, end: u.end, words: u.words, cues: u.cues })),
       props: props.data[i],
       anchors: props.anchors[i],

@@ -1,7 +1,7 @@
 // The panel app: episode state, selection, what a library click changes, the edit →
 // validate → preview cycle, saving, the production steps and clickable messages.
 import { $, el, setKey } from "./dom.js";
-import { createStageEditor, LAYERS } from "./duzen.js";
+import { createStageEditor } from "./duzen.js";
 import { createProduction } from "./uretim.js";
 import { createLibrary } from "./kutuphane.js";
 import { createStage, shotOfMessage } from "./sahne.js";
@@ -12,6 +12,8 @@ import { createTree } from "./agac.js";
 import { createRequests } from "./istek.js";
 import { createReview } from "./inceleme.js";
 import { createStory } from "./hikaye.js";
+import { installKeys } from "./klavye.js";
+import { installViews } from "./gorunum.js";
 import {
   addShotAfter, duplicateShot, deleteShot, moveShot, createHistory, rowOfMessage,
   moveSegmentStart, insertSegment, replaceSegmentAction, removeSegment, segmentIndexAt,
@@ -609,34 +611,6 @@ const requests = createRequests($("claude"), {
   note,
   api,
 });
-const LEFT_KEY = "cizgi.sol";
-function showLeft(which) {
-  const lib = which === "kutuphane";
-  $("lt-proje").setAttribute("aria-selected", String(!lib));
-  $("lt-kutuphane").setAttribute("aria-selected", String(lib));
-  $("proje-pane").hidden = lib;
-  $("lib-pane").hidden = !lib;
-  try {
-    localStorage.setItem(LEFT_KEY, which);
-  } catch {
-    /* storage off: the choice lasts until reload */
-  }
-}
-$("lt-proje").addEventListener("click", () => showLeft("proje"));
-$("lt-kutuphane").addEventListener("click", () => showLeft("kutuphane"));
-try {
-  if (localStorage.getItem(LEFT_KEY) === "kutuphane") showLeft("kutuphane");
-} catch {
-  /* storage off */
-}
-function setTimelineView(v) {
-  $("tl-sahne").setAttribute("aria-pressed", String(v === "sahne"));
-  $("tl-bolum").setAttribute("aria-pressed", String(v === "bolum"));
-  timeline.setView(v);
-}
-$("tl-sahne").addEventListener("click", () => setTimelineView("sahne"));
-$("tl-bolum").addEventListener("click", () => setTimelineView("bolum"));
-
 /** Start with the episode in the address, else the one the panel was started with, else the picker. */
 async function start() {
   const fromHash = new URLSearchParams(location.hash.slice(1)).get("b");
@@ -714,30 +688,20 @@ function removeSelected() {
     if (!inspector.removeSelected()) say("Shot'ın tek oyuncusu silinemez.");
   } else shotOp("del");
 }
-/* ---------- stage view: format, safe areas, layers (none of these change the episode) ---------- */
-function setFormat(format) {
-  if (format === state.format) return;
-  state.format = format;
-  $("fmt-16x9").setAttribute("aria-pressed", String(format === "16:9"));
-  $("fmt-9x16").setAttribute("aria-pressed", String(format === "9:16"));
-  stage.setFormat(format);
-  if (state.draft) {
-    clearTimeout(timer);
-    refreshPreview(); // compiled again for the new frame
-  }
-}
-$("fmt-16x9").addEventListener("click", () => setFormat("16:9"));
-$("fmt-9x16").addEventListener("click", () => setFormat("9:16"));
-$("safe").addEventListener("click", () => {
-  const on = $("safe").getAttribute("aria-pressed") !== "true";
-  $("safe").setAttribute("aria-pressed", String(on));
-  editor.setSafe(on);
+/* ---------- view choices (left pane, timeline, frame, safe areas, hidden layers) ---------- */
+installViews({
+  timeline,
+  editor,
+  format: () => state.format,
+  setFormat: (format) => {
+    state.format = format;
+    stage.setFormat(format);
+    if (state.draft) {
+      clearTimeout(timer);
+      refreshPreview(); // compiled again for the new frame
+    }
+  },
 });
-$("layers-menu").replaceChildren(...LAYERS.map(([key, text]) => {
-  const box = el("input", { type: "checkbox", checked: true });
-  box.addEventListener("change", () => editor.setLayer(key, box.checked));
-  return el("label", {}, box, text);
-}));
 
 $("mixer").addEventListener("click", () => { if (state.draft) select("mix"); });
 $("shot-add").addEventListener("click", () => shotOp("add"));
@@ -747,49 +711,16 @@ $("undo").addEventListener("click", () => travel(-1));
 $("redo").addEventListener("click", () => travel(1));
 
 window.addEventListener("beforeunload", (e) => { if ((state.draft && dirty()) || story.dirty()) e.preventDefault(); });
-document.addEventListener("keydown", (e) => {
-  if ($("projects").open || $("uretim").open || $("inceleme").open || $("hikaye").open || !state.draft) return; // dialogs handle their own keys
-  const a = document.activeElement;
-  // Controls keep their own keys: boxes and lists all of them, buttons and checkboxes Space,
-  // sliders their arrows. Only the time slider hands its keys to the transport.
-  const typing = /^(TEXTAREA|SELECT)$/.test(a?.tagName || "") || (a?.tagName === "INPUT" && !["range", "checkbox"].includes(a.type));
-  const ownsSpace = /^(BUTTON|A)$/.test(a?.tagName || "") || a?.type === "checkbox" || a?.getAttribute?.("role") === "button";
-  const ownsArrows = a?.type === "range" && a.id !== "time";
-  const ctrl = e.ctrlKey || e.metaKey;
-  const key = e.key.toLowerCase();
-  if (ctrl && key === "s") {
-    e.preventDefault();
-    document.activeElement?.blur(); // commit a value still being typed (inputs commit on change)
-    if (!$("save").disabled) save();
-    return;
-  }
-  if (typing) return; // in a box, keys belong to the box (its own undo, arrows, Delete)
-  if (ctrl && (key === "y" || (key === "z" && e.shiftKey))) {
-    e.preventDefault();
-    travel(1);
-  } else if (ctrl && key === "z") {
-    e.preventDefault();
-    travel(-1);
-  } else if (ctrl && key === "d") {
-    e.preventDefault();
-    if (!e.repeat) shotOp("dup"); // holding the keys must not make a row of copies
-  } else if (ctrl) {
-    // other Ctrl combinations belong to the browser
-  } else if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
-    e.preventDefault();
-    if (!e.repeat) nudgeShot(e.key === "ArrowLeft" ? -1 : 1);
-  } else if (e.altKey) {
-    // Alt combinations belong to the browser
-  } else if (e.key === " " && !ownsSpace) {
-    e.preventDefault();
-    if (!e.repeat) stage.toggle();
-  } else if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !ownsArrows) {
-    e.preventDefault();
-    const dir = e.key === "ArrowLeft" ? -1 : 1;
-    stage.step(dir * (e.shiftKey ? 30 : 1));
-  } else if (e.key === "Delete") {
-    e.preventDefault();
-    if (!e.repeat) removeSelected();
-  }
+installKeys({
+  // dialogs handle their own keys
+  blocked: () => ["projects", "uretim", "inceleme", "hikaye"].some((id) => $(id).open) || !state.draft,
+  save,
+  canSave: () => !$("save").disabled,
+  travel,
+  duplicate: () => shotOp("dup"),
+  nudge: nudgeShot,
+  toggle: () => stage.toggle(),
+  step: (frames) => stage.step(frames),
+  remove: removeSelected,
 });
 start();

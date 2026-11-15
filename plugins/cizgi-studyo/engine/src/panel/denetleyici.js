@@ -6,6 +6,7 @@ import { rigThumb } from "./kutuphane.js";
 import { listen } from "./dinle.js";
 import { segmentSpans, replaceSegmentAction, moveSegmentStart, removeSegment, addLine, removeLine, rowOfMessage } from "./kurgu.js";
 import { MUSIC_DEFAULTS } from "./muzik.mjs";
+import { sceneLayers } from "./katman.js";
 
 /** Short state of a line's listening check (ses/manifest.json). */
 function listenText(check) {
@@ -414,6 +415,8 @@ export function createInspector(box, ctx) {
       field("Hareket", select(shot.camera.move, v.moves, (val) => { setKey(shot.camera, "move", val); ctx.changed(); }, { empty: "sabit" })),
       field("Hedef", select(shot.camera.target, targets, (val) => { setKey(shot.camera, "target", val); ctx.changed(); }, { empty: "otomatik" })),
       field("Bekleme (s)", number(shot.hold, (val) => { setKey(shot, "hold", val); ctx.changed(true); }, { min: 0, max: 10, step: 0.05 })),
+      el("h3", {}, "Mekân katmanları", el("span", { class: "muted small", text: `sahne ${scene.scene_id}: bütün shot'ları` })),
+      sceneLayers(scene, v.backgrounds.find((b) => b.id === scene.bg)?.layers, () => ctx.changed(true)),
       el("h3", {}, "Oyuncular", el("span", { class: "muted small", text: "eklemek: Karakter sekmesi" })),
       cast,
       el("h3", {}, "Nesneler", el("span", { class: "muted small", text: "eklemek: Nesne sekmesi" })),

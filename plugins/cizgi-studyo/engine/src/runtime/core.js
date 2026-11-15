@@ -426,6 +426,38 @@
     return Object.keys(out);
   }
 
+  /**
+   * The camera a background is drawn for: a wide, still shot with no target, as cameraAt frames it
+   * in this format (in 9:16 that includes the portrait zoom and the caption headroom). Such a shot
+   * sees every layer exactly as drawn; other shots move the layers by parallax.
+   */
+  function homeCamera(world, viewport, presets) {
+    if (!presets || !presets.framings || !presets.framings.wide) {
+      return { cx: world.width / 2, cy: world.height / 2, zoom: Math.max(viewport.width / world.width, viewport.height / world.height) };
+    }
+    return cameraAt({ framing: "wide", move: "static" }, 0, null, world, { framings: presets.framings, moves: { static: {} } }, viewport, null, null);
+  }
+
+  /**
+   * Parallax for a background layer at `depth` (0 the farthest, 1 the characters' plane), as the
+   * transform {s, tx, ty} of the layer inside the camera group: q = p * s + t. The layer is seen
+   * through its own camera, which moves and zooms only `depth` of the way from the home camera
+   * (`home`, see homeCamera) to the shot's camera now (`cam`). The farthest layer always looks as
+   * drawn; the nearer a layer, the more it follows the camera. Parallax alone never shows past a
+   * layer's edge (the layer camera stays between two cameras that see only the world); a scene's
+   * own layer settings (moved, scaled down) can, so draw such layers with some margin.
+   */
+  function parallaxTransform(cam, home, depth) {
+    const start = home;
+    const d = Math.min(1, Math.max(0, depth));
+    if (d === 1) return { s: 1, tx: 0, ty: 0 };
+    const lx = start.cx + d * (cam.cx - start.cx);
+    const ly = start.cy + d * (cam.cy - start.cy);
+    const lz = start.zoom + d * (cam.zoom - start.zoom);
+    const s = lz / cam.zoom;
+    return { s, tx: cam.cx - lx * s, ty: cam.cy - ly * s };
+  }
+
   /** SVG transform string that puts camera point (cx,cy) at the viewport centre. */
   function cameraTransform(cam, viewport) {
     const tx = viewport.width / 2 - cam.cx * cam.zoom;
@@ -446,6 +478,8 @@
     wordIndexAt,
     cameraAt,
     cameraTransform,
+    parallaxTransform,
+    homeCamera,
     layoutFor,
     focusX,
     memberX,

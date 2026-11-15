@@ -43,7 +43,11 @@ export function vocabulary(lib) {
     })),
     // views: the rig views an action is drawn for (null = every view); the Hareket tab offers only those that fit.
     actions: [...lib.actions].map(([id, a]) => ({ id, label: label(a, id), duration: a.duration, loop: !!a.loop, grab: !!a.grab, views: a.views || null })),
-    backgrounds: [...lib.backgrounds].map(([id, svg]) => ({ id, label: id, depth: vanishingPoint(svg) !== null })),
+    // layers: back to front, with their depth (a one-file background has one, "tum")
+    backgrounds: [...lib.backgrounds].map(([id, svg]) => ({
+      id, label: lib.backgroundNames?.get(id) || id, depth: vanishingPoint(svg) !== null,
+      layers: (lib.layers?.get(id) || []).map((l) => ({ id: l.id, derinlik: l.derinlik })),
+    })),
     props: [...lib.props].map(([id, p]) => ({ id, label: id, holdable: !!p.grip })),
     sfx: [...(lib.sfx || new Map())].map(([id, s]) => ({ id, label: SFX_LABELS[id] || id, duration: Math.round(s.duration * 100) / 100 })),
     music: [...(lib.music || new Map())].map(([id, s]) => ({ id, label: id, duration: Math.round(s.duration * 10) / 10 })),

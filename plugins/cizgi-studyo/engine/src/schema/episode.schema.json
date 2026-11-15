@@ -97,6 +97,25 @@
             "minLength": 1,
             "maxLength": 80
           },
+          "katmanlar": {
+            "description": "Per-scene settings of the background's layers, by layer id (a one-file background has one layer: tum).",
+            "type": "object",
+            "maxProperties": 8,
+            "propertyNames": {
+              "$ref": "#/definitions/id"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "gizli": { "type": "boolean" },
+                "dx": { "type": "number", "minimum": -960, "maximum": 960 },
+                "dy": { "type": "number", "minimum": -540, "maximum": 540 },
+                "olcek": { "type": "number", "minimum": 0.5, "maximum": 2 },
+                "ton": { "$ref": "#/definitions/color" }
+              }
+            }
+          },
           "bg": {
             "$ref": "#/definitions/id"
           },

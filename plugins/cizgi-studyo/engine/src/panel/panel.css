@@ -187,6 +187,16 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .rans.soru { border-color: var(--select); }
 .rans.olmadi { border-color: var(--err); }
 
+/* Mekân katmanları (inspector) */
+.klayers { display: grid; gap: 6px; }
+.klayer { padding: 6px 8px; border-radius: 6px; background: var(--pane-2); border: 1px solid var(--line); }
+.klayer.off { opacity: .6; }
+.khead { display: flex; align-items: center; gap: 8px; }
+.kfields { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 4px 6px; margin-top: 4px; align-items: end; }
+.kfields label { display: flex; flex-direction: column; gap: 2px; }
+.kfields label:last-child { flex-direction: row; align-items: center; gap: 4px; }
+.kfields input[type=color] { width: 34px; height: 26px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; }
+
 /* Hikâye: story cards */
 .hikaye { width: min(1240px, calc(100vw - 40px)); }
 .stools { display: flex; align-items: center; gap: 8px; margin: 8px 0 4px; }

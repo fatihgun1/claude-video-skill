@@ -9,6 +9,7 @@ import { checkRig, checkSvgSafety, POSE_CHANNELS as CHANNEL_LIST } from "./rigsp
 import { readJson, readText, ID_PATTERN, has } from "./util.mjs";
 import { wavDuration } from "./timing.mjs";
 import { readWavInfo } from "./muzik.mjs";
+import { loadLayered, singleLayer } from "./mekan.mjs";
 import "./runtime/core.js";
 
 const { EASES } = globalThis.CizgiCore;
@@ -191,13 +192,29 @@ export function loadLibrary(dir) {
     actions.set(id, action);
   }
 
+  // Backgrounds: one SVG, or a folder of layers (mekan.mjs). backgrounds holds one drawing per
+  // background (the layers drawn together); layers holds what the player moves one by one.
   const backgrounds = new Map();
+  const layers = new Map();
+  const backgroundNames = new Map();
   for (const file of entries(join(dir, "backgrounds"), ".svg")) {
     const id = basename(file, ".svg");
     checkId("background", id, errors);
     const svg = readText(join(dir, "backgrounds", file));
     for (const e of checkSvgSafety(svg)) errors.push(`background ${id}: ${e}`);
     backgrounds.set(id, svg);
+    layers.set(id, singleLayer(svg));
+  }
+  // a folder is a layered background when it has a mekan.json; other folders (sources, drafts) are not read
+  for (const id of entries(join(dir, "backgrounds")).filter((d) => existsSync(join(dir, "backgrounds", d, "mekan.json")))) {
+    checkId("background", id, errors);
+    if (backgrounds.has(id)) errors.push(`background ${id}: both ${id}.svg and a ${id}/ folder`);
+    const bg = loadLayered(join(dir, "backgrounds", id), id, world);
+    errors.push(...bg.errors);
+    if (bg.errors.length) continue;
+    backgrounds.set(id, bg.svg);
+    layers.set(id, bg.layers);
+    if (bg.name) backgroundNames.set(id, bg.name);
   }
 
   const props = new Map();
@@ -247,5 +264,5 @@ export function loadLibrary(dir) {
   if (!profiles.has("genel")) errors.push('profiles/genel.json is required (the default profile)');
 
   if (errors.length) throw new Error(`library is invalid:\n- ${errors.join("\n- ")}`);
-  return { dir, world, cameras, characters, actions, backgrounds, profiles, props, sfx, music };
+  return { dir, world, cameras, characters, actions, backgrounds, layers, backgroundNames, profiles, props, sfx, music };
 }

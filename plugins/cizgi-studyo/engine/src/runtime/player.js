@@ -76,6 +76,11 @@
   const dofBlur = byId("dof-blur");
   const backgrounds = {};
   for (const bg of D.backgrounds) backgrounds[bg] = byId("bg-" + bg);
+  // each background's layers, back to front: moved by parallax and the scene's layer settings
+  const layerEls = {};
+  for (const bg of D.backgrounds) {
+    layerEls[bg] = ((D.layers && D.layers[bg]) || []).map((l) => ({ id: l.id, depth: l.derinlik, el: byId("bg-" + bg + "--k-" + l.id) }));
+  }
   // Props: a ground copy in the world and a copy inside the holder's hand; one is shown at a time.
   const props = D.shots.map((shot) =>
     (shot.props || []).map((pr) => ({
@@ -183,6 +188,36 @@
     }
   }
 
+  /**
+   * The current background's layers: parallax against the home camera (the background as drawn),
+   * then the scene's settings (scene.katmanlar): moved by dx/dy, scaled by olcek around the bottom
+   * middle of the world (where the ground meets the frame in a wide shot), tinted (a filter made at
+   * compile time), or hidden. A dolly scales the whole background group, every layer alike.
+   */
+  const home = C.homeCamera(D.world, D.viewport, D.cameras);
+  function drawLayers(shot, cam) {
+    const list = layerEls[shot.bg] || [];
+    if (!list.length) return;
+    const start = home;
+    const ax = D.world.width / 2;
+    const ay = D.world.height;
+    for (const l of list) {
+      if (!l.el) continue;
+      const set = (shot.katmanlar && shot.katmanlar[l.id]) || {};
+      setShown(l.el, !set.gizli);
+      if (set.gizli) continue;
+      const px = C.parallaxTransform(cam, start, l.depth);
+      const parts = [];
+      if (px.s !== 1 || px.tx !== 0 || px.ty !== 0) parts.push("translate(" + px.tx.toFixed(2) + " " + px.ty.toFixed(2) + ") scale(" + px.s.toFixed(5) + ")");
+      if (set.dx || set.dy) parts.push("translate(" + (set.dx || 0) + " " + (set.dy || 0) + ")");
+      if (set.olcek && set.olcek !== 1) parts.push("translate(" + ax + " " + ay + ") scale(" + set.olcek + ") translate(" + -ax + " " + -ay + ")");
+      if (parts.length) l.el.setAttribute("transform", parts.join(" "));
+      else l.el.removeAttribute("transform");
+      if (set.ton) l.el.setAttribute("filter", "url(#ton-" + set.ton.slice(1).toLowerCase() + ")");
+      else l.el.removeAttribute("filter");
+    }
+  }
+
   function activeLine(shot, t) {
     for (let i = 0; i < shot.utterances.length; i++) {
       const u = shot.utterances[i];
@@ -240,6 +275,7 @@
     const p = (t - shot.start) / (shot.end - shot.start);
     const cam = C.shotCamera(shot, p, D.world, D.cameras, D.viewport, D.faces);
     camera.setAttribute("transform", C.cameraTransform(cam, D.viewport));
+    drawLayers(shot, cam);
 
     props.forEach((list, si) =>
       list.forEach((pr) => {

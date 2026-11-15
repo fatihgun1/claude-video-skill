@@ -16,7 +16,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { queueOf, takeRequests, updateRequest, describe, episodeFile, ANSWERS, MAX_TEXT } from "./istekler.mjs";
 
-const SERVER_INFO = { name: "cizgi-studyo", version: "0.5.0" };
+const SERVER_INFO = { name: "cizgi-studyo", version: "0.6.0" };
 const PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 const LIBRARY = fileURLToPath(new URL("../../library", import.meta.url));
 const ENGINE = fileURLToPath(new URL("..", import.meta.url));

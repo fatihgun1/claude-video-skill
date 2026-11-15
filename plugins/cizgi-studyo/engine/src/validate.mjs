@@ -230,6 +230,12 @@ export function validateEpisode(episode, lib) {
     sceneIds.add(scene.scene_id);
     if (!lib.backgrounds.has(scene.bg)) {
       errors.push(`scene ${scene.scene_id}: background "${scene.bg}" is not in the library (${list(lib.backgrounds.keys())})`);
+    } else if (scene.katmanlar) {
+      // layer settings name layers of this scene's background (a one-file background has one: tum)
+      const ids = (lib.layers?.get(scene.bg) || []).map((l) => l.id);
+      for (const k of Object.keys(scene.katmanlar)) {
+        if (!ids.includes(k)) errors.push(`scene ${scene.scene_id}: background "${scene.bg}" has no layer "${k}" (${ids.join(", ")})`);
+      }
     }
     for (const shot of scene.shots) {
       if (shotIds.has(shot.shot_id)) errors.push(`shot id "${shot.shot_id}" is used twice`);
