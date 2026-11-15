@@ -83,6 +83,44 @@ export function storyboard(episodePath, lib, deps) {
   return { fingerprint: storyboardFingerprint(episode, manifest, libraryFingerprint(episode, lib)), warnings, failedAudio: failedLines(manifest), formats: out };
 }
 
+/** Scene ids, as in the episode schema. */
+const SCENE_ID = /^[a-z0-9]+([_-][a-z0-9]+)*$/;
+
+/**
+ * Stills of one scene for the panel's scene review (İncele): two per shot, like the storyboard,
+ * into inceleme/<scene>/<format>/. A look, not an approval: no gate is needed, and a line not
+ * spoken yet plays silent with a guessed length (as in the panel's preview).
+ * @param {string} episodePath
+ * @param {ReturnType<import("./library.mjs").loadLibrary>} lib
+ * @param {string} sceneId
+ * @param {{run: (cmd:string, args:string[], opts?:object) => string, formats?: string[]}} deps
+ * @returns {{scene:string, formats: Record<string, {sheets:string[]}>}}
+ */
+export function sceneStills(episodePath, lib, sceneId, deps) {
+  if (!SCENE_ID.test(sceneId || "")) throw new Error(`bad scene id "${sceneId}"`);
+  const episode = readJson(episodePath);
+  const { ok, errors } = validateEpisode(episode, lib);
+  if (!ok) throw new Error(`episode is invalid:\n- ${errors.join("\n- ")}`);
+  const scene = episode.scenes.find((s) => s.scene_id === sceneId);
+  if (!scene) throw new Error(`no scene "${sceneId}" in the episode`);
+  const mine = new Set(scene.shots.map((s) => s.shot_id));
+  const dir = dirname(resolve(episodePath));
+  const out = {};
+  for (const format of deps.formats || ["16:9"]) {
+    const tag = FORMATS[format];
+    if (!tag) throw new Error(`unknown format "${format}"`);
+    const project = join(dir, ".cizgi", `sahne-${tag}`);
+    compileEpisode(episodePath, lib, project, { format, missingAudio: "estimate" });
+    const timing = readJson(join(project, "timing.json"));
+    const stills = join(dir, "inceleme", sceneId, tag);
+    rmSync(stills, { recursive: true, force: true }); // the sheets of an earlier look would mix in
+    mkdirSync(stills, { recursive: true });
+    deps.run("npx", ["--yes", HYPERFRAMES, "snapshot", "--at", stillTimes(timing.shots.filter((s) => mine.has(s.shot_id))).join(","), "--no-end", "-o", stills], { cwd: project });
+    out[format] = { sheets: readdirSync(stills).filter((f) => f.startsWith("contact-sheet")).sort().map((f) => join(stills, f)) };
+  }
+  return { scene: sceneId, formats: out };
+}
+
 /** Frames per second sampled for review: enough to see a step, a grab or a cut. */
 export const QA_FPS = 4;
 

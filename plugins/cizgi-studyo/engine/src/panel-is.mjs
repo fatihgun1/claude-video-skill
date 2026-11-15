@@ -8,7 +8,9 @@ import { spawn as nodeSpawn } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join, relative, sep, dirname } from "node:path";
 
-export const JOB_KINDS = Object.freeze({ storyboard: ["storyboard"], taslak: ["render", "--taslak"] });
+// sahne: stills of one scene for review (its scene id follows --sahne)
+export const JOB_KINDS = Object.freeze({ storyboard: ["storyboard"], taslak: ["render", "--taslak"], sahne: ["storyboard", "--sahne"] });
+const SCENE_ID = /^[a-z0-9]+([_-][a-z0-9]+)*$/;
 export const JOB_FORMATS = new Set(["16:9", "9:16"]);
 const LOG_TAIL = 4000; // characters of output kept for the panel
 const MAX_OUT = 1_000_000; // the CLI's JSON answer is small; more than this is not an answer
@@ -39,18 +41,19 @@ export function createJobs(opts) {
   }
 
   const view = (j) => j && {
-    kind: j.kind, format: j.format, status: j.status, started: j.started, ended: j.ended ?? null,
+    kind: j.kind, format: j.format, scene: j.scene ?? null, status: j.status, started: j.started, ended: j.ended ?? null,
     error: j.error ?? null, result: j.result ?? null, log: j.log.slice(-LOG_TAIL),
   };
 
   return {
     /** Start a job; refused while another runs for the same episode. */
-    start(episodePath, kind, format) {
+    start(episodePath, kind, format, scene) {
       if (!Object.hasOwn(JOB_KINDS, kind)) throw Object.assign(new Error(`unknown job "${kind}"`), { code: 400 });
       if (!JOB_FORMATS.has(format)) throw Object.assign(new Error(`format must be ${[...JOB_FORMATS].join(" or ")}`), { code: 400 });
+      if (kind === "sahne" && !SCENE_ID.test(scene || "")) throw Object.assign(new Error("a scene id is needed"), { code: 400 });
       if (jobs.get(episodePath)?.status === "running") throw Object.assign(new Error("a job is already running for this episode"), { code: 409 });
-      const args = [opts.cli, ...JOB_KINDS[kind], episodePath, "--format", format, ...(opts.library ? ["--kutuphane", opts.library] : [])];
-      const job = { kind, format, status: "running", started: now(), log: "", out: "" };
+      const args = [opts.cli, ...JOB_KINDS[kind], ...(kind === "sahne" ? [scene] : []), episodePath, "--format", format, ...(opts.library ? ["--kutuphane", opts.library] : [])];
+      const job = { kind, format, ...(kind === "sahne" ? { scene } : {}), status: "running", started: now(), log: "", out: "" };
       jobs.set(episodePath, job);
       const child = spawn(process.execPath, args, { cwd: dirname(episodePath), windowsHide: true });
       job.child = child;
@@ -126,8 +129,9 @@ export function outputsOf(episodePath) {
   return {
     sheets: list("storyboard", (n) => /^contact-sheet.*\.(png|jpg)$/.test(n)),
     videos: list("cikti", (n) => n.endsWith(".mp4")),
+    review: list("inceleme", (n) => /^contact-sheet.*\.(png|jpg)$/.test(n)), // inceleme/<scene>/<format>/…
   };
 }
 
 /** Folders of an episode the panel may serve production files from. */
-export const OUTPUT_DIRS = Object.freeze(["storyboard", "cikti"]);
+export const OUTPUT_DIRS = Object.freeze(["storyboard", "cikti", "inceleme"]);

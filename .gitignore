@@ -7,6 +7,7 @@ renders/
 ornekler/**/*.png
 ornekler/**/.cizgi/
 ornekler/**/storyboard/
+ornekler/**/inceleme/
 ornekler/**/cikti/
 ornekler/**/*-qa/
 ornekler/**/*.jpg

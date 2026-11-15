@@ -46,6 +46,17 @@ test("a draft job asks for a draft render, and a failure says why", () => {
   assert.equal(calls.length, 2);
 });
 
+test("a scene stills job passes its scene id; a bad or missing id is refused", () => {
+  const calls = [];
+  const jobs = createJobs({ cli: "/x/cli.mjs", spawn: fakeSpawn(calls) });
+  assert.throws(() => jobs.start("/e/bolum.json", "sahne", "16:9"), /scene id/);
+  assert.throws(() => jobs.start("/e/bolum.json", "sahne", "16:9", "--hepsi"), /scene id/);
+  assert.throws(() => jobs.start("/e/bolum.json", "sahne", "16:9", "../x"), /scene id/);
+  const j = jobs.start("/e/bolum.json", "sahne", "16:9", "s1");
+  assert.equal(j.scene, "s1");
+  assert.deepEqual(calls[0].args, ["/x/cli.mjs", "storyboard", "--sahne", "s1", "/e/bolum.json", "--format", "16:9"]);
+});
+
 test("only known jobs and formats start", () => {
   const jobs = createJobs({ cli: "/x/cli.mjs", spawn: fakeSpawn([]) });
   assert.throws(() => jobs.start("/e/bolum.json", "onayla", "16:9"), /unknown job/);
@@ -61,8 +72,13 @@ test("the outputs of the production steps are listed relative to the episode", (
     writeFileSync(join(dir, "storyboard", "16x9", "contact-sheet-1.png"), "x");
     writeFileSync(join(dir, "storyboard", "16x9", "kare-1.png"), "x");
     writeFileSync(join(dir, "cikti", "b-16x9-taslak.mp4"), "x");
-    assert.deepEqual(outputsOf(join(dir, "bolum.json")), { sheets: ["storyboard/16x9/contact-sheet-1.png"], videos: ["cikti/b-16x9-taslak.mp4"] });
-    assert.deepEqual(outputsOf(join(dir, "yok", "bolum.json")), { sheets: [], videos: [] });
+    mkdirSync(join(dir, "inceleme", "s1", "16x9"), { recursive: true });
+    writeFileSync(join(dir, "inceleme", "s1", "16x9", "contact-sheet-1.jpg"), "x");
+    // scene review stills are listed apart: they are not the storyboard to approve
+    assert.deepEqual(outputsOf(join(dir, "bolum.json")), {
+      sheets: ["storyboard/16x9/contact-sheet-1.png"], videos: ["cikti/b-16x9-taslak.mp4"], review: ["inceleme/s1/16x9/contact-sheet-1.jpg"],
+    });
+    assert.deepEqual(outputsOf(join(dir, "yok", "bolum.json")), { sheets: [], videos: [], review: [] });
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

@@ -8,6 +8,7 @@
  *   cizgi ses        <bolum.json> [--hepsi]          speak, check and time changed lines
  *   cizgi kabul      <bolum.json> <line-key>         keep a take that failed the listening check (only after a yes)
  *   cizgi storyboard <bolum.json> [--format 16:9]    stills of every shot for review
+ *   cizgi storyboard <bolum.json> --sahne <id>        stills of one scene (panel's scene review; no gate)
  *   cizgi render     <bolum.json> [--taslak] [--format 9:16]
  *   cizgi qa         <video.mp4>                     review pages (4 fps) of a RENDERED video; look at every page
  *   cizgi derle      <bolum.json> <out-dir> [16:9|9:16]
@@ -24,7 +25,7 @@ import { compileEpisode, safeJoin } from "./compile.mjs";
 import { readJson } from "./util.mjs";
 import { GATES, approve, readApprovals, gateStatus, scriptFingerprint, storyboardFingerprint, libraryFingerprint } from "./onay.mjs";
 import { runAudio, readManifest, linesOf, planAudio, lineFingerprint, failedLines, acceptLine } from "./ses.mjs";
-import { storyboard, render, qaPages } from "./uretim.mjs";
+import { storyboard, sceneStills, render, qaPages } from "./uretim.mjs";
 import { loadTools, run } from "./tools.mjs";
 import { openPanel } from "./panel-baslat.mjs";
 
@@ -44,12 +45,14 @@ export function parseArgs(argv) {
   const formats = [];
   let library = DEFAULT_LIBRARY;
   let port;
+  let scene;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === "--kutuphane" || a === "--format" || a === "--port") {
+    if (a === "--kutuphane" || a === "--format" || a === "--port" || a === "--sahne") {
       const value = argv[++i];
       if (!value) throw new Error(`${a} needs a value`);
-      if (a === "--port") {
+      if (a === "--sahne") scene = value;
+      else if (a === "--port") {
         port = Number(value);
         if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error("--port needs a whole number 0-65535");
       } else if (a === "--kutuphane") library = value;
@@ -58,7 +61,7 @@ export function parseArgs(argv) {
     else if (a.startsWith("--")) throw new Error(`unknown option ${a}`);
     else args.push(a);
   }
-  return { args, flags, library, port, formats: formats.length ? formats : undefined };
+  return { args, flags, library, port, scene, formats: formats.length ? formats : undefined };
 }
 
 /**
@@ -95,7 +98,7 @@ function print(value) {
 }
 
 function main(argv) {
-  const { args, flags, library, formats, port } = parseArgs(argv);
+  const { args, flags, library, formats, port, scene } = parseArgs(argv);
   const [command, a1, a2, a3] = args;
   if (!NEEDS[command] || args.length - 1 < NEEDS[command] || (command === "onayla" && !GATES.includes(a1))) {
     process.stderr.write(USAGE);
@@ -131,7 +134,8 @@ function main(argv) {
       print({ accepted: a2, line: acceptLine(a1, a2) });
       return 0;
     case "storyboard":
-      print(storyboard(a1, lib, deps));
+      // --sahne: stills of one scene for review (no approval needed, not the storyboard to approve)
+      print(scene ? sceneStills(a1, lib, scene, deps) : storyboard(a1, lib, deps));
       return 0;
     case "render":
       print({ videos: render(a1, lib, { ...deps, draft: flags.has("--taslak") }) });

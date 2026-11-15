@@ -69,6 +69,24 @@ test("a panel with no Claude session says so and refuses requests, but still rep
   assert.match(res.json.error, /oturum/);
 });
 
+test("POST /api/incele reviews one scene of the unsaved draft; an unknown scene is refused", async () => {
+  const draft = episode();
+  const scene = draft.scenes.at(-1);
+  const shot = scene.shots[0];
+  shot.camera = { framing: "wide", move: "static" };
+  shot.cast[0] = { ...shot.cast[0], mark: "sag", dx: 900 };
+  delete shot.cast[0].walk;
+  const before = readFileSync(episodePath, "utf8");
+  const res = await call("POST", "/api/incele", { body: { b: "bolum.json", episode: draft, sahne: scene.scene_id } });
+  assert.equal(res.status, 200);
+  assert.equal(res.json.resim, true);
+  assert.equal(res.json.inceleme.sahne, scene.scene_id);
+  assert.ok(res.json.inceleme.sorunlar.some((s) => s.tur === "kadraj" && s.shot === shot.shot_id), JSON.stringify(res.json.inceleme));
+  assert.equal(readFileSync(episodePath, "utf8"), before); // a review never writes the episode
+  const bad = await call("POST", "/api/incele", { body: { b: "bolum.json", episode: draft, sahne: "yok" } });
+  assert.equal(bad.status, 400);
+});
+
 test("vocabulary offers only library words, with Turkish labels", () => {
   const v = vocabulary(lib);
   assert.ok(v.actions.some((a) => a.id === "egil-al"));

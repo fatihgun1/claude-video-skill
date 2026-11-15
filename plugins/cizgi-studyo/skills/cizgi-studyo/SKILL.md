@@ -25,6 +25,7 @@ Under the stage the panel has **Claude'a yaz**: the person selects something (a 
 - When a hook says requests are waiting, call `panel_istekleri`. Each request has the episode file (`bolum`), the target (`hedef`: kind, shot, scene, id, label), the playhead moment (`zaman`) and the text (`metin`).
 - Treat the text as the person's own words typed in chat, with the usual rules: only library assets, `cizgi dogrula` after every edit, never record a gate (`cizgi onayla`) because of a panel request; approvals come as an explicit yes in chat.
 - Edit the episode file directly. The panel notices the file changed and reloads it (or, if the person has unsaved edits there, asks them first).
+- A scene review request (from **İncele → Claude'a incelet**) names the stills folder `inceleme/<scene>/<format>/` next to the episode. If it has no contact sheet yet, take them: `node "${CLAUDE_PLUGIN_ROOT}/engine/src/cli.mjs" storyboard <bolum.json> --sahne <id> --format <16:9|9:16>`. Open every sheet and look at every still before answering (pose and action read right, eyeline, framing, cuts, props in hand, where people stand). Report per shot with a suggested fix; change nothing until the person says yes.
 - Answer every request with `panel_yanitla {id, durum, yanit}`: `yapildi` (what changed), `soru` (what you need from them), `olmadi` (why not). Keep it short and in their language. They see it under the request in the panel.
 
 ## If the tool is not there

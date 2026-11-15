@@ -16,6 +16,7 @@
  *   GET  /api/hareket?rig=&action=&bg=  compile a small preview of one character doing one action
  *   GET  /hareket-onizleme/...           files of those previews
  *   GET  /api/istekler?b=  ·  POST /api/istek   requests to the Claude session (panel-istek.mjs)
+ *   POST /api/incele       {b, episode, format, sahne}   scene review checks on the unsaved draft (inceleme.mjs)
  *
  * Bound to 127.0.0.1 only. Requests whose Host is not the panel's own address are refused
  * (DNS rebinding), and POSTs need a JSON body from the panel's own origin (CSRF).
@@ -28,9 +29,10 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { readText } from "./util.mjs";
 import { validateEpisode, profileOf } from "./validate.mjs";
-import { compileEpisode, safeJoin } from "./compile.mjs";
+import { compileEpisode, safeJoin, propLayer, VIEWPORTS } from "./compile.mjs";
+import { reviewScene } from "./inceleme.mjs";
 import { vocabulary, libraryFile, actionPreview } from "./panel-kutuphane.mjs";
-import { readManifest } from "./ses.mjs";
+import { readManifest, failedLines } from "./ses.mjs";
 import { outputsOf, OUTPUT_DIRS } from "./panel-is.mjs";
 import { HttpError, MAX_EPISODES, findEpisodes, episodePathOf, summarize, createEpisode, workspaceOf, insideReally } from "./panel-proje.mjs";
 import { requestRoutes } from "./panel-istek.mjs";
@@ -40,7 +42,7 @@ export { vocabulary };
 const PANEL_DIR = fileURLToPath(new URL("./panel/", import.meta.url));
 const PAGE = join(PANEL_DIR, "index.html");
 /** The only files /panel/ serves. */
-const PANEL_FILES = new Set(["panel.css", "app.js", "dom.js", "kutuphane.js", "sahne.js", "denetleyici.js", "projeler.js", "zaman.js", "kurgu.js", "dinle.js", "duzen.js", "uretim.js", "agac.js", "istek.js"]);
+const PANEL_FILES = new Set(["panel.css", "app.js", "dom.js", "kutuphane.js", "sahne.js", "denetleyici.js", "projeler.js", "zaman.js", "kurgu.js", "dinle.js", "duzen.js", "uretim.js", "agac.js", "istek.js", "inceleme.js"]);
 /** Engine modules the panel uses as they are (pure code): the music envelope, so the timeline draws what the render plays. */
 const SHARED_FILES = { "muzik.mjs": fileURLToPath(new URL("./muzik.mjs", import.meta.url)) };
 const MAX_BODY = 1024 * 1024;
@@ -205,7 +207,7 @@ export function createPanel(opts) {
       if (!jobs) throw new HttpError(501, "production jobs are not available here");
       const ep = episodeOf(body?.b);
       try {
-        return { job: jobs.start(ep.path, body?.kind, body?.format) };
+        return { job: jobs.start(ep.path, body?.kind, body?.format, body?.sahne) };
       } catch (err) {
         throw new HttpError(err.code || 500, err.message);
       }
@@ -243,6 +245,26 @@ export function createPanel(opts) {
         status: opts.status ? opts.status(ep.path, lib) : null,
         preview: compiled,
       };
+    },
+    // Scene review (İncele): the checks of inceleme.mjs on one scene of the unsaved draft.
+    "POST /api/incele": (body) => {
+      const ep = episodeOf(body?.b, body?.format ?? undefined);
+      const lib = opts.loadLib();
+      const validation = check(body, lib);
+      const base = { episode: body.episode, sceneId: body?.sahne, lib, format: ep.format, validation, failed: failedLines(readManifest(ep.path)) };
+      // without a compiled draft only the rules that need no picture run (validator, captions, audio)
+      const compiled = validation.ok ? preview(ep, body.episode, lib) : { ok: false, error: "fix the errors first" };
+      let timing = { shots: [] };
+      let anchors = [];
+      if (compiled.ok) {
+        timing = JSON.parse(readFileSync(join(ep.previewDir, "timing.json"), "utf8"));
+        anchors = propLayer(timing, body.episode, lib, VIEWPORTS[ep.format]).anchors;
+      }
+      try {
+        return { inceleme: reviewScene({ ...base, timing, anchors, unspoken: compiled.unspoken || [] }), resim: compiled.ok, error: compiled.ok ? null : compiled.error };
+      } catch (err) {
+        throw new HttpError(400, err.message);
+      }
     },
     // Requests to the Claude session, and "did the file change on disk?"
     ...requestRoutes({ requests: opts.requests ?? null, root, episodeOf, versionOf }),
@@ -321,7 +343,7 @@ export function createPanel(opts) {
     }
     if (path.startsWith("/hareket-onizleme/")) return sendFile(res, safeJoin(actionDir, decode(path.slice(18))));
     // Production outputs: /uretim/<key>/storyboard/... or /uretim/<key>/cikti/... of an opened episode.
-    const made = /^\/uretim\/([0-9a-f]{16})\/((?:storyboard|cikti)\/.+)$/.exec(path);
+    const made = /^\/uretim\/([0-9a-f]{16})\/((?:storyboard|cikti|inceleme)\/.+)$/.exec(path);
     if (made) {
       const dir = episodeDirs.get(made[1]);
       if (!dir) throw new HttpError(404, "open the episode first");

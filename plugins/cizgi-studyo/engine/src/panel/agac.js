@@ -16,7 +16,7 @@ const DRAG_TYPE = "application/x-cizgi-shot";
  *          timing:() => {shots:{shot_id:string, start:number, end:number}[]}|null,
  *          framingLabel:(id:string) => string, vocab:() => object, viewOf:(characterId:string) => string,
  *          changed:(selectShot:string|null, note?:string) => void, say:(text:string) => void,
- *          api:(path:string) => Promise<any>, openEpisode:(rel:string) => void}} ctx
+ *          api:(path:string) => Promise<any>, openEpisode:(rel:string) => void, review:(scene:object) => void}} ctx
  *   changed(null) keeps the current selection.
  */
 export function createTree(root, ctx) {
@@ -160,6 +160,7 @@ export function createTree(root, ctx) {
   function sceneTools(scene, index, count) {
     const key = (k) => `${k}:${scene.scene_id}`;
     return el("div", { class: "scene-tools" },
+      el("button", { class: "btn small primary", type: "button", "data-focus": key("incele"), title: "Sahneyi denetle: kurallar, kareler, Claude'a incelet", text: "İncele", on: { click: () => ctx.review(scene) } }),
       el("button", { class: "btn small", type: "button", "data-focus": key("ad"), title: "Sahneye ad ver (filmde görünmez)", text: "Adlandır", on: { click: () => { renaming = scene.scene_id; render(); } } }),
       el("button", { class: "btn small icon-s", type: "button", "data-focus": key("yukari"), title: "Sahneyi yukarı taşı", "aria-label": "Sahneyi yukarı taşı", disabled: index === 0, text: "↑", on: { click: () => shiftScene(scene, -1) } }),
       el("button", { class: "btn small icon-s", type: "button", "data-focus": key("asagi"), title: "Sahneyi aşağı taşı", "aria-label": "Sahneyi aşağı taşı", disabled: index === count - 1, text: "↓", on: { click: () => shiftScene(scene, 1) } }),

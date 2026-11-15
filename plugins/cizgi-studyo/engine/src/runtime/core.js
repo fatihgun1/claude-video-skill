@@ -315,6 +315,11 @@
     return { rise: b * BACK_RISE * layout.ratio, shrink: 1 - b * BACK_SHRINK };
   }
 
+  /** Half the world width a member takes: a character standing back is drawn smaller. */
+  function memberHalfWidth(member, layout) {
+    return RIG_HALF_WIDTH * layout.scale * depthOf(member, layout).shrink;
+  }
+
   function shotDuration(shot) {
     return shot.end != null && shot.start != null ? shot.end - shot.start : 1;
   }
@@ -407,13 +412,13 @@
   function outOfFrame(shot, world, presets, viewport, faces) {
     if (propAnchor(shot)) return []; // an insert on a prop leaves people out on purpose
     const layout = layoutFor(world, viewport);
-    const half = RIG_HALF_WIDTH * layout.scale;
     const out = {};
     for (const p of [0, 0.5, 1]) {
       const cam = shotCamera(shot, p, world, presets, viewport, faces);
       const left = cam.cx - viewport.width / cam.zoom / 2;
       const right = cam.cx + viewport.width / cam.zoom / 2;
       for (const m of shot.cast) {
+        const half = memberHalfWidth(m, layout); // narrower when standing back
         const x = memberX(m, layout, p * shotDuration(shot), shotDuration(shot));
         if (x - half < left || x + half > right) out[m.id] = true;
       }
@@ -444,6 +449,7 @@
     layoutFor,
     focusX,
     memberX,
+    memberHalfWidth,
     depthOf,
     focusFaceY,
     segmentsOf,

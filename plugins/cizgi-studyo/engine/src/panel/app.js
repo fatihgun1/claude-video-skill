@@ -10,6 +10,7 @@ import { createProjects } from "./projeler.js";
 import { createTimeline } from "./zaman.js";
 import { createTree } from "./agac.js";
 import { createRequests } from "./istek.js";
+import { createReview } from "./inceleme.js";
 import {
   addShotAfter, duplicateShot, deleteShot, moveShot, createHistory, rowOfMessage,
   moveSegmentStart, insertSegment, replaceSegmentAction, removeSegment, segmentIndexAt,
@@ -526,6 +527,7 @@ async function open(rel) {
   state.unspoken = new Set(res.preview?.unspoken || []);
   state.scriptAck = false; // asked again for every episode
   production.set({ job: res.job, outputs: res.outputs, outputsUrl: res.outputsUrl });
+  state.outputsUrl = res.outputsUrl;
   addedHere.clear();
   sticky = "";
   const first = allShots()[0]?.shot.shot_id ?? null;
@@ -562,6 +564,17 @@ const tree = createTree($("proje-pane"), {
   api,
   // another episode: straight there, or through the picker's "discard your edits?" when there are some
   openEpisode: (rel) => (dirty() ? projects.pick(rel) : open(rel).catch((err) => say(`açılamadı: ${err.message}`))),
+  review: (scene) => review.open(scene),
+});
+/* ---------- İncele: scene review ---------- */
+const review = createReview($("inceleme"), {
+  path: () => state.path,
+  episode: () => state.draft,
+  format: () => state.format,
+  dirty: () => !!state.draft && dirty(),
+  outputsUrl: () => state.outputsUrl || "",
+  goTo: (shotId, msg) => (msg ? goToMessage(shotId, msg) : choose(shotId)),
+  api,
 });
 /* ---------- Claude'a yaz: requests to the session; reload when Claude changes the file ---------- */
 const requests = createRequests($("claude"), {
@@ -717,7 +730,7 @@ $("redo").addEventListener("click", () => travel(1));
 
 window.addEventListener("beforeunload", (e) => { if (state.draft && dirty()) e.preventDefault(); });
 document.addEventListener("keydown", (e) => {
-  if ($("projects").open || $("uretim").open || !state.draft) return; // dialogs handle their own keys
+  if ($("projects").open || $("uretim").open || $("inceleme").open || !state.draft) return; // dialogs handle their own keys
   const a = document.activeElement;
   // Controls keep their own keys: boxes and lists all of them, buttons and checkboxes Space,
   // sliders their arrows. Only the time slider hands its keys to the transport.
