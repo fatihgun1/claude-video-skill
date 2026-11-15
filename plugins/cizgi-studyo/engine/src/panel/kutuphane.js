@@ -230,12 +230,20 @@ export function createLibrary(els, ctx) {
   }
 
   function props(v, cx) {
-    return v.props.filter(matches).map((p) => card(p, {
-      thumb: el("img", { alt: "", loading: "lazy", src: `/kutuphane/nesne/${p.id}.svg` }),
-      current: cx.prop?.prop === p.id,
-      extra: el("span", { class: "meta", text: p.holdable ? "elde tutulabilir" : "" }),
-      onClick: () => ctx.pick("nesne", p.id),
-    }).c);
+    return v.props.filter(matches).map((p) => {
+      const { c } = card(p, {
+        thumb: el("img", { alt: "", loading: "lazy", src: `/kutuphane/nesne/${p.id}.svg` }),
+        current: cx.prop?.prop === p.id,
+        extra: el("span", { class: "meta", text: p.holdable ? "elde tutulabilir" : "dekor" }),
+        onClick: () => ctx.pick("nesne", p.id),
+      });
+      // decor: stands in the scene for all its shots, behind the characters
+      const add = el("button", {
+        class: "btn small add", type: "button", disabled: !cx.scene, title: "Sahneye dekor olarak koy (bütün shot'larında, karakterlerin arkasında)",
+        on: { click: (e) => { e.stopPropagation(); ctx.pick("dekor", p.id); } },
+      }, "+ Dekor");
+      return el("div", { class: "card-wrap" }, c, add); // a button cannot sit inside the card's button
+    });
   }
 
   const soundUrl = (id) => `/kutuphane/ses/${id}.wav`;
@@ -305,7 +313,7 @@ export function createLibrary(els, ctx) {
         ? `${actor} için. Tıkla: seçili hareketi değiştir · + Ekle: oynatma kafasında yeni hareket başlat. Önizlemek için üzerine gel.`
         : "Önce sağdan bir oyuncu seç.";
       case "mekan": return cx.scene ? `"${cx.scene.scene_id}" sahnesinin bütün shot'larına uygulanır.` : "";
-      case "nesne": return cx.prop ? `"${cx.prop.id}" yerine konacak nesneyi seç.` : "Tıklanan nesne seçili shot'a eklenir.";
+      case "nesne": return cx.prop ? `"${cx.prop.id}" yerine konacak nesneyi seç.` : "Tıklanan nesne seçili shot'a eklenir · + Dekor: sahnenin bütün shot'larında, karakterlerin arkasında durur.";
       case "ses": return "▶ dinle. Müzik: Kullan ile bütün bölümün altına. Efekt: + Ekle ile oynatma kafasının olduğu ana.";
       case "kamera": return cx.shot ? `${cx.shot.shot_id} shot'ının kamerası.` : "";
       default: return "";

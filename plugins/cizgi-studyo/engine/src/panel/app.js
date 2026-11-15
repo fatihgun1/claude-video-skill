@@ -15,6 +15,7 @@ import { createStory } from "./hikaye.js";
 import { installKeys } from "./klavye.js";
 import { installViews } from "./gorunum.js";
 import { createDrafts } from "./taslak.js";
+import { decorId } from "./dekor.js";
 import {
   addShotAfter, duplicateShot, deleteShot, moveShot, createHistory, rowOfMessage,
   moveSegmentStart, insertSegment, replaceSegmentAction, removeSegment, segmentIndexAt,
@@ -215,7 +216,9 @@ function stageLayout() {
   const w = state.vocab.world;
   const tall = state.format === "9:16" && w.portrait;
   const ratio = tall ? w.portrait.scale : 1;
-  return { marks: tall ? w.portrait.marks : w.marks, ratio, ground: w.ground_y, backRise: (w.back_rise || 0) * ratio };
+  // decor moves toward the middle as the marks do (CizgiCore.decorX): world x per layout x
+  const decorPull = tall ? (w.portrait.marks.sag - w.portrait.marks.sol) / (w.marks.sag - w.marks.sol) : 1;
+  return { marks: tall ? w.portrait.marks : w.marks, ratio, decorPull, ground: w.ground_y, backRise: (w.back_rise || 0) * ratio };
 }
 const member = (i) => current()?.shot.cast[i];
 editor = createStageEditor({ stage: $("stage"), layer: $("edit") }, {
@@ -242,6 +245,14 @@ editor = createStageEditor({ stage: $("stage"), layer: $("edit") }, {
     setKey(item, "dx", at.dx || undefined);
     if (kind === "cast" && at.back !== undefined) setKey(item, "back", at.back || undefined);
     state.sel = { ...state.sel, kind, index: i };
+    changed(true);
+  },
+  placeDecor: (i, at) => {
+    const d = current()?.scene.dekor?.[i];
+    if (!d) return;
+    d.x = at.x;
+    setKey(d, "back", at.back || undefined);
+    state.sel = { ...state.sel, kind: "dekor", index: i };
     changed(true);
   },
   setWalk: (i, dx) => {
@@ -351,6 +362,14 @@ function pick(kind, id) {
     case "mekan":
       scene.bg = id;
       break;
+    case "dekor": {
+      // in the middle of the frame (drag it on the stage); further pieces a little to the side
+      const n = (scene.dekor || []).length;
+      scene.dekor = [...(scene.dekor || []), { id: decorId(scene, id), prop: id, x: 960 + ((n % 5) - 2) * 220 }];
+      state.sel = { ...state.sel, kind: "dekor", index: scene.dekor.length - 1 };
+      changed(true);
+      return note(`${id} sahneye dekor olarak kondu: sahnede sürükleyerek yerini (sağa-sola) ve derinliğini (yukarı-aşağı) ayarla.`);
+    }
     case "nesne":
       if (prop) prop.prop = id;
       else {

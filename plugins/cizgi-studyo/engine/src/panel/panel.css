@@ -197,6 +197,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .dask .btn { justify-self: end; }
 .cards .span { grid-column: 1 / -1; }
 
+/* Dekor (inspector rows, stage frames) */
+.klayer.dekor.sel { border-color: var(--select); box-shadow: 0 0 0 1px var(--select); }
+.dthumb { width: 28px; height: 28px; object-fit: contain; }
+.ebox.decor { border-style: dotted; }
+.ebox.decor:not(.sel) .etag { opacity: .75; }
+
 /* Mekân katmanları (inspector) */
 .klayers { display: grid; gap: 6px; }
 .klayer { padding: 6px 8px; border-radius: 6px; background: var(--pane-2); border: 1px solid var(--line); }

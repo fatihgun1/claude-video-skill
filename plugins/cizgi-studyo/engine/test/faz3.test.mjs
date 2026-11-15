@@ -61,11 +61,13 @@ test("knee legs need a foot inside them; the back layer must sit on root", () =>
   assert.ok(checkRig(nested).some((e) => e.includes("#body_back must be a direct child of #root")));
 });
 
-test("checkProp needs both anchors and safe markup", () => {
+test("checkProp needs a base and safe markup; a grip only for props that are held", () => {
   assert.deepEqual(checkProp(bottle), { errors: [], grip: [20, 58], base: [20, 98] });
+  // no grip: still a prop (decor such as a tree), just one nobody can hold (validate refuses a holder)
   const noGrip = checkProp(bottle.replace(' data-grip="20,58"', ""));
-  assert.ok(noGrip.errors.some((e) => e.includes("data-grip")));
+  assert.deepEqual(noGrip.errors, []);
   assert.equal(noGrip.grip, null);
+  assert.ok(checkProp(bottle.replace(' data-base="20,98"', "")).errors.some((e) => e.includes("data-base")));
   assert.ok(checkProp(bottle.replace("</svg>", "<script/></svg>")).errors.some((e) => e.includes("<script>")));
 });
 

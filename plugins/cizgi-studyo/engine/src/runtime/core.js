@@ -315,6 +315,25 @@
     return { rise: b * BACK_RISE * layout.ratio, shrink: 1 - b * BACK_SHRINK };
   }
 
+  /**
+   * How far a world x is pulled toward the middle in this frame, as the marks are: 1 in 16:9; in
+   * 9:16 the ratio of the portrait marks' spread to the landscape ones' (so a piece of decor put
+   * by a mark stays by it). Returns {centre, k}: x' = centre + (x - centre) * k.
+   */
+  function markPull(world, viewport) {
+    const p = viewport.height > viewport.width && world.portrait && world.portrait.marks;
+    const m = world.marks;
+    const mid = m.orta == null ? world.width / 2 : m.orta;
+    if (!p || !(m.sag > m.sol)) return { centre: mid, to: mid, k: 1 };
+    return { centre: mid, to: p.orta, k: (p.sag - p.sol) / (m.sag - m.sol) };
+  }
+
+  /** Where a piece of decor at world x stands in this frame (see markPull). */
+  function decorX(x, world, viewport) {
+    const pull = markPull(world, viewport);
+    return pull.to + (x - pull.centre) * pull.k;
+  }
+
   /** Half the world width a member takes: a character standing back is drawn smaller. */
   function memberHalfWidth(member, layout) {
     return RIG_HALF_WIDTH * layout.scale * depthOf(member, layout).shrink;
@@ -484,6 +503,8 @@
     focusX,
     memberX,
     memberHalfWidth,
+    markPull,
+    decorX,
     depthOf,
     focusFaceY,
     segmentsOf,

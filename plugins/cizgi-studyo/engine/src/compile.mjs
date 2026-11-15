@@ -182,7 +182,7 @@ export function propLayer(timeline, episode, lib, viewport) {
       const floorY = lib.world.ground_y - depth.rise;
       const lieScale = ratio * depth.shrink;
       // where the camera looks when it targets this prop: its grip point as it lies on the ground
-      anchors[si][pr.id] = [x, floorY - (by - prop.grip[1]) * lieScale];
+      anchors[si][pr.id] = [x, floorY - (by - (prop.grip || prop.base)[1]) * lieScale]; // a prop no one holds: its base
       const groundInner = prefixIds(svgInner(prop.svg), `prop-${key}-yer`);
       ground.push(
         `<g id="prop-${key}-yer" display="none" transform="translate(${x.toFixed(1)} ${floorY}) scale(${lieScale.toFixed(4)}) translate(${-bx} ${-by})">${groundInner}</g>`,
@@ -203,6 +203,38 @@ export function propLayer(timeline, episode, lib, viewport) {
     }),
   );
   return { ground, held, data, anchors, inBackground };
+}
+
+/**
+ * Scene decor (scene.dekor): library props standing in a scene for all its shots, one group per
+ * scene (the player shows the current scene's), drawn after the background and before the
+ * characters. Placed like a character: x in world units (pulled toward the middle in 9:16 exactly
+ * as the marks are: CizgiCore.decorX), standing on the ground, higher and smaller when further
+ * back, mirrored by ters.
+ * @returns {{markup: string[], scenes: string[]}}
+ */
+export function decorLayer(episode, lib, viewport) {
+  const C = globalThis.CizgiCore;
+  const layout = C.layoutFor(lib.world, viewport);
+  const ratio = layout.scale * rigUnitsPerWorld(lib); // 1 in 16:9, the portrait shrink in 9:16
+  const num = (v) => String(Math.round(v * 10) / 10);
+  const scenes = episode.scenes.filter((sc) => sc.dekor?.length);
+  const markup = scenes.map((sc) => {
+    const items = sc.dekor.map((d) => {
+      const prop = lib.props.get(d.prop);
+      const [bx, by] = prop.base;
+      const depth = C.depthOf(d, layout);
+      const x = C.decorX(d.x, lib.world, viewport); // by its mark in 9:16 too
+      const y = lib.world.ground_y - depth.rise;
+      const s = ratio * depth.shrink * (d.olcek ?? 1);
+      const id = `dekor-${sc.scene_id}--${d.id}`;
+      return `<g id="${id}" transform="translate(${num(x)} ${num(y)}) scale(${(d.ters ? -s : s).toFixed(4)} ${s.toFixed(4)}) translate(${-bx} ${-by})">${prefixIds(svgInner(prop.svg), id)}</g>`;
+    });
+    // further back first, so a nearer piece is drawn over a farther one
+    const order = sc.dekor.map((d, i) => ({ i, back: d.back || 0 })).sort((a, b) => b.back - a.back || a.i - b.i);
+    return `<g id="dekor-${sc.scene_id}" display="none">${order.map((o) => items[o.i]).join("")}</g>`;
+  });
+  return { markup, scenes: scenes.map((sc) => sc.scene_id) };
 }
 
 /**
@@ -276,7 +308,7 @@ function layerTints(episode) {
 /** A filter that tints a layer: the colour multiplied over it, the layer's own shape kept. */
 const tintFilter = (c) => `<filter id="ton-${c.slice(1)}" color-interpolation-filters="sRGB"><feFlood flood-color="${c}" flood-opacity="0.55"/><feComposite in2="SourceGraphic" operator="in"/><feBlend in2="SourceGraphic" mode="multiply"/></filter>`;
 
-function pageHtml({ episode, timeline, viewport, lib, audioTags, data, props }) {
+function pageHtml({ episode, timeline, viewport, lib, audioTags, data, props, decor }) {
   const usedBgs = [...new Set(timeline.shots.map((s) => s.bg))];
   const bgs = usedBgs.map((bg) => {
     const depthProps = props.inBackground.filter((p) => p.bg === bg).map((p) => p.markup).join("");
@@ -311,6 +343,7 @@ function pageHtml({ episode, timeline, viewport, lib, audioTags, data, props }) 
         <defs><filter id="dof" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur id="dof-blur" stdDeviation="0"/></filter>${layerTints(episode).map(tintFilter).join("")}</defs>
         <g id="kamera" data-layout-allow-overflow>
           ${bgs.join("\n          ")}
+          ${decor.markup.join("\n          ")}
           ${props.ground.join("\n          ")}
           ${chars.join("\n          ")}
         </g>
@@ -399,6 +432,7 @@ export function compileEpisode(episodePath, lib, outDir, opts = {}) {
   }
 
   const props = propLayer(timeline, episode, lib, viewport);
+  const decor = decorLayer(episode, lib, viewport);
   const sceneOf = new Map(episode.scenes.map((sc) => [sc.scene_id, sc]));
   const usedBgs = [...new Set(timeline.shots.map((s) => s.bg))];
   const data = {
@@ -411,8 +445,9 @@ export function compileEpisode(episodePath, lib, outDir, opts = {}) {
     backgrounds: usedBgs,
     vanishing: Object.fromEntries(usedBgs.map((bg) => [bg, vanishingPoint(lib.backgrounds.get(bg))])),
     layers: Object.fromEntries(usedBgs.map((bg) => [bg, lib.layers.get(bg).map((l) => ({ id: l.id, derinlik: l.derinlik }))])),
+    decor: decor.scenes, // scenes with a decor group (dekor-<scene>)
     shots: timeline.shots.map((s, i) => ({
-      shot_id: s.shot_id, bg: s.bg, start: s.start, end: s.end, cast: s.cast, camera: s.camera,
+      shot_id: s.shot_id, scene_id: s.scene_id, bg: s.bg, start: s.start, end: s.end, cast: s.cast, camera: s.camera,
       ...(sceneOf.get(s.scene_id)?.katmanlar ? { katmanlar: sceneOf.get(s.scene_id).katmanlar } : {}),
       utterances: s.utterances.map((u) => ({ speaker: u.speaker, start: u.start, end: u.end, words: u.words, cues: u.cues })),
       props: props.data[i],
@@ -420,7 +455,7 @@ export function compileEpisode(episodePath, lib, outDir, opts = {}) {
     })),
   };
 
-  writeFileSync(join(outDir, "index.html"), pageHtml({ episode, timeline, viewport, lib, audioTags, data, props }));
+  writeFileSync(join(outDir, "index.html"), pageHtml({ episode, timeline, viewport, lib, audioTags, data, props, decor }));
   writeFileSync(join(outDir, "timing.json"), JSON.stringify(timeline, null, 2));
   return { duration: timeline.duration, shots: timeline.shots.length, outDir, ...(opts.missingAudio === "estimate" ? { estimated } : {}) };
 }

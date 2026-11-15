@@ -97,6 +97,24 @@
             "minLength": 1,
             "maxLength": 80
           },
+          "dekor": {
+            "description": "Library props standing in the scene for all its shots, behind the characters (a tree, a bench). x in world units; back, olcek and ters as for cast.",
+            "type": "array",
+            "maxItems": 30,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "prop", "x"],
+              "properties": {
+                "id": { "$ref": "#/definitions/id" },
+                "prop": { "$ref": "#/definitions/id" },
+                "x": { "type": "number", "minimum": -600, "maximum": 2520 },
+                "back": { "type": "number", "minimum": 0, "maximum": 1 },
+                "olcek": { "type": "number", "minimum": 0.3, "maximum": 3 },
+                "ters": { "type": "boolean" }
+              }
+            }
+          },
           "katmanlar": {
             "description": "Per-scene settings of the background's layers, by layer id (a one-file background has one layer: tum).",
             "type": "object",

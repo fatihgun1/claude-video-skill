@@ -151,12 +151,14 @@ export function checkProfile(profile, name) {
 export function checkProp(svg) {
   const errors = checkSvgSafety(svg);
   const tag = /<svg\b[^>]*>/.exec(svg)?.[0] || "";
-  const point = (name) => {
+  const point = (name, required) => {
     const m = new RegExp(`${name}=["'](-?\\d+(?:\\.\\d+)?),(-?\\d+(?:\\.\\d+)?)["']`).exec(tag);
-    if (!m) errors.push(`<svg> needs ${name}="x,y"`);
+    if (!m && required) errors.push(`<svg> needs ${name}="x,y"`);
     return m ? [Number(m[1]), Number(m[2])] : null;
   };
-  return { errors, grip: point("data-grip"), base: point("data-base") };
+  // data-base: where it stands on the ground (every prop). data-grip: where a hand holds it (only
+  // props someone can pick up; a tree or a bench has none).
+  return { errors, grip: point("data-grip", false), base: point("data-base", true) };
 }
 
 function checkId(kind, id, errors) {

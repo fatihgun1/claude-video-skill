@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="1790 374 56 450" data-base="1818,820">
+  <!-- A park street lamp (from the park background), in world units. Decor: not held. CC0-1.0. -->
+  <rect x="1810" y="420" width="16" height="400" rx="6" fill="#4f5458"/>
+  <path d="M1796 420 L1840 420 L1830 380 L1806 380 Z" fill="#3f4448"/>
+  <ellipse cx="1818" cy="424" rx="16" ry="6" fill="#ffe2a6"/>
+</svg>

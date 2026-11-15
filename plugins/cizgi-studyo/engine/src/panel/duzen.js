@@ -8,6 +8,7 @@
 // to preview pixels, and the stage scales preview pixels to page pixels.
 import { el, svg } from "./dom.js";
 import { placeAt, walkDxAfterDrag } from "./kurgu.js";
+import { DECOR_X } from "./dekor.js";
 
 const DRAG_START_PX = 4;
 const PROP_MAX_DX = 600; // schema limit of props[].dx
@@ -20,8 +21,8 @@ const DEPTH_START_PX = 10; // a mostly sideways drag leaves the depth alone
 const snapBack = (b) => Math.min(1, Math.max(0, Math.round(b / BACK_STEP) / Math.round(1 / BACK_STEP)));
 const ACTION_SAFE = 0.05;
 const TITLE_SAFE = 0.1;
-export const LAYERS = [["bg", "Arka plan"], ["cast", "Karakterler"], ["props", "Nesneler"], ["captions", "Altyazı"]];
-const LAYER_SELECTORS = { bg: '[id^="bg-"]', cast: '[id^="kar-"]', props: '[id^="prop-"]', captions: "#altyazilar" };
+export const LAYERS = [["bg", "Arka plan"], ["dekor", "Dekor"], ["cast", "Karakterler"], ["props", "Nesneler"], ["captions", "Altyazı"]];
+const LAYER_SELECTORS = { bg: '[id^="bg-"]', dekor: '[id^="dekor-"]', cast: '[id^="kar-"]', props: '[id^="prop-"]', captions: "#altyazilar" };
 
 /**
  * @param {{stage:HTMLElement, layer:HTMLElement}} els
@@ -31,6 +32,7 @@ const LAYER_SELECTORS = { bg: '[id^="bg-"]', cast: '[id^="kar-"]', props: '[id^=
  *          layout:() => {marks:Record<string, number>, ratio:number, ground:number},
  *          labelOf:(id:string) => string,
  *          place:(kind:"cast"|"prop", index:number, at:{mark:string, dx:number}) => void,
+ *          placeDecor:(index:number, at:{x:number, back:number}) => void,
  *          setWalk:(index:number, dx:number) => void, flip:(index:number) => void, say:(text:string) => void}} ctx
  */
 export function createStageEditor(els, ctx) {
@@ -183,6 +185,60 @@ export function createStageEditor(els, ctx) {
     return node;
   }
 
+  /**
+   * A frame for one piece of the scene's decor: drag sideways for its place (dekor[].x, no marks),
+   * up for further back (dekor[].back); ←/→ and ↑/↓ do the same in small steps.
+   */
+  function decorFrame({ box, d, index, map, layout, selected }) {
+    const key = `dekor:${index}`;
+    const xFor = (dx) => Math.round(Math.max(DECOR_X.min, Math.min(DECOR_X.max, d.x + dx / (map.perWorld * (layout.decorPull || 1)))));
+    const deep = layout.backRise > 0;
+    const backFor = (dy) => (deep && Math.abs(dy) >= DEPTH_START_PX ? snapBack((d.back || 0) - dy / (map.perWorld * layout.backRise)) : d.back || 0);
+    const node = el("div", {
+      class: `ebox decor movable${selected ? " sel" : ""}`,
+      style: { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px` },
+      title: `${d.id} (dekor) · sürükle: yeri ve derinliği`, role: "button", tabindex: "0", "aria-pressed": String(selected),
+      "aria-label": `${d.id} dekoru; ←/→ ile kaydır, ↑/↓ ile arkaya ya da öne al (Shift: daha çok)`, "data-key": key,
+    }, el("span", { class: "etag", text: `${d.id} · dekor` }));
+    const pick = () => ctx.select("dekor", index);
+    node.addEventListener("focus", () => { focusKey = key; });
+    node.addEventListener("keydown", (e) => {
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        e.stopPropagation();
+        pick();
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        e.stopPropagation();
+        focusKey = key;
+        const step = (e.key === "ArrowLeft" ? -1 : 1) * (e.shiftKey ? NUDGE_BIG : NUDGE);
+        ctx.placeDecor(index, { x: Math.max(DECOR_X.min, Math.min(DECOR_X.max, d.x + step)), back: d.back || 0 });
+      } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        e.preventDefault();
+        e.stopPropagation();
+        focusKey = key;
+        const step = (e.key === "ArrowUp" ? 1 : -1) * (e.shiftKey ? BACK_STEP_BIG : BACK_STEP);
+        ctx.placeDecor(index, { x: d.x, back: snapBack((d.back || 0) + step) });
+      }
+    });
+    node.addEventListener("pointerdown", (down) => {
+      if (down.button !== 0) return;
+      down.stopPropagation();
+      follow(down, {
+        onMove: (dx, dy) => {
+          node.style.transform = `translate(${dx}px, ${deep ? dy : 0}px)`;
+          node.classList.add("dragging");
+          const back = backFor(dy);
+          node.querySelector(".etag").textContent = `${d.id} · x ${xFor(dx)}${back ? ` · derinlik ${back.toFixed(2)}` : ""}`;
+        },
+        onEnd: (dx, dy) => ctx.placeDecor(index, { x: xFor(dx), back: backFor(dy) }),
+        onClick: pick,
+      });
+    });
+    return node;
+  }
+
   /** The selected walker's path: an arrow on the ground, its free end draggable. */
   function walkArrow(map, layout, m, index, baseX) {
     const w = m.walk;
@@ -254,9 +310,15 @@ export function createStageEditor(els, ctx) {
     if (doc && map && view.safe) parts.push(...safeAreas(doc, map.k));
     // Frames only on a still picture of the selected shot: during playback they would lag.
     if (doc && map && found && !ctx.playing() && ctx.inShot()) {
-      const { shot } = found;
+      const { shot, scene } = found;
       const layout = ctx.layout();
       const sel = ctx.sel();
+      // the scene's decor first: its frames sit under the characters' (which stand in front of it)
+      (scene.dekor || []).forEach((d, i) => {
+        if (view.hidden.has("dekor")) return;
+        const box = boxOf(doc.getElementById(`dekor-${scene.scene_id}--${d.id}`), map.k);
+        if (box) parts.push(decorFrame({ box, d, index: i, map, layout, selected: sel.kind === "dekor" && sel.index === i }));
+      });
       shot.cast.forEach((m, i) => {
         if (view.hidden.has("cast")) return;
         const box = boxOf(doc.getElementById(`kar-${m.id}`), map.k);

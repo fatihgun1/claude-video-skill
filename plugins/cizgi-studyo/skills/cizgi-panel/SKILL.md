@@ -49,7 +49,7 @@ Open the project root (the folder holding `ornekler/` and `bolumler/`) when the 
   - **Karakter:** cards with the drawing; the views of one person sit together. With a cast member selected, a click swaps them; with nothing selected, it adds the character to the shot.
   - **Hareket:** only the actions drawn for the selected (or the only) cast member's view; hovering plays the action with that character. Actions that break that character's joint limits are dimmed and say why.
   - **Mekân:** background pictures; a click changes the scene's background (every shot of that scene).
-  - **Nesne:** a click swaps the selected prop or adds a new one.
+  - **Nesne:** a click swaps the selected prop or adds a new one. **+ Dekor** stands it in the scene for all its shots, behind the characters (`scene.dekor`); its frame on the stage drags sideways for its place and up/down for its depth (←/→, ↑/↓ with the frame focused), and the inspector's **Dekor** section has its place, depth, size, mirror and delete. Props marked "dekor" cannot be held.
   - **Ses:** ▶ plays the effect; **+ Ekle** adds it to the shot at the playhead.
   - **Kamera:** framing diagrams and move diagrams; a click sets the shot's camera.
 - **Properties** (right): camera, hold, **Mekân katmanları** (the scene background's layers, back to front, with their depth: show/hide, move x/y, scale, tint; they hold for every shot of the scene and are saved as `scene.katmanlar`; a one-file background has one layer, `tum`), and one row per cast member, prop and sound effect. Clicking a row opens its details (mark, facing, walk, time, volume…); **Sil** removes it.

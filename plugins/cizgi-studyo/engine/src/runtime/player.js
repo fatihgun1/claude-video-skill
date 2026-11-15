@@ -76,6 +76,9 @@
   const dofBlur = byId("dof-blur");
   const backgrounds = {};
   for (const bg of D.backgrounds) backgrounds[bg] = byId("bg-" + bg);
+  // each scene's decor (scene.dekor): shown with its scene
+  const decorEls = {};
+  for (const sid of D.decor || []) decorEls[sid] = byId("dekor-" + sid);
   // each background's layers, back to front: moved by parallax and the scene's layer settings
   const layerEls = {};
   for (const bg of D.backgrounds) {
@@ -250,6 +253,8 @@
         backgrounds[bg].setAttribute("transform", "translate(" + vp[0] + " " + vp[1] + ") scale(" + s.toFixed(4) + ") translate(" + -vp[0] + " " + -vp[1] + ")");
       } else backgrounds[bg].removeAttribute("transform");
     }
+
+    for (const sid in decorEls) setShown(decorEls[sid], sid === shot.scene_id);
 
     if (idx !== layeredShot) {
       // Who stands further back is drawn first (behind); same depth keeps the episode's order.

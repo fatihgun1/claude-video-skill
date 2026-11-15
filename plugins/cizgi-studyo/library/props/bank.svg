@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="1400 640 280 166" data-base="1540,800">
+  <!-- A park bench (from the park background), in world units. Decor: not held. CC0-1.0. -->
+  <path d="M1432 748 L1432 800 M1648 748 L1648 800 M1432 712 L1432 728 M1648 712 L1648 728" stroke="#5a5f63" stroke-width="10" stroke-linecap="round"/>
+  <rect x="1410" y="690" width="260" height="22" rx="6" fill="#b98a5e" stroke="#946a45" stroke-width="5"/>
+  <rect x="1410" y="650" width="260" height="20" rx="6" fill="#b98a5e" stroke="#946a45" stroke-width="5"/>
+  <rect x="1410" y="728" width="260" height="20" rx="6" fill="#c99a6a" stroke="#946a45" stroke-width="5"/>
+</svg>

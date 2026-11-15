@@ -7,6 +7,7 @@ import { listen } from "./dinle.js";
 import { segmentSpans, replaceSegmentAction, moveSegmentStart, removeSegment, addLine, removeLine, rowOfMessage } from "./kurgu.js";
 import { MUSIC_DEFAULTS } from "./muzik.mjs";
 import { sceneLayers } from "./katman.js";
+import { sceneDecor } from "./dekor.js";
 
 /** Short state of a line's listening check (ses/manifest.json). */
 function listenText(check) {
@@ -417,6 +418,12 @@ export function createInspector(box, ctx) {
       field("Bekleme (s)", number(shot.hold, (val) => { setKey(shot, "hold", val); ctx.changed(true); }, { min: 0, max: 10, step: 0.05 })),
       el("h3", {}, "Mekân katmanları", el("span", { class: "muted small", text: `sahne ${scene.scene_id}: bütün shot'ları` })),
       sceneLayers(scene, v.backgrounds.find((b) => b.id === scene.bg)?.layers, () => ctx.changed(true)),
+      el("h3", {}, "Dekor", el("span", { class: "muted small", text: `sahne ${scene.scene_id}: bütün shot'ları` })),
+      sceneDecor(scene, {
+        selected: sel.kind === "dekor" ? sel.index : -1,
+        select: (i) => ctx.select(i < 0 ? null : "dekor", i),
+        changed: () => ctx.changed(true),
+      }),
       el("h3", {}, "Oyuncular", el("span", { class: "muted small", text: "eklemek: Karakter sekmesi" })),
       cast,
       el("h3", {}, "Nesneler", el("span", { class: "muted small", text: "eklemek: Nesne sekmesi" })),
@@ -450,7 +457,13 @@ export function createInspector(box, ctx) {
     if (sel.kind === "cast" && shot.cast[sel.index] && shot.cast.length > 1) removeCast(shot, sel.index);
     else if (sel.kind === "prop" && shot.props?.[sel.index]) removeFrom(shot, "props", sel.index);
     else if (sel.kind === "sfx" && shot.sfx?.[sel.index]) removeFrom(shot, "sfx", sel.index);
-    else return false;
+    else if (sel.kind === "dekor" && found.scene.dekor?.[sel.index]) {
+      const next = found.scene.dekor.filter((_, j) => j !== sel.index);
+      if (next.length) found.scene.dekor = next;
+      else delete found.scene.dekor;
+      ctx.select(null);
+      ctx.changed(true);
+    } else return false;
     return true;
   }
 

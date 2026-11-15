@@ -106,6 +106,9 @@ function checkShot(shot, where, ctx) {
     propIds.add(pr.id);
     if (!lib.props.has(pr.prop)) errors.push(`${where}: prop "${pr.prop}" is not in the library (${list(lib.props.keys())})`);
     if (pr.holder && !castIds.includes(pr.holder)) errors.push(`${where}: prop holder "${pr.holder}" is not in this shot's cast`);
+    if (pr.holder && lib.props.has(pr.prop) && !lib.props.get(pr.prop).grip) {
+      errors.push(`${where}: prop "${pr.prop}" cannot be held (no data-grip in its drawing)`);
+    }
     if (pr.hand && !pr.holder) errors.push(`${where}: prop "${pr.id}" has a hand but no holder`);
     if (!pr.mark && !pr.depth) errors.push(`${where}: prop "${pr.id}" needs a mark or a depth placement`);
     if (pr.depth && pr.holder) errors.push(`${where}: prop "${pr.id}" lies in the background (depth) and cannot be held in the same shot`);
@@ -236,6 +239,13 @@ export function validateEpisode(episode, lib) {
       for (const k of Object.keys(scene.katmanlar)) {
         if (!ids.includes(k)) errors.push(`scene ${scene.scene_id}: background "${scene.bg}" has no layer "${k}" (${ids.join(", ")})`);
       }
+    }
+    // decor: library props, one id each in the scene
+    const decorIds = new Set();
+    for (const d of scene.dekor || []) {
+      if (decorIds.has(d.id)) errors.push(`scene ${scene.scene_id}: decor id "${d.id}" is used twice`);
+      decorIds.add(d.id);
+      if (!lib.props.has(d.prop)) errors.push(`scene ${scene.scene_id}: decor "${d.id}": prop "${d.prop}" is not in the library (${list(lib.props.keys())})`);
     }
     for (const shot of scene.shots) {
       if (shotIds.has(shot.shot_id)) errors.push(`shot id "${shot.shot_id}" is used twice`);
