@@ -8,6 +8,7 @@ import { segmentSpans, replaceSegmentAction, moveSegmentStart, removeSegment, ad
 import { MUSIC_DEFAULTS } from "./muzik.mjs";
 import { sceneLayers } from "./katman.js";
 import { sceneDecor } from "./dekor.js";
+import { sceneLight } from "./isik.js";
 
 /** Short state of a line's listening check (ses/manifest.json). */
 function listenText(check) {
@@ -418,6 +419,8 @@ export function createInspector(box, ctx) {
       field("Bekleme (s)", number(shot.hold, (val) => { setKey(shot, "hold", val); ctx.changed(true); }, { min: 0, max: 10, step: 0.05 })),
       el("h3", {}, "Mekân katmanları", el("span", { class: "muted small", text: `sahne ${scene.scene_id}: bütün shot'ları` })),
       sceneLayers(scene, v.backgrounds.find((b) => b.id === scene.bg)?.layers, () => ctx.changed(true)),
+      el("h3", {}, "Işık", el("span", { class: "muted small", text: `sahne ${scene.scene_id}: bütün shot'ları` })),
+      sceneLight(scene, () => ctx.changed(true)),
       el("h3", {}, "Dekor", el("span", { class: "muted small", text: `sahne ${scene.scene_id}: bütün shot'ları` })),
       sceneDecor(scene, {
         selected: sel.kind === "dekor" ? sel.index : -1,

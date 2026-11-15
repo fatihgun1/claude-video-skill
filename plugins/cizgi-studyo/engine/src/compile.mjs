@@ -305,6 +305,12 @@ function layerTints(episode) {
   return [...new Set(episode.scenes.flatMap((sc) => Object.values(sc.katmanlar || {}).map((k) => k.ton).filter(Boolean).map((c) => c.toLowerCase())))];
 }
 
+/**
+ * The scene light (scene.isik): one colour matrix over the world group, its values set per frame
+ * by the player. The region is the viewport (the group around the camera has no transform).
+ */
+const lightFilter = (viewport) =>
+  `<filter id="isik" filterUnits="userSpaceOnUse" x="0" y="0" width="${viewport.width}" height="${viewport.height}" color-interpolation-filters="sRGB"><feColorMatrix id="isik-m" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0"/></filter>`;
 /** A filter that tints a layer: the colour multiplied over it, the layer's own shape kept. */
 const tintFilter = (c) => `<filter id="ton-${c.slice(1)}" color-interpolation-filters="sRGB"><feFlood flood-color="${c}" flood-opacity="0.55"/><feComposite in2="SourceGraphic" operator="in"/><feBlend in2="SourceGraphic" mode="multiply"/></filter>`;
 
@@ -340,12 +346,14 @@ function pageHtml({ episode, timeline, viewport, lib, audioTags, data, props, de
   <body>
     <div id="root" data-composition-id="main" data-no-timeline data-start="0" data-width="${viewport.width}" data-height="${viewport.height}" data-duration="${timeline.duration}">
       <svg id="sahne" viewBox="0 0 ${viewport.width} ${viewport.height}" xmlns="http://www.w3.org/2000/svg">
-        <defs><filter id="dof" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur id="dof-blur" stdDeviation="0"/></filter>${layerTints(episode).map(tintFilter).join("")}</defs>
+        <defs><filter id="dof" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur id="dof-blur" stdDeviation="0"/></filter>${layerTints(episode).map(tintFilter).join("")}${lightFilter(viewport)}</defs>
+        <g id="isik-g">
         <g id="kamera" data-layout-allow-overflow>
           ${bgs.join("\n          ")}
           ${decor.markup.join("\n          ")}
           ${props.ground.join("\n          ")}
           ${chars.join("\n          ")}
+        </g>
         </g>
       </svg>
       <div id="altyazilar">
@@ -449,6 +457,7 @@ export function compileEpisode(episodePath, lib, outDir, opts = {}) {
     shots: timeline.shots.map((s, i) => ({
       shot_id: s.shot_id, scene_id: s.scene_id, bg: s.bg, start: s.start, end: s.end, cast: s.cast, camera: s.camera,
       ...(sceneOf.get(s.scene_id)?.katmanlar ? { katmanlar: sceneOf.get(s.scene_id).katmanlar } : {}),
+      ...(sceneOf.get(s.scene_id)?.isik ? { isik: sceneOf.get(s.scene_id).isik } : {}),
       utterances: s.utterances.map((u) => ({ speaker: u.speaker, start: u.start, end: u.end, words: u.words, cues: u.cues })),
       props: props.data[i],
       anchors: props.anchors[i],

@@ -74,6 +74,10 @@
   }
   const camera = byId("kamera");
   const dofBlur = byId("dof-blur");
+  // the scene light (scene.isik): a colour matrix over the world group, off when the scene has none
+  const lightGroup = byId("isik-g");
+  const lightMatrixEl = byId("isik-m");
+  let lightKey = null;
   const backgrounds = {};
   for (const bg of D.backgrounds) backgrounds[bg] = byId("bg-" + bg);
   // each scene's decor (scene.dekor): shown with its scene
@@ -255,6 +259,17 @@
     }
 
     for (const sid in decorEls) setShown(decorEls[sid], sid === shot.scene_id);
+
+    // noon and zero strength change nothing: no filter pass at all
+    const light = shot.isik && shot.isik.saat !== "ogle" && shot.isik.guc !== 0 ? shot.isik : null;
+    const key = light ? light.saat + ":" + (light.guc == null ? 1 : light.guc) : "";
+    if (lightGroup && lightMatrixEl && key !== lightKey) {
+      lightKey = key;
+      if (light) {
+        lightMatrixEl.setAttribute("values", C.lightMatrix(light.saat, light.guc).join(" "));
+        lightGroup.setAttribute("filter", "url(#isik)");
+      } else lightGroup.removeAttribute("filter");
+    }
 
     if (idx !== layeredShot) {
       // Who stands further back is drawn first (behind); same depth keeps the episode's order.

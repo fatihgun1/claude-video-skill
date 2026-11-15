@@ -477,6 +477,39 @@
     return { s, tx: cam.cx - lx * s, ty: cam.cy - ly * s };
   }
 
+  /**
+   * Time of day as a colour grade: per-channel gain, offset and saturation. Noon is the drawing as
+   * it is. Night is dark, blue and greyish; evening warm orange; morning a little golden.
+   */
+  const LIGHT_PRESETS = {
+    sabah: { gain: [1.04, 1.0, 0.9], offset: [0.03, 0.02, 0], sat: 1.05 },
+    ogle: { gain: [1, 1, 1], offset: [0, 0, 0], sat: 1 },
+    aksam: { gain: [1.0, 0.8, 0.68], offset: [0.04, 0, 0.02], sat: 1.1 },
+    gece: { gain: [0.42, 0.5, 0.75], offset: [0, 0.01, 0.05], sat: 0.6 },
+  };
+  const LIGHT_TIMES = Object.keys(LIGHT_PRESETS);
+  const LUMA = [0.2126, 0.7152, 0.0722];
+  const IDENTITY_MATRIX = [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0];
+
+  /**
+   * The feColorMatrix values (20 numbers, row-major 4x5) for time of day `saat` at strength `guc`
+   * (0 none .. 1 full, default 1): the way from the identity to the preset. Unknown times are none.
+   */
+  function lightMatrix(saat, guc) {
+    const p = LIGHT_PRESETS[saat];
+    const k = Math.min(1, Math.max(0, guc == null ? 1 : guc));
+    if (!p || k === 0) return IDENTITY_MATRIX.slice();
+    const m = IDENTITY_MATRIX.slice();
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        const satEl = (1 - p.sat) * LUMA[c] + (r === c ? p.sat : 0);
+        m[r * 5 + c] = p.gain[r] * satEl;
+      }
+      m[r * 5 + 4] = p.offset[r];
+    }
+    return m.map((v, i) => Math.round((IDENTITY_MATRIX[i] + k * (v - IDENTITY_MATRIX[i])) * 10000) / 10000);
+  }
+
   /** SVG transform string that puts camera point (cx,cy) at the viewport centre. */
   function cameraTransform(cam, viewport) {
     const tx = viewport.width / 2 - cam.cx * cam.zoom;
@@ -505,6 +538,8 @@
     memberHalfWidth,
     markPull,
     decorX,
+    lightMatrix,
+    LIGHT_TIMES,
     depthOf,
     focusFaceY,
     segmentsOf,
