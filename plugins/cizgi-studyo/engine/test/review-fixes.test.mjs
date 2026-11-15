@@ -88,6 +88,11 @@ test("SVG safety: script, handlers, external references are rejected", () => {
   };
   for (const [msg, svg] of Object.entries(cases)) assert.ok(checkSvgSafety(svg).join().includes(msg), msg);
   assert.deepEqual(checkSvgSafety(`<svg><!-- <script> --><rect fill="url(#g)"/></svg>`), []);
+  // a script hidden behind a namespace prefix, or an animation that turns a link into javascript:
+  assert.ok(checkSvgSafety('<svg xmlns="http://www.w3.org/2000/svg" xmlns:s="http://www.w3.org/2000/svg"><s:script>alert(1)</s:script></svg>').length);
+  assert.ok(checkSvgSafety('<svg><a><set attributeName="href" to="javascript:alert(1)"/><rect/></a></svg>').length);
+  assert.ok(checkSvgSafety('<svg><rect><set attributeName="onclick" to="alert(1)"/></rect></svg>').length);
+  assert.deepEqual(checkSvgSafety('<svg xmlns="http://www.w3.org/2000/svg"><rect><animate attributeName="opacity" values="0;1" dur="1s"/></rect></svg>'), []);
   assert.ok(checkRig(rig.replace("<g id=\"root\">", '<g id="root"><script/>')).some((e) => e.includes("<script>")));
 });
 

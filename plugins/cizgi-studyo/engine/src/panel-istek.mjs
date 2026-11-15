@@ -12,6 +12,7 @@ import { readText } from "./util.mjs";
 import { addRequest, readRequests, isStale } from "./istekler.mjs";
 import { HttpError } from "./panel-proje.mjs";
 import { storyVersion } from "./panel-hikaye.mjs";
+import { draftsSignature } from "./proje-kutuphane.mjs";
 
 const SHOWN = 12;
 
@@ -19,7 +20,7 @@ const SHOWN = 12;
  * @param {{requests?:string|null, root:string, episodeOf:(rel:string) => {rel:string, path:string},
  *          versionOf:(text:string) => string}} opts  requests: the queue file, when a session is listening
  */
-export function requestRoutes({ requests, root, episodeOf, versionOf }) {
+export function requestRoutes({ requests, root, episodeOf, versionOf, project = null }) {
   const versionNow = (ep) => {
     try {
       return versionOf(readText(ep.path));
@@ -37,6 +38,7 @@ export function requestRoutes({ requests, root, episodeOf, versionOf }) {
         istekler: mine.slice(-SHOWN).reverse().map((r) => (isStale(r) ? { ...r, bayat: true } : r)),
         surum: versionNow(ep),
         hikaye: storyVersion(ep.path), // the story cards' file, so an open story window can follow Claude's edits
+        taslak: draftsSignature(project), // the project library's drafts, so the library tabs can show a new one
       };
     },
     "POST /api/istek": (body) => {

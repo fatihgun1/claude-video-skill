@@ -187,6 +187,16 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .rans.soru { border-color: var(--select); }
 .rans.olmadi { border-color: var(--err); }
 
+/* Drafts under the Mekân and Nesne tabs */
+.card.draft { cursor: default; border-style: dashed; border-color: var(--warn); }
+.card.draft .badge { background: var(--warn); color: #2a2000; }
+.derrs { margin: 0; padding-left: 16px; font-size: 11px; }
+.dacts { display: flex; gap: 4px; flex-wrap: wrap; }
+.dask { grid-column: 1 / -1; display: grid; gap: 4px; margin-top: 6px; padding: 8px; border-radius: var(--radius); background: var(--pane-2); }
+.dask textarea { min-height: 52px; }
+.dask .btn { justify-self: end; }
+.cards .span { grid-column: 1 / -1; }
+
 /* Mekân katmanları (inspector) */
 .klayers { display: grid; gap: 6px; }
 .klayer { padding: 6px 8px; border-radius: 6px; background: var(--pane-2); border: 1px solid var(--line); }

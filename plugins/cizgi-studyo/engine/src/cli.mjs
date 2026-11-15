@@ -13,8 +13,10 @@
  *   cizgi qa         <video.mp4>                     review pages (4 fps) of a RENDERED video; look at every page
  *   cizgi derle      <bolum.json> <out-dir> [16:9|9:16]
  *   cizgi panel      <klasör|bolum.json> [--port 4810] local control panel (127.0.0.1): pick an episode, edit shots with a live preview
+ *   cizgi taslaklar  <klasör>                         drafts of the project library (kutuphane/taslak) and their problems
  *
  * Options: --kutuphane <dir> (default: ../library next to the engine)
+ *          --proje-kutuphane <dir> (default: the nearest kutuphane/ above the episode, below the home folder)
  */
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -28,10 +30,11 @@ import { runAudio, readManifest, linesOf, planAudio, lineFingerprint, failedLine
 import { storyboard, sceneStills, render, qaPages } from "./uretim.mjs";
 import { loadTools, run } from "./tools.mjs";
 import { openPanel } from "./panel-baslat.mjs";
+import { projectLibraryOf, listDrafts } from "./proje-kutuphane.mjs";
 
 const DEFAULT_LIBRARY = fileURLToPath(new URL("../../library", import.meta.url));
 const FLAGS = new Set(["--hepsi", "--taslak"]);
-const NEEDS = { dogrula: 1, durum: 1, ses: 1, storyboard: 1, render: 1, onayla: 2, derle: 2, kabul: 2, qa: 1, panel: 1 };
+const NEEDS = { dogrula: 1, durum: 1, ses: 1, storyboard: 1, render: 1, onayla: 2, derle: 2, kabul: 2, qa: 1, panel: 1, taslaklar: 1 };
 const USAGE =
   "usage: cizgi dogrula|durum|ses|storyboard|render <bolum.json> · cizgi panel <klasör|bolum.json> · cizgi onayla senaryo|storyboard <bolum.json> · cizgi kabul <bolum.json> <line> · cizgi derle <bolum.json> <dir> [format]\n";
 
@@ -46,12 +49,14 @@ export function parseArgs(argv) {
   let library = DEFAULT_LIBRARY;
   let port;
   let scene;
+  let project;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === "--kutuphane" || a === "--format" || a === "--port" || a === "--sahne") {
+    if (a === "--kutuphane" || a === "--format" || a === "--port" || a === "--sahne" || a === "--proje-kutuphane") {
       const value = argv[++i];
       if (!value) throw new Error(`${a} needs a value`);
       if (a === "--sahne") scene = value;
+      else if (a === "--proje-kutuphane") project = value;
       else if (a === "--port") {
         port = Number(value);
         if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error("--port needs a whole number 0-65535");
@@ -61,7 +66,7 @@ export function parseArgs(argv) {
     else if (a.startsWith("--")) throw new Error(`unknown option ${a}`);
     else args.push(a);
   }
-  return { args, flags, library, port, scene, formats: formats.length ? formats : undefined };
+  return { args, flags, library, port, scene, project, formats: formats.length ? formats : undefined };
 }
 
 /**
@@ -98,13 +103,16 @@ function print(value) {
 }
 
 function main(argv) {
-  const { args, flags, library, formats, port, scene } = parseArgs(argv);
+  const { args, flags, library, formats, port, scene, project } = parseArgs(argv);
   const [command, a1, a2, a3] = args;
   if (!NEEDS[command] || args.length - 1 < NEEDS[command] || (command === "onayla" && !GATES.includes(a1))) {
     process.stderr.write(USAGE);
     return 2;
   }
-  const lib = loadLibrary(library);
+  // The project's own library (<project>/kutuphane, the nearest above the episode) joins the plugin's.
+  const episodeArg = command === "onayla" ? a2 : ["qa", "panel", "taslaklar"].includes(command) ? null : a1;
+  // (--proje-kutuphane names it: the panel's jobs pass the one the panel uses)
+  const lib = loadLibrary(library, { project: project ? resolve(project) : episodeArg ? projectLibraryOf(dirname(resolve(episodeArg))) : null });
   const deps = { run, formats, log: (m) => process.stderr.write(`${m}\n`) };
 
   switch (command) {
@@ -160,6 +168,13 @@ function main(argv) {
         },
       );
       return 0;
+    case "taslaklar": {
+      // the drafts of the project library at or above the folder, each with what is wrong with it
+      const proj = projectLibraryOf(resolve(a1));
+      const plib = proj ? loadLibrary(library, { project: proj }) : null;
+      print({ kutuphane: proj, taslaklar: plib ? listDrafts(proj, plib) : [], kutuphane_sorunlari: plib?.projectErrors || [] });
+      return 0;
+    }
     case "derle":
       print(compileEpisode(a1, lib, a2, { format: a3 }));
       return 0;

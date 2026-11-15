@@ -319,7 +319,7 @@ export function createLibrary(els, ctx) {
     renderTabs();
     els.hint.textContent = hint(cx);
     const build = { karakter: characters, hareket: actions, mekan: backgrounds, nesne: props, ses: sounds, kamera: camera }[tab];
-    const list = build(v, cx);
+    const list = [...build(v, cx), ...(ctx.extra ? ctx.extra(tab) : [])]; // drafts under Mekân and Nesne
     els.cards.className = `cards${["mekan", "ses", "kamera"].includes(tab) ? " wide" : ""}`;
     els.cards.replaceChildren(...(list.length ? list : [el("p", { class: "empty", text: "Sonuç yok." })]));
   }

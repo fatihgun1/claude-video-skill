@@ -52,7 +52,9 @@ export function createJobs(opts) {
       if (!JOB_FORMATS.has(format)) throw Object.assign(new Error(`format must be ${[...JOB_FORMATS].join(" or ")}`), { code: 400 });
       if (kind === "sahne" && !SCENE_ID.test(scene || "")) throw Object.assign(new Error("a scene id is needed"), { code: 400 });
       if (jobs.get(episodePath)?.status === "running") throw Object.assign(new Error("a job is already running for this episode"), { code: 409 });
-      const args = [opts.cli, ...JOB_KINDS[kind], ...(kind === "sahne" ? [scene] : []), episodePath, "--format", format, ...(opts.library ? ["--kutuphane", opts.library] : [])];
+      // the panel's own project library, so a job sees exactly the drawings the panel validated against
+      const args = [opts.cli, ...JOB_KINDS[kind], ...(kind === "sahne" ? [scene] : []), episodePath, "--format", format,
+        ...(opts.library ? ["--kutuphane", opts.library] : []), ...(opts.project ? ["--proje-kutuphane", opts.project] : [])];
       const job = { kind, format, ...(kind === "sahne" ? { scene } : {}), status: "running", started: now(), log: "", out: "" };
       jobs.set(episodePath, job);
       const child = spawn(process.execPath, args, { cwd: dirname(episodePath), windowsHide: true });

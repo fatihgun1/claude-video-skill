@@ -127,6 +127,15 @@ export function checkSvgSafety(svg) {
   const src = stripComments(svg);
   const banned = /<\s*(script|foreignObject|style|iframe|object|embed|image|link)\b/i.exec(src);
   if (banned) errors.push(`<${banned[1]}> is not allowed`);
+  // <s:script> with its own namespace prefix is still a script: no prefixed element names at all
+  const prefixed = /<\s*([a-z_][\w.-]*):[\w.-]+/i.exec(src);
+  if (prefixed) errors.push(`prefixed element names (<${prefixed[1]}:…>) are not allowed`);
+  // an animation can set an attribute (href → javascript:, or an event) after the check
+  if (/<\s*(set|animate|animateMotion|animateTransform|animateColor)\b[^>]*\battributeName\s*=\s*["'][^"']*(href|^on|:on)/i.test(src)
+    || /<\s*(set|animate)\b[^>]*\battributeName\s*=\s*["']\s*on/i.test(src)) {
+    errors.push("animations may not change links or event attributes");
+  }
+  if (/javascript\s*:/i.test(src)) errors.push("javascript: is not allowed");
   if (/\son[a-z]+\s*=/i.test(src)) errors.push("event handler attributes (on...=) are not allowed");
   if (/href\s*=\s*["'](?!#)/i.test(src)) errors.push("only #fragment href values are allowed");
   if (/url\(\s*['"]?(?!#)/i.test(src)) errors.push("only url(#fragment) references are allowed");

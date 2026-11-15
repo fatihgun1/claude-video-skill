@@ -5,6 +5,7 @@
  */
 import { readFileSync, mkdirSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 import { ID_PATTERN } from "./util.mjs";
 import { compileEpisode, vanishingPoint } from "./compile.mjs";
 
@@ -78,29 +79,49 @@ export function vocabulary(lib) {
  * @param {(dir:string) => object} load
  * @returns {() => object}
  */
-export function cachedLibrary(dir, load) {
+const SIGNATURE_MS = 500;
+
+export function cachedLibrary(dirs, load) {
+  const list = Array.isArray(dirs) ? dirs : [dirs]; // the plugin's library, then the project's (may not exist yet)
   let sig = null;
   let lib = null;
+  // every file's path and time: a draft moved into the library keeps its times but changes its path.
+  // Drafts (taslak/) are not part of the library. A folder moved away mid-walk is simply skipped.
   const signature = () => {
-    let count = 0;
-    let newest = 0;
+    const hash = createHash("sha256");
     const walk = (d) => {
-      for (const e of readdirSync(d, { withFileTypes: true })) {
+      let found;
+      try {
+        found = readdirSync(d, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const e of found) {
         const p = join(d, e.name);
-        if (e.isDirectory()) walk(p);
-        else {
-          count++;
-          newest = Math.max(newest, statSync(p).mtimeMs);
+        if (e.isDirectory()) {
+          if (e.name !== "taslak") walk(p);
+          continue;
+        }
+        try {
+          hash.update(`${p}\0${statSync(p).mtimeMs}\n`);
+        } catch {
+          /* gone meanwhile */
         }
       }
     };
-    walk(dir);
-    return `${count}:${newest}`;
+    for (const d of list) if (existsSync(d)) walk(d);
+    return hash.digest("hex");
   };
-  return () => {
+  // a page asks for many thumbnails at once: look at the disk at most twice a second
+  // (fresh: look now, e.g. right after a drawing was taken into the library)
+  let lookedAt = 0;
+  return (fresh = false) => {
+    const t = Date.now();
+    if (lib && !fresh && t - lookedAt < SIGNATURE_MS) return lib;
+    lookedAt = t;
     const now = signature();
     if (now !== sig || !lib) {
-      lib = load(dir);
+      lib = load(list[0]);
       sig = now;
     }
     return lib;

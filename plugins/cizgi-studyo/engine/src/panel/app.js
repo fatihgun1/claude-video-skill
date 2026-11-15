@@ -14,6 +14,7 @@ import { createReview } from "./inceleme.js";
 import { createStory } from "./hikaye.js";
 import { installKeys } from "./klavye.js";
 import { installViews } from "./gorunum.js";
+import { createDrafts } from "./taslak.js";
 import {
   addShotAfter, duplicateShot, deleteShot, moveShot, createHistory, rowOfMessage,
   moveSegmentStart, insertSegment, replaceSegmentAction, removeSegment, segmentIndexAt,
@@ -168,8 +169,22 @@ const library = createLibrary(
       return { shot: f?.shot, scene: f?.scene, ...selectedItem(), rigOf, labelOf, musicTrack: state.draft?.music?.track || null };
     },
     pick,
+    extra: (tab) => drafts.section(tab),
   },
 );
+/* ---------- drafts of the project library (Claude's drawings waiting for the person) ---------- */
+const drafts = createDrafts({
+  api,
+  path: () => state.path,
+  title: () => state.draft?.title || state.draft?.episode || "",
+  setVocab: (v) => {
+    state.vocab = v; // a drawing just taken in is a card now, and can be used
+    library.render();
+    inspector.render();
+  },
+  rerender: () => library.render(),
+  note: (text) => note(text),
+});
 const inspector = createInspector($("inspector"), {
   episode: () => state.draft,
   vocab: () => state.vocab,
@@ -607,6 +622,7 @@ const requests = createRequests($("claude"), {
   dirty: () => !!state.draft && dirty(),
   saving: () => saving,
   storyVersion: (v) => story.diskVersion(v),
+  draftsVersion: (v) => drafts.onSignature(v),
   reload: () => open(state.path),
   note,
   api,

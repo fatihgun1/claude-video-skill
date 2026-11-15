@@ -18,6 +18,7 @@
  *   GET  /api/istekler?b=  ·  POST /api/istek   requests to the Claude session (panel-istek.mjs)
  *   POST /api/incele       {b, episode, format, sahne}   scene review checks on the unsaved draft (inceleme.mjs)
  *   GET  /api/hikaye?b=  ·  POST /api/hikaye   story cards, hikaye.json next to the episode (panel-hikaye.mjs)
+ *   GET  /api/taslaklar  ·  POST /api/taslak  ·  GET /kutuphane-taslak/…   project library drafts (panel-taslak.mjs)
  *
  * Bound to 127.0.0.1 only. Requests whose Host is not the panel's own address are refused
  * (DNS rebinding), and POSTs need a JSON body from the panel's own origin (CSRF).
@@ -38,13 +39,14 @@ import { outputsOf, OUTPUT_DIRS } from "./panel-is.mjs";
 import { HttpError, MAX_EPISODES, findEpisodes, episodePathOf, summarize, createEpisode, workspaceOf, insideReally } from "./panel-proje.mjs";
 import { requestRoutes } from "./panel-istek.mjs";
 import { storyRoutes } from "./panel-hikaye.mjs";
+import { draftRoutes, draftFile } from "./panel-taslak.mjs";
 
 export { vocabulary };
 
 const PANEL_DIR = fileURLToPath(new URL("./panel/", import.meta.url));
 const PAGE = join(PANEL_DIR, "index.html");
 /** The only files /panel/ serves. */
-const PANEL_FILES = new Set(["panel.css", "app.js", "dom.js", "kutuphane.js", "sahne.js", "denetleyici.js", "projeler.js", "zaman.js", "kurgu.js", "dinle.js", "duzen.js", "uretim.js", "agac.js", "istek.js", "inceleme.js", "hikaye.js", "klavye.js", "gorunum.js", "katman.js"]);
+const PANEL_FILES = new Set(["panel.css", "app.js", "dom.js", "kutuphane.js", "sahne.js", "denetleyici.js", "projeler.js", "zaman.js", "kurgu.js", "dinle.js", "duzen.js", "uretim.js", "agac.js", "istek.js", "inceleme.js", "hikaye.js", "klavye.js", "gorunum.js", "katman.js", "taslak.js"]);
 /** Engine modules the panel uses as they are (pure code): the music envelope, so the timeline draws what the render plays. */
 const SHARED_FILES = { "muzik.mjs": fileURLToPath(new URL("./muzik.mjs", import.meta.url)) };
 const MAX_BODY = 1024 * 1024;
@@ -53,6 +55,7 @@ const PREVIEW_FORMATS = new Set(["16:9", "9:16"]);
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8", ".wav": "audio/wav", ".mp4": "video/mp4", ".jpg": "image/jpeg", ".png": "image/png", ".svg": "image/svg+xml", ".css": "text/css; charset=utf-8" };
 // Only the panel itself may frame its pages (its preview iframe); no MIME sniffing.
 const SECURITY = { "x-content-type-options": "nosniff", "content-security-policy": "frame-ancestors 'self'", "x-frame-options": "SAMEORIGIN" };
+const SVG_CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox; frame-ancestors 'self'";
 
 /** Content hash of the file on disk: a save is refused when someone else changed it meanwhile. */
 export function versionOf(text) {
@@ -269,14 +272,19 @@ export function createPanel(opts) {
       }
     },
     // Requests to the Claude session, and "did the file change on disk?"
-    ...requestRoutes({ requests: opts.requests ?? null, root, episodeOf, versionOf }),
+    ...requestRoutes({ requests: opts.requests ?? null, root, episodeOf, versionOf, project: opts.project ?? null }),
     // Story cards (hikaye.json): a draft next to the episode
     ...storyRoutes({ episodeOf, loadLib: () => opts.loadLib() }),
+    // Drafts in the project library (kutuphane/taslak): look, take in, put aside
+    ...draftRoutes({ project: opts.project ?? null, loadLib: (fresh) => opts.loadLib(fresh) }),
   };
 
   /** Both senders return true: "the request has been answered". */
   function send(res, body, type) {
-    res.writeHead(200, { ...SECURITY, "content-type": type, "cache-control": "no-store" });
+    // A drawing opened on its own (a library or draft SVG in a tab) may never run anything on the
+    // panel's origin, whatever slipped past the safety check: no scripts, sandboxed.
+    const svg = type.startsWith("image/svg+xml") ? { "content-security-policy": SVG_CSP } : {};
+    res.writeHead(200, { ...SECURITY, ...svg, "content-type": type, "cache-control": "no-store" });
     res.end(body);
     return true;
   }
@@ -364,6 +372,8 @@ export function createPanel(opts) {
       if (!PANEL_FILES.has(name)) throw new HttpError(404, "not found");
       return sendFile(res, join(PANEL_DIR, name));
     }
+    const draft = draftFile(path, { project: opts.project ?? null, loadLib: () => opts.loadLib() });
+    if (draft !== undefined) return send(res, draft, TYPES[".svg"]);
     const m = /^\/kutuphane\/([a-z]+)\/([^/]+)$/.exec(path);
     if (m) {
       const file = libraryFile(opts.loadLib(), m[1], decode(m[2]));

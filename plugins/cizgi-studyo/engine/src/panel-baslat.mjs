@@ -2,7 +2,8 @@
  * Starting the editor panel, shared by `cizgi panel` and the plugin's MCP server: the workspace,
  * the cached library, storyboard/render jobs (this same CLI in a child process) and the HTTP server.
  */
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
+import { projectLibraryOf, PROJECT_LIBRARY } from "./proje-kutuphane.mjs";
 import { fileURLToPath } from "node:url";
 import { loadLibrary } from "./library.mjs";
 import { startPanel } from "./panel.mjs";
@@ -21,10 +22,12 @@ const CLI = fileURLToPath(new URL("./cli.mjs", import.meta.url));
  */
 export async function openPanel({ target, library, status, port = DEFAULT_PORT, fallbackPort = false, requests = null }) {
   const space = workspaceOf(resolve(target));
-  const jobs = createJobs({ cli: CLI, library: resolve(library) });
-  // The library is reloaded when one of its files changes, so an edited rig or action shows up without a restart.
-  const loadLib = cachedLibrary(library, loadLibrary);
-  const start = (p) => startPanel({ ...space, loadLib, status, port: p, jobs, requests });
+  // The project's library: the nearest kutuphane at or above the folder, else where one would go.
+  const project = projectLibraryOf(space.root) ?? join(space.root, PROJECT_LIBRARY);
+  const jobs = createJobs({ cli: CLI, library: resolve(library), project });
+  // The libraries are reloaded when one of their files changes, so an edited rig or a new drawing shows up without a restart.
+  const loadLib = cachedLibrary([library, project], (dir) => loadLibrary(dir, { project }));
+  const start = (p) => startPanel({ ...space, loadLib, status, port: p, jobs, requests, project });
   let panel;
   try {
     panel = await start(port);

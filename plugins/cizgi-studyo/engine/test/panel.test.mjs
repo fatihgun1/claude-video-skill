@@ -353,7 +353,12 @@ test("the library is loaded again only when one of its files changes", () => {
     assert.equal(get(), first);
     assert.equal(loads, 1);
     writeFileSync(join(dir, "b.json"), "{}"); // a new file
-    assert.notEqual(get(), first);
+    assert.equal(get(), first); // the disk is looked at no more than twice a second…
+    assert.notEqual(get(true), first); // …unless asked to look now
+    assert.equal(loads, 2);
+    mkdirSync(join(dir, "taslak"));
+    writeFileSync(join(dir, "taslak", "c.json"), "{}"); // drafts are not the library
+    get(true);
     assert.equal(loads, 2);
   } finally {
     rmSync(dir, { recursive: true, force: true });

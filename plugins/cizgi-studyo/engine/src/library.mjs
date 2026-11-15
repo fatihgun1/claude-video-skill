@@ -164,12 +164,50 @@ function checkId(kind, id, errors) {
 }
 
 /**
+ * Backgrounds of one folder into `into` ({backgrounds, layers, names}): <id>.svg files, and
+ * <id>/ folders with a mekan.json (other folders, such as sources, are not read).
+ */
+export function loadBackgroundsFrom(folder, world, into, errors, where = "") {
+  for (const file of entries(folder, ".svg")) {
+    const id = basename(file, ".svg");
+    checkId(`${where}background`, id, errors);
+    const svg = readText(join(folder, file));
+    for (const e of checkSvgSafety(svg)) errors.push(`${where}background ${id}: ${e}`);
+    into.backgrounds.set(id, svg);
+    into.layers.set(id, singleLayer(svg));
+  }
+  for (const id of entries(folder).filter((d) => existsSync(join(folder, d, "mekan.json")))) {
+    checkId(`${where}background`, id, errors);
+    if (into.backgrounds.has(id)) errors.push(`${where}background ${id}: both ${id}.svg and a ${id}/ folder`);
+    const bg = loadLayered(join(folder, id), id, world);
+    errors.push(...bg.errors.map((e) => where + e));
+    if (bg.errors.length) continue;
+    into.backgrounds.set(id, bg.svg);
+    into.layers.set(id, bg.layers);
+    if (bg.name) into.names.set(id, bg.name);
+  }
+}
+
+/** Props of one folder (<id>.svg with data-grip and data-base) into `into`. */
+export function loadPropsFrom(folder, into, errors, where = "") {
+  for (const file of entries(folder, ".svg")) {
+    const id = basename(file, ".svg");
+    checkId(`${where}prop`, id, errors);
+    const svg = readText(join(folder, file));
+    const { errors: propErrors, grip, base } = checkProp(svg);
+    for (const e of propErrors) errors.push(`${where}prop ${id}: ${e}`);
+    into.set(id, { svg, grip, base });
+  }
+}
+
+/**
  * Load and verify a library folder.
  * @param {string} dir
+ * @param {{project?: string|null}} [opts] project: the project's own library folder (<project>/kutuphane)
  * @returns {{dir:string, world:object, cameras:object, characters:Map<string,{meta:object,svg:string}>, actions:Map<string,object>, backgrounds:Map<string,string>, profiles:Map<string,object>}}
  * @throws when any asset breaks the specification
  */
-export function loadLibrary(dir) {
+export function loadLibrary(dir, opts = {}) {
   const world = readJson(join(dir, "world.json"));
   const cameras = readJson(join(dir, "cameras.json"));
   const errors = checkSettings(world, cameras);
@@ -194,38 +232,34 @@ export function loadLibrary(dir) {
 
   // Backgrounds: one SVG, or a folder of layers (mekan.mjs). backgrounds holds one drawing per
   // background (the layers drawn together); layers holds what the player moves one by one.
-  const backgrounds = new Map();
-  const layers = new Map();
-  const backgroundNames = new Map();
-  for (const file of entries(join(dir, "backgrounds"), ".svg")) {
-    const id = basename(file, ".svg");
-    checkId("background", id, errors);
-    const svg = readText(join(dir, "backgrounds", file));
-    for (const e of checkSvgSafety(svg)) errors.push(`background ${id}: ${e}`);
-    backgrounds.set(id, svg);
-    layers.set(id, singleLayer(svg));
-  }
-  // a folder is a layered background when it has a mekan.json; other folders (sources, drafts) are not read
-  for (const id of entries(join(dir, "backgrounds")).filter((d) => existsSync(join(dir, "backgrounds", d, "mekan.json")))) {
-    checkId("background", id, errors);
-    if (backgrounds.has(id)) errors.push(`background ${id}: both ${id}.svg and a ${id}/ folder`);
-    const bg = loadLayered(join(dir, "backgrounds", id), id, world);
-    errors.push(...bg.errors);
-    if (bg.errors.length) continue;
-    backgrounds.set(id, bg.svg);
-    layers.set(id, bg.layers);
-    if (bg.name) backgroundNames.set(id, bg.name);
-  }
-
+  const bg = { backgrounds: new Map(), layers: new Map(), names: new Map() };
   const props = new Map();
-  for (const file of entries(join(dir, "props"), ".svg")) {
-    const id = basename(file, ".svg");
-    checkId("prop", id, errors);
-    const svg = readText(join(dir, "props", file));
-    const { errors: propErrors, grip, base } = checkProp(svg);
-    for (const e of propErrors) errors.push(`prop ${id}: ${e}`);
-    props.set(id, { svg, grip, base });
+  loadBackgroundsFrom(join(dir, "backgrounds"), world, bg, errors);
+  loadPropsFrom(join(dir, "props"), props, errors);
+  // The project's own library (<project>/kutuphane): drawn for this project, next to the plugin's.
+  // A broken drawing there (or one with a name the plugin already uses) is left out and reported in
+  // projectErrors, instead of stopping everything: the panel must still open to fix it.
+  const projectErrors = [];
+  if (opts.project && existsSync(opts.project)) {
+    const mine = { backgrounds: new Map(), layers: new Map(), names: new Map() };
+    const myProps = new Map();
+    loadBackgroundsFrom(join(opts.project, "backgrounds"), world, mine, projectErrors, "project ");
+    loadPropsFrom(join(opts.project, "props"), myProps, projectErrors, "project ");
+    const broken = (kind, id) => projectErrors.some((e) => e.startsWith(`project ${kind} ${id}:`) || e.startsWith(`project ${kind} "${id}"`));
+    for (const [id, svg] of mine.backgrounds) {
+      if (bg.backgrounds.has(id)) projectErrors.push(`project background ${id}: the plugin's library already has a background "${id}"`);
+      if (broken("background", id)) continue;
+      bg.backgrounds.set(id, svg);
+      bg.layers.set(id, mine.layers.get(id));
+      if (mine.names.has(id)) bg.names.set(id, mine.names.get(id));
+    }
+    for (const [id, p] of myProps) {
+      if (props.has(id)) projectErrors.push(`project prop ${id}: the plugin's library already has a prop "${id}"`);
+      if (broken("prop", id)) continue;
+      props.set(id, p);
+    }
   }
+  const { backgrounds, layers, names: backgroundNames } = bg;
 
   // Sound effects: short WAVs played at a time inside a shot (shot.sfx).
   const sfx = new Map();
@@ -264,5 +298,5 @@ export function loadLibrary(dir) {
   if (!profiles.has("genel")) errors.push('profiles/genel.json is required (the default profile)');
 
   if (errors.length) throw new Error(`library is invalid:\n- ${errors.join("\n- ")}`);
-  return { dir, world, cameras, characters, actions, backgrounds, layers, backgroundNames, profiles, props, sfx, music };
+  return { dir, world, cameras, characters, actions, backgrounds, layers, backgroundNames, profiles, props, sfx, music, projectErrors };
 }
