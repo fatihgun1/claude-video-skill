@@ -4,413 +4,77 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Çizgi Stüdyo paneli</title>
-<style>
-  :root {
-    --bg: #f6f5f2; --panel: #ffffff; --line: #e2dfd8; --text: #23211d; --muted: #6d685f;
-    --accent: #2f6f5e; --accent-text: #ffffff; --err: #b3261e; --warn: #8a5a00; --ok: #2f6f5e;
-    --sel: #e6efe9;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg: #181816; --panel: #22221f; --line: #3a3934; --text: #ecebe6; --muted: #a29e94;
-      --accent: #7cc2a9; --accent-text: #10251f; --err: #ff8a80; --warn: #f0c26b; --ok: #7cc2a9; --sel: #2c3a34; }
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, "Segoe UI", sans-serif; }
-  header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
-  header h1 { font-size: 16px; margin: 0; }
-  #file { overflow-wrap: anywhere; min-width: 0; }
-  .muted { color: var(--muted); }
-  .chip { border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; font-size: 12px; }
-  .chip.onayli { border-color: var(--ok); color: var(--ok); }
-  .chip.eskimis { border-color: var(--warn); color: var(--warn); }
-  .spacer { flex: 1; }
-  button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
-  button:disabled { opacity: .5; cursor: default; }
-  main { display: grid; grid-template-columns: 220px minmax(0, 1fr) 340px; gap: 12px; padding: 12px; min-height: calc(100vh - 54px); }
-  @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
-  section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; min-width: 0; }
-  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 8px; }
-  h3 { font-size: 13px; margin: 14px 0 6px; }
-  .shot { display: block; width: 100%; text-align: left; margin-bottom: 4px; padding: 6px 8px; }
-  .shot.sel { background: var(--sel); border-color: var(--accent); }
-  .shot small { display: block; color: var(--muted); }
-  .scene { font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
-  .stage { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #000; border-radius: 6px; }
-  .stage iframe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; }
-  .stage .over { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; background: rgba(0,0,0,.6); padding: 16px; text-align: center; }
-  .transport { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-  .transport input { flex: 1; }
-  .marks { position: relative; height: 14px; margin: 2px 0 0 0; }
-  .marks span { position: absolute; top: 0; height: 10px; border-left: 2px solid var(--muted); }
-  label.f { display: grid; grid-template-columns: 96px 1fr; align-items: center; gap: 6px; margin: 4px 0; }
-  select, input[type=number], textarea { font: inherit; width: 100%; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--text); }
-  textarea { min-height: 70px; resize: vertical; }
-  .card { border: 1px solid var(--line); border-radius: 6px; padding: 8px; margin: 6px 0; }
-  .card b { font-size: 13px; }
-  .msgs { margin-top: 12px; }
-  .msgs li { margin: 2px 0; }
-  .err { color: var(--err); }
-  .warn { color: var(--warn); }
-  .line { font-style: italic; margin: 2px 0; }
-  :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-</style>
+<link rel="stylesheet" href="/panel/panel.css">
 </head>
 <body>
-<header>
-  <h1 id="title">Çizgi Stüdyo</h1>
-  <span class="muted" id="file"></span>
-  <span class="chip" id="gate-senaryo">senaryo</span>
-  <span class="chip" id="gate-storyboard">storyboard</span>
+<header class="bar">
+  <div class="brand"><span class="logo" aria-hidden="true"></span>
+    <h1><button id="project" class="project" type="button" title="Bölümler: başka bölüm aç ya da yeni bölüm oluştur">
+      <span id="title" class="ttl">Çizgi Stüdyo</span><span id="path" class="ppath"></span><span class="caret" aria-hidden="true">▾</span>
+    </button></h1>
+  </div>
+  <ol class="steps" id="steps" aria-label="Üretim adımları"></ol>
   <span class="spacer"></span>
-  <span id="state" class="muted" role="status"></span>
-  <button id="revert" disabled>Geri al</button>
-  <button id="save" class="primary" disabled>Kaydet</button>
+  <span id="state" class="state" role="status"></span>
+  <button id="undo" class="btn icon" disabled title="Geri al (Ctrl+Z)" aria-label="Geri al">↶</button>
+  <button id="redo" class="btn icon" disabled title="Yinele (Ctrl+Y)" aria-label="Yinele">↷</button>
+  <button id="revert" class="btn" disabled title="Kaydedilmemiş bütün değişiklikleri at">Hepsini at</button>
+  <button id="save" class="btn primary" disabled title="Kaydet (Ctrl+S)">Kaydet</button>
 </header>
-<main>
-  <section aria-label="Shot listesi">
-    <h2>Shot'lar</h2>
-    <div id="shots"></div>
-  </section>
-  <section aria-label="Önizleme">
-    <h2>Önizleme <span class="muted">(16:9, sessiz)</span></h2>
+<main class="editor">
+  <aside class="pane library" aria-label="Kütüphane">
+    <div class="tabs" id="lib-tabs" role="tablist"></div>
+    <input id="lib-search" class="search" type="search" placeholder="Kütüphanede ara" aria-label="Kütüphanede ara">
+    <p id="lib-hint" class="hint"></p>
+    <div id="lib-cards" class="cards"></div>
+  </aside>
+  <section class="stage-wrap" aria-label="Sahne">
     <div class="stage" id="stage">
       <iframe id="frame" title="Önizleme" tabindex="-1"></iframe>
+      <div class="edit" id="edit" aria-label="Sahnede düzenleme"></div>
       <div class="over" id="over" hidden></div>
     </div>
     <div class="transport">
-      <button id="play" aria-label="Oynat">▶</button>
-      <input type="range" id="time" min="0" max="1000" step="10" value="0" aria-label="Zaman">
-      <span id="clock" class="muted">0.00 s</span>
+      <button id="play" class="btn icon" aria-label="Oynat" title="Oynat / durdur (Boşluk)">▶</button>
+      <span id="clock" class="clock">0.00 s</span>
+      <input type="range" id="time" min="0" max="1000" step="1" value="0" aria-label="Zaman" title="←/→ bir kare, Shift ile bir saniye">
+      <button id="mute" class="btn icon" aria-label="Sesi kapat" aria-pressed="false" title="Önizlemenin sesi">🔊</button>
+      <div class="seg" role="group" aria-label="Biçim">
+        <button id="fmt-16x9" class="btn small" aria-pressed="true" title="Yatay (16:9)">16:9</button>
+        <button id="fmt-9x16" class="btn small" aria-pressed="false" title="Dikey (9:16)">9:16</button>
+      </div>
+      <button id="safe" class="btn small" aria-pressed="false" title="Güvenli alanları ve altyazı bölgesini göster">Güvenli alan</button>
+      <details class="layers" id="layers">
+        <summary class="btn small" title="Önizlemede katmanları gizle ya da göster (bölüm değişmez)">Katmanlar</summary>
+        <div class="layers-menu" id="layers-menu"></div>
+      </details>
     </div>
-    <div class="marks" id="marks" aria-hidden="true"></div>
-    <div class="msgs" id="msgs"></div>
+    <div class="msgs" id="msgs" aria-live="polite"></div>
   </section>
-  <section aria-label="Denetleyici">
-    <h2>Seçili shot</h2>
+  <aside class="pane inspector" aria-label="Özellikler">
     <div id="inspector"></div>
-  </section>
+  </aside>
+  <footer class="timeline" aria-label="Zaman çizelgesi">
+    <div class="tl-head">
+      <span class="tl-title">Zaman çizelgesi</span>
+      <button id="shot-add" class="btn small" title="Seçili shot'tan sonra, aynı oyuncularla boş bir shot ekle">+ Shot</button>
+      <button id="shot-dup" class="btn small" title="Seçili shot'ı çoğalt (Ctrl+D). Replikler kopyalanmaz: replikler senaryodan gelir.">Çoğalt</button>
+      <button id="shot-del" class="btn small danger" title="Seçili shot'ı sil (Delete)">Sil</button>
+      <span class="spacer"></span>
+      <button id="mixer" class="btn small" title="İz düzeyleri ve arka plan müziği">Mikser</button>
+      <span class="muted small" id="tl-info"></span>
+    </div>
+    <div class="tl-body">
+      <div class="tl-labels" id="tl-labels" aria-hidden="true"></div>
+      <div class="tl-scroll" id="tl-scroll">
+        <div class="ruler" id="tl-ruler" title="Tıkla ya da sürükle: oynatma kafası"></div>
+        <div class="tracks" id="tl-tracks"></div>
+      </div>
+    </div>
+  </footer>
 </main>
-<script>
-(() => {
-  "use strict";
-  const $ = (id) => document.getElementById(id);
-  const GATE_TEXT = { onayli: "onaylı", eskimis: "onay eskidi", yok: "onay yok" };
-  let saved = null;      // episode as on disk
-  let draft = null;      // episode being edited
-  let version = "";
-  let vocab = null;
-  let timing = [];       // [{shot_id, start, end}]
-  let duration = 0;
-  let selected = null;   // shot_id
-  let playing = false;
-  let previewSeq = 0;
-  let timer = 0;
-
-  // ---------- small DOM helpers (textContent only, never innerHTML with data) ----------
-  function el(tag, attrs = {}, ...kids) {
-    const n = document.createElement(tag);
-    for (const [k, v] of Object.entries(attrs)) {
-      if (k === "on") for (const [ev, fn] of Object.entries(v)) n.addEventListener(ev, fn);
-      else if (k === "text") n.textContent = v;
-      else if (v !== undefined && v !== null && v !== false) n.setAttribute(k, v === true ? "" : v);
-    }
-    for (const kid of kids.flat()) if (kid != null) n.append(kid);
-    return n;
-  }
-  function select(value, options, onChange, { empty } = {}) {
-    const s = el("select", { on: { change: () => onChange(s.value === "" ? undefined : s.value) } });
-    if (empty !== undefined) s.append(el("option", { value: "", text: empty }));
-    for (const o of options) {
-      const id = typeof o === "string" ? o : o.id;
-      const text = typeof o === "string" ? o : o.label === o.id ? o.id : `${o.label} (${o.id})`;
-      s.append(el("option", { value: id, text }));
-    }
-    if (value !== undefined && ![...s.options].some((o) => o.value === value)) s.append(el("option", { value, text: `${value} (kütüphanede yok)` }));
-    s.value = value ?? "";
-    return s;
-  }
-  function number(value, onChange, { min, max, step = 0.05 } = {}) {
-    const i = el("input", { type: "number", value: value ?? "", min, max, step });
-    i.addEventListener("change", () => onChange(i.value === "" ? undefined : Number(i.value)));
-    return i;
-  }
-  function field(text, control) {
-    return el("label", { class: "f" }, el("span", { text }), control);
-  }
-  function setKey(obj, key, value) {
-    if (value === undefined) delete obj[key];
-    else obj[key] = value;
-  }
-
-  // ---------- data ----------
-  const scenes = () => draft.scenes;
-  function findShot(id) {
-    for (const scene of scenes()) for (const shot of scene.shots) if (shot.shot_id === id) return { scene, shot };
-    return null;
-  }
-  const labelOf = (list, id) => (list.find((x) => x.id === id) || { label: id }).label;
-  const dirty = () => JSON.stringify(draft) !== JSON.stringify(saved);
-
-  async function api(path, body) {
-    const res = await fetch(path, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : {});
-    const data = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    return data;
-  }
-
-  // ---------- rendering ----------
-  let lastStatus = null;
-  function renderHeader(status = lastStatus) {
-    lastStatus = status;
-    $("title").textContent = draft.title || draft.episode;
-    for (const gate of ["senaryo", "storyboard"]) {
-      const s = status?.gates?.[gate];
-      const chip = $(`gate-${gate}`);
-      chip.className = `chip ${s || ""}`;
-      chip.textContent = `${gate}: ${s ? GATE_TEXT[s] : "—"}`;
-    }
-    const d = dirty();
-    $("save").disabled = !d;
-    $("revert").disabled = !d;
-    if (d) $("state").textContent = "kaydedilmemiş değişiklik var";
-  }
-
-  function renderShots() {
-    const box = $("shots");
-    box.replaceChildren();
-    for (const scene of scenes()) {
-      box.append(el("div", { class: "scene", text: `${scene.scene_id} · ${scene.bg}` }));
-      for (const shot of scene.shots) {
-        const t = timing.find((x) => x.shot_id === shot.shot_id);
-        const what = shot.cast.map((c) => c.action).join(", ");
-        box.append(
-          el("button", { class: `shot${shot.shot_id === selected ? " sel" : ""}`, "aria-pressed": String(shot.shot_id === selected), on: { click: () => choose(shot.shot_id) } },
-            el("span", { text: shot.shot_id }),
-            el("small", { text: `${labelOf(vocab.framings, shot.camera.framing)} · ${what}${t ? ` · ${(t.end - t.start).toFixed(1)} s` : ""}` })),
-        );
-      }
-    }
-  }
-
-  function renderMarks() {
-    const box = $("marks");
-    box.replaceChildren();
-    if (!duration) return;
-    for (const t of timing) box.append(el("span", { style: `left:${(t.start / duration) * 100}%`, title: t.shot_id }));
-  }
-
-  function renderMessages(validation, preview) {
-    const box = $("msgs");
-    box.replaceChildren();
-    const items = [
-      ...(validation?.errors || []).map((m) => ["err", `Hata: ${m}`]),
-      ...(preview && !preview.ok && validation?.ok ? [["err", `Önizleme derlenemedi: ${preview.error}`]] : []),
-      ...(validation?.warnings || []).map((m) => ["warn", `Uyarı: ${m}`]),
-    ];
-    if (!items.length) return box.append(el("p", { class: "muted", text: "Hata ya da uyarı yok." }));
-    box.append(el("ul", {}, items.map(([cls, text]) => el("li", { class: cls, text }))));
-  }
-
-  function castCard(shot, member, i) {
-    const chars = draft.characters.map((c) => ({ id: c.id, label: c.name || c.id }));
-    const walk = member.walk;
-    const walkBox = el("div", {},
-      field("Yürüme dx", number(walk?.dx, (v) => { if (v === undefined) delete member.walk; else member.walk = { ...(member.walk || {}), dx: v }; changed(true); }, { min: -1500, max: 1500, step: 10 })),
-      walk ? field("Yürüme süresi", number(walk.time, (v) => { setKey(member.walk, "time", v); changed(); }, { min: 0.1, step: 0.1 })) : null,
-      walk ? field("Gelip dur", (() => { const c = el("input", { type: "checkbox" }); c.checked = !!walk.arrive; c.addEventListener("change", () => { setKey(member.walk, "arrive", c.checked || undefined); changed(); }); return c; })()) : null,
-    );
-    return el("div", { class: "card" },
-      el("b", { text: `Oyuncu ${i + 1}` }),
-      field("Karakter", select(member.id, chars, (v) => { member.id = v; changed(true); })),
-      field("Hareket", select(member.action, vocab.actions, (v) => { member.action = v; changed(true); })),
-      field("Konum", select(member.mark, vocab.marks, (v) => { member.mark = v; changed(); })),
-      field("Yön", select(member.facing, vocab.facings, (v) => { setKey(member, "facing", v); changed(); }, { empty: "karakterin kendi yönü" })),
-      field("Başlangıç (s)", number(member.from, (v) => { setKey(member, "from", v); changed(); }, { min: 0 })),
-      walkBox,
-    );
-  }
-
-  function propCard(shot, prop) {
-    const holders = shot.cast.map((c) => c.id);
-    return el("div", { class: "card" },
-      el("b", { text: `Nesne: ${prop.id}` }),
-      field("Nesne", select(prop.prop, vocab.props, (v) => { prop.prop = v; changed(); })),
-      prop.depth
-        ? el("p", { class: "muted", text: `Derinlikte: x ${prop.depth.x}, y ${prop.depth.y}, ölçek ${prop.depth.scale}` })
-        : el("div", {},
-            field("Konum", select(prop.mark, vocab.marks, (v) => { setKey(prop, "mark", v); changed(); }, { empty: "—" })),
-            field("Kaydırma dx", number(prop.dx, (v) => { setKey(prop, "dx", v); changed(); }, { min: -600, max: 600, step: 1 }))),
-      field("Tutan", select(prop.holder, holders, (v) => { setKey(prop, "holder", v); changed(); }, { empty: "kimse (yerde)" })),
-    );
-  }
-
-  function renderInspector() {
-    const box = $("inspector");
-    box.replaceChildren();
-    const found = selected && findShot(selected);
-    if (!found) return box.append(el("p", { class: "muted", text: "Soldan bir shot seç." }));
-    const { scene, shot } = found;
-    const targets = [...shot.cast.map((c) => c.id), ...(shot.props || []).map((p) => p.id)];
-    box.append(...[
-      el("p", {}, el("b", { text: shot.shot_id }), el("span", { class: "muted", text: ` · sahne ${scene.scene_id}` })),
-      field("Arka plan", select(scene.bg, vocab.backgrounds, (v) => { scene.bg = v; changed(); })),
-      el("h3", { text: "Kamera" }),
-      field("Plan", select(shot.camera.framing, vocab.framings, (v) => { shot.camera.framing = v; changed(true); })),
-      field("Hareket", select(shot.camera.move, vocab.moves, (v) => { setKey(shot.camera, "move", v); changed(); }, { empty: "sabit (varsayılan)" })),
-      field("Hedef", select(shot.camera.target, targets, (v) => { setKey(shot.camera, "target", v); changed(); }, { empty: "otomatik" })),
-      field("Bekleme (s)", number(shot.hold, (v) => { setKey(shot, "hold", v); changed(true); }, { min: 0, max: 10, step: 0.05 })),
-      el("h3", { text: "Oyuncular" }),
-      shot.cast.map((m, i) => castCard(shot, m, i)),
-      shot.props?.length ? el("h3", { text: "Nesneler" }) : null,
-      (shot.props || []).map((p) => propCard(shot, p)),
-      shot.utterances?.length ? el("h3", { text: "Repliklar (salt okunur: sözler senaryo onayıyla değişir)" }) : null,
-      (shot.utterances || []).map((u) => el("p", { class: "line", text: `${u.speaker}: “${u.text}”` })),
-      el("h3", { text: "Notlar" }),
-      (() => { const t = el("textarea", { "aria-label": "Notlar" }); t.value = shot.notes || ""; t.addEventListener("change", () => { setKey(shot, "notes", t.value || undefined); changed(); }); return t; })(),
-    ].flat().filter((n) => n != null));
-  }
-
-  // ---------- preview ----------
-  function fitFrame() {
-    const stage = $("stage");
-    $("frame").style.transform = `scale(${stage.clientWidth / 1920})`;
-  }
-  function player() {
-    try { return $("frame").contentWindow?.__hfAnime?.[0] || null; } catch { return null; }
-  }
-  function seek(seconds) {
-    const t = Math.min(Math.max(0, seconds), duration || 0);
-    $("time").value = String(Math.round(t * 1000));
-    $("clock").textContent = `${t.toFixed(2)} s`;
-    player()?.seek(t * 1000);
-  }
-  function loadPreview(preview) {
-    const over = $("over");
-    if (!preview?.ok) {
-      over.hidden = false;
-      over.textContent = preview?.error ? `Önizleme yok: ${preview.error}` : "Önizleme yok.";
-      return;
-    }
-    over.hidden = true;
-    timing = preview.shots;
-    duration = preview.duration;
-    $("time").max = String(Math.round(duration * 1000));
-    const at = Number($("time").value) / 1000;
-    const frame = $("frame");
-    frame.onload = () => {
-      // The composition takes its size from the renderer; outside it, give the page the video's size.
-      const doc = frame.contentDocument;
-      doc.head.append(Object.assign(doc.createElement("style"), { textContent: "html, body { width: 1920px; height: 1080px; }" }));
-      seek(at);
-    };
-    frame.src = `/onizleme/index.html?v=${Date.now()}`;
-    renderMarks();
-    renderShots();
-  }
-  function choose(id) {
-    selected = id;
-    const t = timing.find((x) => x.shot_id === id);
-    if (t) seek(t.start + Math.min(0.5, (t.end - t.start) / 2));
-    renderShots();
-    renderInspector();
-  }
-  function tick(prev) {
-    if (!playing) return;
-    requestAnimationFrame((now) => {
-      const t = Number($("time").value) / 1000 + (now - prev) / 1000;
-      if (t >= duration) { seek(duration); return togglePlay(false); }
-      seek(t);
-      tick(now);
-    });
-  }
-  function togglePlay(on = !playing) {
-    playing = on;
-    $("play").textContent = on ? "❚❚" : "▶";
-    $("play").setAttribute("aria-label", on ? "Durdur" : "Oynat");
-    if (on) {
-      if (Number($("time").value) / 1000 >= duration) seek(0);
-      tick(performance.now());
-    }
-  }
-
-  // ---------- edit cycle ----------
-  function changed(structural = false) {
-    renderHeader();
-    if (structural) { renderShots(); renderInspector(); }
-    clearTimeout(timer);
-    timer = setTimeout(refreshPreview, 350);
-  }
-  async function refreshPreview() {
-    const seq = ++previewSeq;
-    $("state").textContent = "önizleme hazırlanıyor…";
-    try {
-      const res = await api("/api/onizle", { episode: draft });
-      if (seq !== previewSeq) return;
-      renderMessages(res.validation, res.preview);
-      if (res.validation.ok) loadPreview(res.preview);
-      $("state").textContent = res.validation.ok ? (dirty() ? "kaydedilmemiş değişiklik var" : "") : "hatalı: kaydedilemez";
-      $("save").disabled = !res.validation.ok || !dirty();
-    } catch (err) {
-      $("state").textContent = `önizleme hatası: ${err.message}`;
-    }
-  }
-  async function save() {
-    $("save").disabled = true;
-    $("state").textContent = "kaydediliyor…";
-    const sent = structuredClone(draft); // edits made while the request runs stay unsaved
-    try {
-      const res = await api("/api/kaydet", { episode: sent, version });
-      renderMessages(res.validation, res.preview);
-      if (!res.saved) { $("state").textContent = "hatalı: kaydedilmedi"; return; }
-      version = res.version;
-      saved = sent;
-      renderHeader(res.status);
-      loadPreview(res.preview);
-      $("state").textContent = dirty() ? "kaydedildi; sonraki değişiklikler kaydedilmedi" : "kaydedildi";
-    } catch (err) {
-      $("state").textContent = `kaydedilmedi: ${err.message}`;
-      $("save").disabled = false;
-    }
-  }
-  async function load() {
-    $("state").textContent = "yükleniyor…";
-    try {
-      const res = await api("/api/bolum");
-      saved = res.episode;
-      draft = structuredClone(saved);
-      version = res.version;
-      vocab = res.vocab;
-      $("file").textContent = res.file;
-      selected = selected && findShot(selected) ? selected : draft.scenes[0]?.shots[0]?.shot_id ?? null;
-      renderHeader(res.status);
-      renderMessages(res.validation, res.preview);
-      loadPreview(res.preview);
-      renderShots();
-      renderInspector();
-      $("state").textContent = "";
-    } catch (err) {
-      $("state").textContent = `yüklenemedi: ${err.message}`;
-    }
-  }
-
-  $("time").addEventListener("input", () => { togglePlay(false); seek(Number($("time").value) / 1000); });
-  $("play").addEventListener("click", () => togglePlay());
-  $("save").addEventListener("click", save);
-  $("revert").addEventListener("click", () => { draft = structuredClone(saved); changed(true); });
-  window.addEventListener("resize", fitFrame);
-  window.addEventListener("beforeunload", (e) => { if (draft && dirty()) e.preventDefault(); });
-  document.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-      e.preventDefault();
-      document.activeElement?.blur(); // commit a value still being typed (inputs commit on change)
-      if (!$("save").disabled) save();
-    }
-  });
-  fitFrame();
-  new ResizeObserver(fitFrame).observe($("stage"));
-  load();
-})();
-</script>
+<dialog id="projects" class="projects" aria-label="Bölümler"></dialog>
+<dialog id="uretim" class="projects uretim" aria-label="Üretim"></dialog>
+<script type="module" src="/panel/app.js"></script>
 </body>
 </html>

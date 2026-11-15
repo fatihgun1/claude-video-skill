@@ -179,3 +179,30 @@ test("follow-through: ears react to head turns and jumps, forearms trail", () =>
   const arm = C.secondaryMotion({ arm_L_upper: -100, arm_L_lower: 10 }, { arm_L_upper: -60 });
   near(arm.arm_L_lower, 10 + 40 * 0.35);
 });
+
+test("a cast member stands dx world units from its mark (scaled like other distances in portrait)", () => {
+  const world = { character_height: 620, marks: { sol: 560, orta: 960, sag: 1360 }, portrait: { marks: { sol: 820, orta: 960, sag: 1100 }, character_scale: 0.75 } };
+  const land = C.layoutFor(world, { width: 1920, height: 1080 });
+  const port = C.layoutFor(world, { width: 1080, height: 1920 });
+  near(C.memberX({ mark: "sol", dx: 120 }, land, 0, 2), 680);
+  near(C.memberX({ mark: "sol", dx: 120 }, port, 0, 2), 910);
+  near(C.memberX({ mark: "orta" }, land, 0, 2), 960);
+  // A walk starts from the shifted place.
+  near(C.memberX({ mark: "sol", dx: 100, walk: { dx: 200 } }, land, 2, 2), 860);
+});
+
+test("a cast member placed back (cast.back) stands higher and smaller, and the camera finds its face there", () => {
+  const world = { character_height: 620, ground_y: 870, marks: { sol: 560, orta: 960, sag: 1360 } };
+  const land = C.layoutFor(world, { width: 1920, height: 1080 });
+  assert.deepEqual(C.depthOf({}, land), { rise: 0, shrink: 1 });
+  const back = C.depthOf({ back: 1 }, land);
+  assert.ok(back.rise > 0 && back.shrink < 1);
+  const half = C.depthOf({ back: 0.5 }, land);
+  near(half.rise, back.rise / 2);
+  near(half.shrink, 1 - (1 - back.shrink) / 2);
+  const shot = (b) => ({ camera: { framing: "medium", target: "a" }, cast: [{ id: "a", mark: "orta", action: "x", back: b }] });
+  const front = C.focusFaceY(shot(0), land, world, { a: 400 });
+  const far = C.focusFaceY(shot(1), land, world, { a: 400 });
+  // feet rise; the head comes down by what the smaller body no longer reaches
+  near(front - far, back.rise - (950 - 400) * land.scale * (1 - back.shrink));
+});

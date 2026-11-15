@@ -13,6 +13,7 @@ import "./runtime/core.js";
 import { validateEpisode, profileOf } from "./validate.mjs";
 import { buildTimeline, wavDuration } from "./timing.mjs";
 import { readJson, has } from "./util.mjs";
+import { readWav, writeWav, mixMusic } from "./muzik.mjs";
 
 const RUNTIME_DIR = join(dirname(fileURLToPath(import.meta.url)), "runtime");
 export const VIEWPORTS = { "16:9": { width: 1920, height: 1080 }, "9:16": { width: 1080, height: 1920 } };
@@ -102,8 +103,53 @@ export function facesOf(episode, lib) {
 const rigUnitsPerWorld = (lib) => 900 / lib.world.character_height;
 
 /**
+ * Seconds a line takes to say, guessed from its text: the spoken lines of the examples run
+ * about 0.07–0.15 s per character (slow, clear speech for small children).
+ */
+const SECONDS_PER_CHAR = 0.1;
+const SPEECH_MIN_S = 1;
+export const estimateSpeech = (text) => Math.round(Math.max(SPEECH_MIN_S, text.length * SECONDS_PER_CHAR) * 1000) / 1000;
+
+/**
+ * When a holder takes its prop, in seconds into the shot: the grab of the first action of its
+ * sequence that has one and gets there before the next action starts; null when none does
+ * (then it holds the prop from the start).
+ */
+export function grabTime(member, lib) {
+  const segs = globalThis.CizgiCore.segmentsOf(member);
+  for (let i = 0; i < segs.length; i++) {
+    const s = segs[i];
+    const g = lib.actions.get(s.action)?.grab?.t;
+    if (g == null) continue;
+    // started part-way (from), an action reaches its grab that much earlier; a later action
+    // started past its grab holds the prop from its own start
+    const t = i === 0 ? g - s.from : s.at + Math.max(0, g - s.from);
+    if (t < (segs[i + 1]?.at ?? Infinity)) return t; // the next action may cut it off first
+  }
+  return null;
+}
+
+/**
+ * Refuse actions listed to start after their shot ends: the shot's length is only known
+ * here (it comes from the speech), so the validator cannot see it.
+ * @param {{shots: object[]}} timeline
+ */
+export function checkActionTimes(timeline) {
+  for (const shot of timeline.shots) {
+    const length = shot.end - shot.start;
+    for (const m of shot.cast) {
+      for (const a of m.actions || []) {
+        if (a.at >= length) {
+          throw new Error(`shot ${shot.shot_id}: "${m.id}" starts "${a.action}" at ${a.at}s, which starts after the shot ends (${length.toFixed(2)}s)`);
+        }
+      }
+    }
+  }
+}
+
+/**
  * Markup for every prop: a ground copy in the world, and a copy inside the holder's hand.
- * The player shows one of the two, switching at the holder action's grab time.
+ * The player shows one of the two, switching at the holder's grab time (grabTime).
  * @returns {{ground: string[], held: Map<string, {hand: string, markup: string}[]>, data: object[][], anchors: Record<string, number[]>[]}}
  */
 export function propLayer(timeline, episode, lib, viewport) {
@@ -129,11 +175,17 @@ export function propLayer(timeline, episode, lib, viewport) {
         return { key, holder: null, grab: null };
       }
       const x = layout.marks[pr.mark] + (pr.dx || 0) * ratio;
+      // A prop someone standing back (cast.back) will pick up lies at their depth, so it does not
+      // jump up and shrink when it goes into their hand.
+      const holderMember = pr.holder ? shot.cast.find((m) => m.id === pr.holder) : null;
+      const depth = holderMember ? globalThis.CizgiCore.depthOf(holderMember, layout) : { rise: 0, shrink: 1 };
+      const floorY = lib.world.ground_y - depth.rise;
+      const lieScale = ratio * depth.shrink;
       // where the camera looks when it targets this prop: its grip point as it lies on the ground
-      anchors[si][pr.id] = [x, lib.world.ground_y - (by - prop.grip[1]) * ratio];
+      anchors[si][pr.id] = [x, floorY - (by - prop.grip[1]) * lieScale];
       const groundInner = prefixIds(svgInner(prop.svg), `prop-${key}-yer`);
       ground.push(
-        `<g id="prop-${key}-yer" display="none" transform="translate(${x.toFixed(1)} ${lib.world.ground_y}) scale(${ratio.toFixed(4)}) translate(${-bx} ${-by})">${groundInner}</g>`,
+        `<g id="prop-${key}-yer" display="none" transform="translate(${x.toFixed(1)} ${floorY}) scale(${lieScale.toFixed(4)}) translate(${-bx} ${-by})">${groundInner}</g>`,
       );
       if (!pr.holder) return { key, holder: null, grab: null };
       const hand = pr.hand || "L";
@@ -147,9 +199,7 @@ export function propLayer(timeline, episode, lib, viewport) {
       const markup = `<g id="prop-${key}-el" display="none" transform="translate(${gx} ${gy}) rotate(${gripAngle}) scale(${rigUnitsPerWorld(lib).toFixed(4)}) translate(${-px} ${-py})">${heldInner}</g>`;
       held.set(pr.holder, [...(held.get(pr.holder) || []), { hand, markup }]);
       const member = shot.cast.find((m) => m.id === pr.holder);
-      const grab = lib.actions.get(member.action).grab?.t;
-      // an action started part-way (cast.from) reaches its grab that much earlier in the shot
-      return { key, holder: pr.holder, grab: grab == null ? null : grab - (member.from || 0) };
+      return { key, holder: pr.holder, grab: grabTime(member, lib) };
     }),
   );
   return { ground, held, data, anchors, inBackground };
@@ -270,7 +320,8 @@ function pageHtml({ episode, timeline, viewport, lib, audioTags, data, props }) 
  * @param {ReturnType<import("./library.mjs").loadLibrary>} lib
  * @param {string} outDir project folder to (over)write
  * @param {{format?: "16:9"|"9:16", episode?: object}} [opts]
- * @returns {{duration:number, shots:number, outDir:string}}
+ * @returns {{duration:number, shots:number, outDir:string, estimated?:string[]}} estimated: with
+ *   opts.missingAudio "estimate", the keys of lines played silent with a guessed length
  */
 export function compileEpisode(episodePath, lib, outDir, opts = {}) {
   // opts.episode: compile an unsaved edit (the control panel); paths still resolve next to episodePath.
@@ -283,8 +334,23 @@ export function compileEpisode(episodePath, lib, outDir, opts = {}) {
   if (!has(VIEWPORTS, format)) throw new Error(`unknown format "${format}" (${Object.keys(VIEWPORTS).join(", ")})`);
   const viewport = VIEWPORTS[format];
   const audioFile = (u, shot, i) => safeJoin(episodeDir, audioPathFor(u, shot, i));
-  const timeline = buildTimeline(episode, (u, shot, i) => readAudioInfo(audioFile(u, shot, i)), profileOf(episode, lib).timing);
+  // opts.missingAudio = "estimate" (the panel's preview only): a line not spoken yet gets a
+  // length guessed from its text and plays silent, so a new line can be placed and saved
+  // before the audio step. A render never uses this: it needs every line's real audio.
+  const estimated = [];
+  const audioInfo = (u, shot, i) => {
+    const file = audioFile(u, shot, i);
+    if (opts.missingAudio === "estimate" && !existsSync(file)) {
+      estimated.push(`${shot.shot_id}-${i}`);
+      return { duration: estimateSpeech(u.text), words: [], cues: [] };
+    }
+    return readAudioInfo(file);
+  };
+  const timeline = buildTimeline(episode, audioInfo, profileOf(episode, lib).timing);
+  const estimatedKeys = new Set(estimated);
+  const isEstimated = (shot, i) => estimatedKeys.has(`${shot.shot_id}-${i}`);
 
+  checkActionTimes(timeline);
   const effects = soundEffects(episode, timeline, lib);
 
   mkdirSync(join(outDir, "assets", "audio"), { recursive: true });
@@ -292,18 +358,30 @@ export function compileEpisode(episodePath, lib, outDir, opts = {}) {
   for (const f of ["core.js", "player.js"]) copyFileSync(join(RUNTIME_DIR, f), join(outDir, "runtime", f));
 
   const audioTags = [];
+  const mix = { lines: 1, sfx: 1, ...episode.mix };
+  const vol = (x) => String(Math.round(x * 1000) / 1000);
   for (const shot of timeline.shots) {
     shot.utterances.forEach((u, i) => {
+      if (isEstimated(shot, i)) return; // no audio yet: nothing to play
       const id = `ses-${shot.shot_id}-${i}`;
       copyFileSync(audioFile(u, shot, i), join(outDir, "assets", "audio", `${id}.wav`));
       const dur = (u.end - u.start).toFixed(3);
-      audioTags.push(`<audio id="${id}" src="assets/audio/${id}.wav" data-start="${u.start}" data-duration="${dur}" data-track-index="1" data-volume="1"></audio>`);
+      audioTags.push(`<audio id="${id}" src="assets/audio/${id}.wav" data-start="${u.start}" data-duration="${dur}" data-track-index="1" data-volume="${vol((u.volume ?? 1) * mix.lines)}"></audio>`);
     });
   }
 
   for (const e of effects) {
     copyFileSync(e.path, join(outDir, "assets", "audio", `${e.id}.wav`));
-    audioTags.push(`<audio id="${e.id}" src="assets/audio/${e.id}.wav" data-start="${e.start}" data-duration="${e.duration.toFixed(3)}" data-track-index="${e.track}" data-volume="${e.volume}"></audio>`);
+    audioTags.push(`<audio id="${e.id}" src="assets/audio/${e.id}.wav" data-start="${e.start}" data-duration="${e.duration.toFixed(3)}" data-track-index="${e.track}" data-volume="${vol(e.volume * mix.sfx)}"></audio>`);
+  }
+
+  if (episode.music) {
+    // One file with the fades and the dips under the lines already in it, on a track of its own
+    // after the effects (lines use 1, effects 2 and up).
+    const speech = timeline.shots.flatMap((s) => s.utterances.map((u) => ({ start: u.start, end: u.end })));
+    const track = readWav(readFileSync(lib.music.get(episode.music.track).path));
+    writeFileSync(join(outDir, "assets", "audio", "muzik.wav"), writeWav(mixMusic(track, timeline.duration, episode.music, speech)));
+    audioTags.push(`<audio id="muzik" src="assets/audio/muzik.wav" data-start="0" data-duration="${timeline.duration.toFixed(3)}" data-track-index="${2 + effects.length}" data-volume="1"></audio>`);
   }
 
   const props = propLayer(timeline, episode, lib, viewport);
@@ -326,5 +404,5 @@ export function compileEpisode(episodePath, lib, outDir, opts = {}) {
 
   writeFileSync(join(outDir, "index.html"), pageHtml({ episode, timeline, viewport, lib, audioTags, data, props }));
   writeFileSync(join(outDir, "timing.json"), JSON.stringify(timeline, null, 2));
-  return { duration: timeline.duration, shots: timeline.shots.length, outDir };
+  return { duration: timeline.duration, shots: timeline.shots.length, outDir, ...(opts.missingAudio === "estimate" ? { estimated } : {}) };
 }

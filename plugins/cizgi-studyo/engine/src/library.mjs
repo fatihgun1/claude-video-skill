@@ -8,6 +8,7 @@ import { join, basename, extname } from "node:path";
 import { checkRig, checkSvgSafety, POSE_CHANNELS as CHANNEL_LIST } from "./rigspec.mjs";
 import { readJson, readText, ID_PATTERN, has } from "./util.mjs";
 import { wavDuration } from "./timing.mjs";
+import { readWavInfo } from "./muzik.mjs";
 import "./runtime/core.js";
 
 const { EASES } = globalThis.CizgiCore;
@@ -222,6 +223,19 @@ export function loadLibrary(dir) {
     }
   }
 
+  // Background music: 16-bit PCM WAVs (episode.music), mixed under the film at compile time.
+  const music = new Map();
+  for (const file of entries(join(dir, "muzik"), ".wav")) {
+    const id = basename(file, ".wav");
+    checkId("music", id, errors);
+    const path = join(dir, "muzik", file);
+    try {
+      music.set(id, { path, duration: readWavInfo(readFileSync(path)).duration }); // header only: no decoding
+    } catch (err) {
+      errors.push(`music ${id}: ${err.message}`);
+    }
+  }
+
   const profiles = new Map();
   for (const file of entries(join(dir, "profiles"), ".json")) {
     const id = basename(file, ".json");
@@ -233,5 +247,5 @@ export function loadLibrary(dir) {
   if (!profiles.has("genel")) errors.push('profiles/genel.json is required (the default profile)');
 
   if (errors.length) throw new Error(`library is invalid:\n- ${errors.join("\n- ")}`);
-  return { dir, world, cameras, characters, actions, backgrounds, profiles, props, sfx };
+  return { dir, world, cameras, characters, actions, backgrounds, profiles, props, sfx, music };
 }

@@ -268,16 +268,51 @@
   }
 
   /**
-   * World x of a cast member at shot-local time t. A walking member (cast.walk = {dx, time})
-   * moves dx world units from its mark at constant speed over `time` seconds (default: the shot).
+   * World x of a cast member at shot-local time t: its mark, moved by cast.dx. A walking member
+   * (cast.walk = {dx, time}) moves walk.dx world units from there at constant speed over `time`
+   * seconds (default: the shot).
    */
   function memberX(member, layout, t, shotDuration) {
-    const x = layout.marks[member.mark];
+    // cast.dx: a free place dx world units from the mark (the marks stay as snapping points).
+    const x = layout.marks[member.mark] + (member.dx || 0) * layout.ratio;
     if (!member.walk) return x;
     const span = member.walk.time || shotDuration || 1;
     const k = clamp01(t / span);
     // arrive: walk in and stop ON the mark (start dx before it); otherwise start on the mark.
     return x + member.walk.dx * layout.ratio * (member.walk.arrive ? k - 1 : k);
+  }
+
+  /**
+   * The actions a cast member plays in a shot, in order: its own `action` from the start
+   * (part-way in by `from`), then each of `actions` from its time `at` (seconds in the shot).
+   */
+  function segmentsOf(member) {
+    const first = { action: member.action, at: 0, from: member.from || 0 };
+    const rest = (member.actions || []).map((a) => ({ action: a.action, at: a.at, from: a.from || 0 }));
+    return [first].concat(rest);
+  }
+
+  /** The action playing at shot-local time t and how far into it: {action, time, index, at}. */
+  function segmentAt(member, t) {
+    const segs = segmentsOf(member);
+    let i = 0;
+    while (i + 1 < segs.length && t >= segs[i + 1].at) i++;
+    const s = segs[i];
+    return { action: s.action, time: t - s.at + s.from, index: i, at: s.at };
+  }
+
+  /** At cast.back = 1 (as far back as a character goes): this much higher on the ground... */
+  const BACK_RISE = 140;
+  /** ...and drawn this much smaller. */
+  const BACK_SHRINK = 0.4;
+
+  /**
+   * Where a member stands in depth: cast.back 0 (front, on the ground line) .. 1 (far back).
+   * rise: world units up from the ground line; shrink: size factor.
+   */
+  function depthOf(member, layout) {
+    const b = Math.min(1, Math.max(0, member.back || 0));
+    return { rise: b * BACK_RISE * layout.ratio, shrink: 1 - b * BACK_SHRINK };
   }
 
   function shotDuration(shot) {
@@ -342,7 +377,8 @@
     let sum = 0;
     for (const m of cast) {
       const fy = faces && faces[m.id] != null ? faces[m.id] : DEFAULT_FACE_Y;
-      sum += world.ground_y - (950 - fy) * layout.scale;
+      const d = depthOf(m, layout);
+      sum += world.ground_y - d.rise - (950 - fy) * layout.scale * d.shrink;
     }
     return sum / cast.length;
   }
@@ -408,6 +444,10 @@
     layoutFor,
     focusX,
     memberX,
+    depthOf,
+    focusFaceY,
+    segmentsOf,
+    segmentAt,
     keepWidthFor,
     shotCamera,
     outOfFrame,

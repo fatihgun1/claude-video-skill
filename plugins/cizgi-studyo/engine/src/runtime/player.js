@@ -18,6 +18,7 @@
   const VISEMES = ["mouth_rest", "mouth_A", "mouth_E", "mouth_O", "mouth_U", "mouth_MBP", "mouth_FV", "mouth_L", "mouth_smile"];
   const layout = C.layoutFor(D.world, D.viewport);
   const rigScale = layout.scale;
+  let layeredShot = -1; // the shot whose depth order the characters are stacked in
 
   function byId(id) {
     return document.getElementById(id);
@@ -102,22 +103,41 @@
     return null;
   }
 
+  /** The pose of a member's action sequence at shot-local time t (no blending). */
+  function rawPose(member, t) {
+    const seg = C.segmentAt(member, t);
+    return C.sampleAction(D.actions[seg.action], seg.time);
+  }
+
   function poseFor(shotIdx, member, local) {
-    // cast.from starts the action part-way, so a cut can continue a movement (cut on action)
-    const pose = C.sampleAction(D.actions[member.action], local + (member.from || 0));
-    const prev = shotIdx > 0 ? D.shots[shotIdx - 1] : null;
-    const prevMember = prev && castMember(prev, member.id);
-    if (!prevMember || local >= BLEND) return pose;
-    const prevPose = C.sampleAction(D.actions[prevMember.action], prev.end - prev.start + (prevMember.from || 0));
-    return C.blendPose(prevPose, pose, C.ease("inOutSine", local / BLEND));
+    // cast.from starts an action part-way, so a cut can continue a movement (cut on action);
+    // cast.actions follow one another inside the shot
+    const seg = C.segmentAt(member, local);
+    const pose = C.sampleAction(D.actions[seg.action], seg.time);
+    const since = local - seg.at;
+    if (since >= BLEND) return pose;
+    let before = null;
+    if (seg.index > 0) {
+      // ease out of the pose on screen when this action began: the previous action, itself
+      // possibly still blending in (so a short action between two others does not pop)
+      before = poseFor(shotIdx, member, seg.at - 1e-6);
+    } else {
+      const prev = shotIdx > 0 ? D.shots[shotIdx - 1] : null;
+      const prevMember = prev && castMember(prev, member.id);
+      if (prevMember) before = rawPose(prevMember, prev.end - prev.start);
+    }
+    if (!before) return pose;
+    return C.blendPose(before, pose, C.ease("inOutSine", since / BLEND));
   }
 
   function drawCharacter(rig, member, pose, t, speaking, local, duration) {
     const x = C.memberX(member, layout, local, duration);
     const flip = member.facing === "sol" ? -1 : 1;
-    const sx = (pose.root_sx == null ? 1 : pose.root_sx) * rigScale * flip;
-    const sy = (pose.root_sy == null ? 1 : pose.root_sy) * rigScale;
-    const y = D.world.ground_y + (pose.root_y || 0) * rigScale;
+    const depth = C.depthOf(member, layout); // cast.back: higher up the ground, smaller
+    const k = rigScale * depth.shrink;
+    const sx = (pose.root_sx == null ? 1 : pose.root_sx) * k * flip;
+    const sy = (pose.root_sy == null ? 1 : pose.root_sy) * k;
+    const y = D.world.ground_y - depth.rise + (pose.root_y || 0) * k;
     rig.root.setAttribute("transform", "translate(" + x + " " + y + ") scale(" + sx.toFixed(4) + " " + sy.toFixed(4) + ") translate(-500 -950)");
 
     const idle = C.idleOffsets(t, rig.phase);
@@ -194,6 +214,17 @@
         const s = 1 + (move.dolly_to - 1) * k;
         backgrounds[bg].setAttribute("transform", "translate(" + vp[0] + " " + vp[1] + ") scale(" + s.toFixed(4) + ") translate(" + -vp[0] + " " + -vp[1] + ")");
       } else backgrounds[bg].removeAttribute("transform");
+    }
+
+    if (idx !== layeredShot) {
+      // Who stands further back is drawn first (behind); same depth keeps the episode's order.
+      layeredShot = idx;
+      const order = D.characters
+        .map((ch, i) => ({ wrap: rigs[ch.id].wrap, back: (castMember(shot, ch.id) || {}).back || 0, i }))
+        .sort((a, b) => b.back - a.back || a.i - b.i);
+      // The characters are the last children of the camera group (backgrounds and ground props
+      // come first), so moving them to the end keeps them in front of those.
+      for (const o of order) if (o.wrap && o.wrap.parentNode) o.wrap.parentNode.appendChild(o.wrap);
     }
 
     for (const ch of D.characters) {

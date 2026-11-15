@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import Ajv from "ajv";
 import { has } from "./util.mjs";
 import { filmWarnings } from "./sinema.mjs";
+import "./runtime/core.js"; // CizgiCore.segmentsOf: the same reading of cast actions as the player
 
 const schema = JSON.parse(readFileSync(new URL("./schema/episode.schema.json", import.meta.url), "utf8"));
 const ajv = new Ajv({ allErrors: true });
@@ -22,7 +23,7 @@ function list(names) {
  * A pose that bends a joint beyond what the rig declares (character.json "limits") would
  * look broken, so it is an error, not a warning.
  */
-function anatomyErrors(action, member, rigId, lib, where) {
+function anatomyErrors(action, actionId, rigId, lib, where) {
   const limits = lib.characters.get(rigId)?.meta?.limits;
   if (!action || !limits) return [];
   const errors = [];
@@ -30,11 +31,31 @@ function anatomyErrors(action, member, rigId, lib, where) {
     for (const [ch, v] of Object.entries(key.pose)) {
       const range = limits[ch];
       if (range && (v < range[0] || v > range[1])) {
-        errors.push(`${where}: "${member.action}" bends ${ch} to ${v}° at t=${key.t} but rig ${rigId} allows ${range[0]}..${range[1]}° (it would look broken)`);
+        errors.push(`${where}: "${actionId}" bends ${ch} to ${v}° at t=${key.t} but rig ${rigId} allows ${range[0]}..${range[1]}° (it would look broken)`);
       }
     }
   }
   return errors;
+}
+
+/** Every action a member plays in the shot, in order (its `action`, then `actions`). */
+const segmentsOf = (member) => globalThis.CizgiCore.segmentsOf(member);
+
+/** Where a walk should stop: when the first non-looping action after a walking start begins. */
+const TIME_EPS = 0.05;
+function walkStopWarning(m, lib, where) {
+  if (!m.walk || !m.actions) return null;
+  const segs = segmentsOf(m);
+  if (!lib.actions.get(segs[0].action)?.loop) return null; // not a walk cycle at the start
+  const stop = segs.find((s, i) => i > 0 && !lib.actions.get(s.action)?.loop);
+  if (!stop) return null;
+  if (m.walk.time === undefined) {
+    return `${where}: "${m.id}" stops walking at ${stop.at}s but walks the whole shot (the feet will slide); set walk.time to ${stop.at}`;
+  }
+  if (Math.abs(m.walk.time - stop.at) > TIME_EPS) {
+    return `${where}: "${m.id}" stops walking at ${stop.at}s but walk.time is ${m.walk.time}s (the feet will slide); set walk.time to ${stop.at}`;
+  }
+  return null;
 }
 
 function checkShot(shot, where, ctx) {
@@ -44,8 +65,14 @@ function checkShot(shot, where, ctx) {
 
   for (const member of shot.cast) {
     if (!characterIds.has(member.id)) errors.push(`${where}: cast "${member.id}" is not in characters`);
-    if (!lib.actions.has(member.action)) {
-      errors.push(`${where}: action "${member.action}" is not in the library (${list(lib.actions.keys())})`);
+    for (const s of segmentsOf(member)) {
+      if (!lib.actions.has(s.action)) {
+        errors.push(`${where}: action "${s.action}" is not in the library (${list(lib.actions.keys())})`);
+      }
+    }
+    const ats = (member.actions || []).map((a) => a.at);
+    if (ats.some((at, i) => i > 0 && at <= ats[i - 1])) {
+      errors.push(`${where}: the actions of "${member.id}" must come in time order (at ${ats.join(", ")})`);
     }
   }
   if (new Set(castIds).size !== castIds.length) errors.push(`${where}: a character appears twice in cast`);
@@ -64,10 +91,12 @@ function checkShot(shot, where, ctx) {
     errors.push(`${where}: camera target "${cam.target}" is not in this shot's cast or props`);
   }
   for (const m of shot.cast) {
-    const action = lib.actions.get(m.action);
-    errors.push(...anatomyErrors(action, m, ctx.rigOf(m.id), lib, where));
-    if (action && m.from !== undefined && m.from >= action.duration) {
-      errors.push(`${where}: "${m.id}" starts "${m.action}" at ${m.from}s but it lasts ${action.duration}s`);
+    for (const s of segmentsOf(m)) {
+      const action = lib.actions.get(s.action);
+      errors.push(...anatomyErrors(action, s.action, ctx.rigOf(m.id), lib, where));
+      if (action && s.from > 0 && s.from >= action.duration) {
+        errors.push(`${where}: "${m.id}" starts "${s.action}" at ${s.from}s but it lasts ${action.duration}s`);
+      }
     }
   }
 
@@ -143,11 +172,15 @@ export function viewWarnings(episode, lib) {
   for (const scene of episode.scenes) {
     for (const shot of scene.shots) {
       for (const m of shot.cast) {
-        const views = lib.actions.get(m.action)?.views;
         const view = lib.characters.get(rigOf(m.id))?.meta.view || "front";
-        if (views && !views.includes(view)) {
-          warnings.push(`shot ${shot.shot_id}: "${m.action}" is made for ${views.join("/")} views, but ${m.id} (${rigOf(m.id)}) is drawn ${view}`);
+        for (const s of segmentsOf(m)) {
+          const views = lib.actions.get(s.action)?.views;
+          if (views && !views.includes(view)) {
+            warnings.push(`shot ${shot.shot_id}: "${s.action}" is made for ${views.join("/")} views, but ${m.id} (${rigOf(m.id)}) is drawn ${view}`);
+          }
         }
+        const stop = walkStopWarning(m, lib, `shot ${shot.shot_id}`);
+        if (stop) warnings.push(stop);
       }
     }
   }
@@ -186,6 +219,9 @@ export function validateEpisode(episode, lib) {
     }
   }
   if (characterIds.has(NARRATOR)) errors.push(`"${NARRATOR}" is reserved for the narrator`);
+  if (episode.music && !lib.music?.has(episode.music.track)) {
+    errors.push(`music "${episode.music.track}" is not in the library (${list((lib.music || new Map()).keys()) || "library/muzik is empty"})`);
+  }
 
   const shotIds = new Set();
   const sceneIds = new Set();

@@ -1,33 +1,52 @@
 ---
 name: cizgi-panel
-description: Open the Çizgi Stüdyo control panel — a local web page where the person picks shots and changes action, mark, facing, walk, camera framing/move/target, hold and props from library dropdowns, watches the change in a live preview and saves it to bolum.json. Use when the person wants to adjust shots themselves, says the panel / kontrol paneli, or asks for a change that is easier to try by eye than to describe.
+description: Open the Çizgi Stüdyo editor panel — a local web page laid out like a video editor (library on the left, stage in the middle, properties on the right, shot strip at the bottom) where the person picks characters, actions, places, props, sounds and camera shots from visual cards, sees the change in a live preview and saves it to bolum.json. Use when the person wants to adjust shots themselves, says the panel / editör / kontrol paneli, or asks for a change that is easier to try by eye than to describe.
 ---
 
-# Control panel
+# Editor panel
 
 ```bash
 CLI="node ${CLAUDE_PLUGIN_ROOT}/engine/src/cli.mjs"
-$CLI panel <bolum.json>              # http://127.0.0.1:4810/
-$CLI panel <bolum.json> --port 4900
+$CLI panel <klasör>                  # every bolum.json under the folder; http://127.0.0.1:4810/
+$CLI panel <bolum.json>              # that episode's folder, with that episode open
+$CLI panel <klasör> --port 4900
 ```
 
-Run it in the background (it keeps serving until stopped) and give the person the printed URL. In the Claude desktop app, open it in the built-in browser.
+Open the project root (the folder holding `ornekler/` and `bolumler/`) when the person works on several episodes: the panel then lists them all and switches between them without a restart. Run it in the background (it keeps serving until stopped) and give the person the printed URL. In the Claude desktop app, open it in the built-in browser. The layout needs a window at least 1180 px wide; narrower windows stack the panes.
 
 ## What the person can do there
-- Pick a shot from the list; the preview jumps to it. Scrub or play the preview (silent, 16:9).
-- Change, with dropdowns that only offer library words:
-  - per scene: background
-  - per shot: framing, camera move, camera target, hold
-  - per cast member: character, action, mark, facing, start offset (`from`), walk (dx, time, arrive)
-  - per prop: prop, mark, dx, holder
-- Every change is validated and recompiled into the preview. Errors block saving; warnings (profile rules, cinema checks) are shown under the preview.
-- **Kaydet** (or Ctrl+S) writes `bolum.json`. **Geri al** drops unsaved changes.
+- **Bölümler** (the episode name in the top bar): a card per `bolum.json` in the folder with its background, title, shot count, length and approval state. A click opens it; with unsaved changes the panel asks first. **Yeni bölüm** asks for a title and an id and writes `bolumler/<id>/bolum.json` from a minimal valid template (one scene, one shot, Ela standing in the park); it never overwrites. The open episode stays in the address (`#b=…`), so a reload keeps it.
+- **Timeline** (bottom): a ruler with scene marks and these tracks.
+  - **Shot:** one block per shot, as wide as it lasts, with its background as the picture and a red badge when it has errors. Click to select; drag the block to reorder it within its scene; drag its right edge to change `hold` (it stops where the lines end). **+ Shot** adds a shot after the selected one with the same people standing; **Çoğalt** (Ctrl+D) copies it without its lines; **Sil** (Delete) removes it (a scene keeps at least one shot).
+  - **One track per character:** their actions in each shot as clips (a one-off action shorter than its clip holds its last pose; the dark bar is the action itself). Click a clip to select it; drag its left edge to change when it starts. If that is where a walk stops, the walk stops there too at the same speed (`walk.time` and `walk.dx` follow), so the feet do not slide. In the Hareket tab, a card click replaces the selected action; **+ Ekle** starts that action at the playhead (stored as `cast[].actions: [{action, at}]` after the member's own `action`). Delete removes the selected action.
+  - **Replik:** the lines where they are spoken, coloured by speaker. The words are read-only; drag a line later to add a pause before it (`utterance.delay`). A line that failed its listening check and was not accepted has a red dashed outline. Select one to set its loudness (`utterance.volume`), listen to it, and read its listening check.
+  - **Efekt:** the sound effects; drag one sideways to change its `at` (within its shot). The dark bar is the sound's real length.
+  - **Müzik:** the background music as its loudness curve (fades, and the dips under the lines). Click it, or **Mikser**, for track levels (`mix.lines`, `mix.sfx`) and the music (`music`: track, level, fade in/out, level while speaking, loop). Music is chosen in the Ses tab (**Kullan**) from `library/muzik`.
+  - **M / S** next to Replik, Efekt and Müzik mute a track or play it alone in the preview (listening only, not saved).
+  - Click or drag the ruler to move the playhead.
+- **Stage** (middle): the compiled preview with sound: lines and effects play in step with the picture (🔊 mutes). Space plays/pauses; ←/→ step one frame, Shift+←/→ one second.
+  - When paused inside the selected shot, every cast member and prop has a frame. Click selects it. Drag sideways to move it: it lands on the nearest free mark (sol / orta / sağ) when close, otherwise off it by `dx` (stored as `cast[].dx` / `props[].dx`). Drag a character up to put it further back (higher and smaller, behind the others; `cast[].back` 0..1), down to bring it to the front; with the frame focused, ←/→ and ↑/↓ do the same in small steps. ⇆ turns the selected character around. A walking character shows its path as an arrow; drag the free end to change `walk.dx`.
+  - **16:9 / 9:16** compiles the preview for that frame (the episode does not change). **Güvenli alan** shows the action and title safe areas and the caption zone. **Katmanlar** hides background, characters, props or captions in the preview only.
+- **Undo** ↶ / **redo** ↷ (Ctrl+Z, Ctrl+Y or Ctrl+Shift+Z) step through every change since the episode was opened.
+- **Library** (left), one tab per kind. A click applies to the selection:
+  - **Karakter:** cards with the drawing; the views of one person sit together. With a cast member selected, a click swaps them; with nothing selected, it adds the character to the shot.
+  - **Hareket:** only the actions drawn for the selected (or the only) cast member's view; hovering plays the action with that character. Actions that break that character's joint limits are dimmed and say why.
+  - **Mekân:** background pictures; a click changes the scene's background (every shot of that scene).
+  - **Nesne:** a click swaps the selected prop or adds a new one.
+  - **Ses:** ▶ plays the effect; **+ Ekle** adds it to the shot at the playhead.
+  - **Kamera:** framing diagrams and move diagrams; a click sets the shot's camera.
+- **Properties** (right): camera, hold, and one row per cast member, prop and sound effect. Clicking a row opens its details (mark, facing, walk, time, volume…); **Sil** removes it.
+- Every change is validated and recompiled into the preview. Errors block saving; messages that name a shot are links to it.
+- **Kaydet** (or Ctrl+S) writes `bolum.json`. **Hepsini at** drops all unsaved changes (itself undoable).
+- **Production** (the step chips in the top bar: Senaryo, Ses n/m, Storyboard, Render; click one): the state of each step and what to ask for. On the saved file, when the script is approved and every line has audio, the person can start **Storyboard karelerini al** and **Taslak video çıkar** (they run `cizgi storyboard` / `cizgi render --taslak` in the background) and see the contact sheets and draft videos there. Approvals are never given in the panel.
+- **Problems:** a shot with warnings has a yellow count on the timeline, with errors a red one. Its messages are listed at the top of the properties, and the row they are about (cast member, prop, effect, line) has a "!"; clicking a message opens that row.
+- **Colours:** a cast member's details have a colour picker for every colour its rig lets an episode change (`characters[].palette`); they apply in every shot.
 
-The words (utterances) are read-only in the panel: they change only through **cizgi-senaryo**, because the script gate covers them.
+Lines can be edited, added and deleted in the panel (a line's details and the form under the lines). When the script is approved, the person must first tick that they know the approval will drop: the script then has to be approved again (**cizgi-senaryo**) and the changed lines spoken again (**cizgi-ses**). Until then the preview plays a new line silent with a guessed length and a changed line with its old recording; a render always needs the real audio. The script approval also covers the shot list too, so adding, copying, deleting or reordering shots makes it stale after saving; the person approves the script again through **cizgi-senaryo**.
 
 ## Rules for you
-- The panel never approves anything. A saved change makes the storyboard approval stale (the header shows it); the person approves again through **cizgi-storyboard**.
+- The panel never approves anything. A saved change makes the storyboard approval stale (the top bar shows it); the person approves again through **cizgi-storyboard**.
 - Do not edit `bolum.json` while the panel is open. If you must, tell the person to reload the panel: a save over a file that changed on disk is refused.
-- New actions, rigs, backgrounds or props go into the library (the panel reloads it on every request). The panel only chooses among what exists.
+- New actions, rigs, backgrounds, props or sounds go into the library (the panel reloads it on every request). The panel only chooses among what exists.
 - The preview is the composition, not a render. Before showing anyone a video of the result, render a draft and check it with `cizgi qa` (**cizgi-render**).
 - The server listens on 127.0.0.1 only. Stop it when the person is done.

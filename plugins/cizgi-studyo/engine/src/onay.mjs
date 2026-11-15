@@ -43,7 +43,7 @@ export function scriptFingerprint(episode) {
  */
 export function libraryFingerprint(episode, lib) {
   const shots = episode.scenes.flatMap((s) => s.shots);
-  const actions = [...new Set(shots.flatMap((s) => s.cast.map((m) => m.action)))].sort();
+  const actions = [...new Set(shots.flatMap((s) => s.cast.flatMap((m) => [m.action, ...(m.actions || []).map((a) => a.action)])))].sort();
   const rigs = [...new Set(episode.characters.map((c) => c.rig))].sort();
   const bgs = [...new Set(episode.scenes.map((s) => s.bg))].sort();
   const props = [...new Set(shots.flatMap((s) => (s.props || []).map((p) => p.prop)))].sort();
@@ -58,6 +58,8 @@ export function libraryFingerprint(episode, lib) {
     props: props.map((p) => lib.props?.get(p)?.svg ?? null),
     // Hash the sound itself, not its path, so replacing a WAV makes the approval stale.
     ...(sounds.length ? { sfx: sounds.map((x) => (lib.sfx?.get(x) ? sha(readFileSync(lib.sfx.get(x).path).toString("base64")) : null)) } : {}),
+    // music files are large: hash the bytes directly, without a base64 copy
+    ...(episode.music ? { music: lib.music?.get(episode.music.track) ? createHash("sha256").update(readFileSync(lib.music.get(episode.music.track).path)).digest("hex") : null } : {}),
   });
 }
 

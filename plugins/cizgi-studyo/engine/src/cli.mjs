@@ -11,7 +11,7 @@
  *   cizgi render     <bolum.json> [--taslak] [--format 9:16]
  *   cizgi qa         <video.mp4>                     review pages (4 fps) of a RENDERED video; look at every page
  *   cizgi derle      <bolum.json> <out-dir> [16:9|9:16]
- *   cizgi panel      <bolum.json> [--port 4810]       local control panel (127.0.0.1): edit shots with a live preview
+ *   cizgi panel      <klasör|bolum.json> [--port 4810] local control panel (127.0.0.1): pick an episode, edit shots with a live preview
  *
  * Options: --kutuphane <dir> (default: ../library next to the engine)
  */
@@ -27,12 +27,15 @@ import { runAudio, readManifest, linesOf, planAudio, lineFingerprint, failedLine
 import { storyboard, render, qaPages } from "./uretim.mjs";
 import { loadTools, run } from "./tools.mjs";
 import { startPanel } from "./panel.mjs";
+import { workspaceOf } from "./panel-proje.mjs";
+import { cachedLibrary } from "./panel-kutuphane.mjs";
+import { createJobs } from "./panel-is.mjs";
 
 const DEFAULT_LIBRARY = fileURLToPath(new URL("../../library", import.meta.url));
 const FLAGS = new Set(["--hepsi", "--taslak"]);
 const NEEDS = { dogrula: 1, durum: 1, ses: 1, storyboard: 1, render: 1, onayla: 2, derle: 2, kabul: 2, qa: 1, panel: 1 };
 const USAGE =
-  "usage: cizgi dogrula|durum|ses|storyboard|render|panel <bolum.json> · cizgi onayla senaryo|storyboard <bolum.json> · cizgi kabul <bolum.json> <line> · cizgi derle <bolum.json> <dir> [format]\n";
+  "usage: cizgi dogrula|durum|ses|storyboard|render <bolum.json> · cizgi panel <klasör|bolum.json> · cizgi onayla senaryo|storyboard <bolum.json> · cizgi kabul <bolum.json> <line> · cizgi derle <bolum.json> <dir> [format]\n";
 
 /**
  * @param {string[]} argv
@@ -140,9 +143,17 @@ function main(argv) {
       print(qaPages(a1, { run, ffmpeg: loadTools().ffmpeg }));
       return 0;
     case "panel":
-      // The library is reloaded on every request, so an edited rig or action shows up without a restart.
-      startPanel({ episodePath: a1, loadLib: () => loadLibrary(library), status, port }).then(
-        ({ url }) => print({ panel: url, episode: resolve(a1), stop: "Ctrl+C" }),
+      // The library is reloaded when one of its files changes, so an edited rig or action shows up without a restart.
+      // A folder lists every bolum.json under it; a bolum.json opens its own folder with that episode first.
+      const space = workspaceOf(resolve(a1));
+      // Storyboard and draft render jobs run this same CLI in a child process.
+      const jobs = createJobs({ cli: fileURLToPath(import.meta.url), library: resolve(library) });
+      process.once("SIGINT", () => {
+        jobs.stopAll(); // Ctrl+C stops a storyboard or render started from the panel too
+        process.exit(130);
+      });
+      startPanel({ ...space, loadLib: cachedLibrary(library, loadLibrary), status, port, jobs }).then(
+        ({ url }) => print({ panel: url, folder: space.root, stop: "Ctrl+C" }),
         (err) => {
           process.stderr.write(`error: ${err.message}\n`);
           process.exitCode = 1;

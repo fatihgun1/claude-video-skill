@@ -60,6 +60,7 @@ export function buildTimeline(episode, audioInfo, timing = TIMING) {
       let cursor = ms(start + timing.lead);
       const utterances = (shot.utterances || []).map((u, i) => {
         if (i > 0) cursor = ms(cursor + timing.gap);
+        if (u.delay) cursor = ms(cursor + u.delay); // utterance.delay: a longer pause before this line
         const info = audioInfo(u, shot, i);
         const line = { ...u, start: cursor, end: ms(cursor + info.duration), words: info.words || [], cues: info.cues || [] };
         cursor = line.end;
