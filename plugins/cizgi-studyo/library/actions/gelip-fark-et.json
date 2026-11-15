@@ -1,0 +1,190 @@
+{
+  "label": {
+    "tr": "Yürüyerek gel, dur, fark et",
+    "en": "Walk in, stop, notice"
+  },
+  "notes": "Profile: one walk cycle (pair with cast.walk {dx, time: 1.2, arrive: true}), settles on the mark, then the eyes and then the head go down toward something on the ground ahead.",
+  "duration": 3.4,
+  "loop": false,
+  "keys": [
+    {
+      "t": 0,
+      "pose": {
+        "leg_L_upper": -16,
+        "leg_L_lower": 6,
+        "leg_R_upper": 14,
+        "leg_R_lower": 14,
+        "foot_L": 6,
+        "foot_R": -17,
+        "root_y": 3,
+        "body": 3,
+        "head": -2,
+        "arm_L_upper": 12,
+        "arm_L_lower": -6,
+        "arm_R_upper": -12,
+        "arm_R_lower": -6,
+        "gaze_y": 0
+      }
+    },
+    {
+      "t": 0.3,
+      "pose": {
+        "leg_L_upper": 2,
+        "leg_L_lower": 4,
+        "leg_R_upper": -8,
+        "leg_R_lower": 40,
+        "foot_L": -4,
+        "foot_R": -19,
+        "root_y": -7,
+        "body": 3,
+        "head": -2,
+        "arm_L_upper": 0,
+        "arm_L_lower": -6,
+        "arm_R_upper": 0,
+        "arm_R_lower": -6,
+        "gaze_y": 0
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 0.6,
+      "pose": {
+        "leg_L_upper": 14,
+        "leg_L_lower": 14,
+        "leg_R_upper": -16,
+        "leg_R_lower": 6,
+        "foot_L": -17,
+        "foot_R": 6,
+        "root_y": 3,
+        "body": 3,
+        "head": -2,
+        "arm_L_upper": -12,
+        "arm_L_lower": -6,
+        "arm_R_upper": 12,
+        "arm_R_lower": -6,
+        "gaze_y": 0
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 0.9,
+      "pose": {
+        "leg_L_upper": -8,
+        "leg_L_lower": 40,
+        "leg_R_upper": 2,
+        "leg_R_lower": 4,
+        "foot_L": -19,
+        "foot_R": -4,
+        "root_y": -7,
+        "body": 3,
+        "head": -2,
+        "arm_L_upper": 0,
+        "arm_L_lower": -6,
+        "arm_R_upper": 0,
+        "arm_R_lower": -6,
+        "gaze_y": 0
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 1.2,
+      "pose": {
+        "leg_L_upper": -16,
+        "leg_L_lower": 6,
+        "leg_R_upper": 14,
+        "leg_R_lower": 14,
+        "foot_L": 6,
+        "foot_R": -17,
+        "root_y": 3,
+        "body": 3,
+        "head": -2,
+        "arm_L_upper": 12,
+        "arm_L_lower": -6,
+        "arm_R_upper": -12,
+        "arm_R_lower": -6,
+        "gaze_y": 0
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 1.6,
+      "ease": "outSine",
+      "pose": {
+        "leg_L_upper": 0,
+        "leg_L_lower": 0,
+        "leg_R_upper": 0,
+        "leg_R_lower": 0,
+        "foot_L": 0,
+        "foot_R": 0,
+        "root_y": 0,
+        "body": 0,
+        "head": 0,
+        "arm_L_upper": -6,
+        "arm_L_lower": 0,
+        "arm_R_upper": 6,
+        "arm_R_lower": 0,
+        "gaze_y": 0
+      }
+    },
+    {
+      "t": 2,
+      "ease": "inOutSine",
+      "pose": {
+        "leg_L_upper": 0,
+        "leg_L_lower": 0,
+        "leg_R_upper": 0,
+        "leg_R_lower": 0,
+        "foot_L": 0,
+        "foot_R": 0,
+        "root_y": 0,
+        "body": 0,
+        "head": -3,
+        "arm_L_upper": -6,
+        "arm_L_lower": 0,
+        "arm_R_upper": 6,
+        "arm_R_lower": 0,
+        "gaze_y": 3
+      }
+    },
+    {
+      "t": 2.8,
+      "ease": "inOutSine",
+      "pose": {
+        "leg_L_upper": 0,
+        "leg_L_lower": 0,
+        "leg_R_upper": 0,
+        "leg_R_lower": 0,
+        "foot_L": 0,
+        "foot_R": 0,
+        "root_y": 0,
+        "body": 4,
+        "head": 20,
+        "arm_L_upper": -6,
+        "arm_L_lower": 0,
+        "arm_R_upper": 6,
+        "arm_R_lower": 0,
+        "gaze_y": 5
+      }
+    },
+    {
+      "t": 3.4,
+      "ease": "inOutSine",
+      "pose": {
+        "leg_L_upper": 0,
+        "leg_L_lower": 0,
+        "leg_R_upper": 0,
+        "leg_R_lower": 0,
+        "foot_L": 0,
+        "foot_R": 0,
+        "root_y": 0,
+        "body": 4,
+        "head": 18,
+        "arm_L_upper": -6,
+        "arm_L_lower": 0,
+        "arm_R_upper": 6,
+        "arm_R_lower": 0,
+        "gaze_y": 5
+      }
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "lines": {
+    "s1_sh1-0": {
+      "fingerprint": "97d46d14a69b5b43",
+      "text": "Merhaba! Ben Pamuk.",
+      "heard": "Merhaba, ben Pamuk.",
+      "cer": 0,
+      "ok": true,
+      "attempts": 1
+    },
+    "s1_sh1-1": {
+      "fingerprint": "c89b87c87409acfc",
+      "text": "Ben de Pıtır!",
+      "heard": "Ben de Pütreş.",
+      "cer": 0.333,
+      "ok": false,
+      "attempts": 3,
+      "accepted": true
+    },
+    "s1_sh2-0": {
+      "fingerprint": "030c3bea7018e27a",
+      "text": "Bak! Alkış yapıyorlar. Sen de alkışla!",
+      "heard": "Bak, alkış yapıyorlar. Sen de alkışla.",
+      "cer": 0,
+      "ok": true,
+      "attempts": 1
+    },
+    "s1_sh3-0": {
+      "fingerprint": "3058d87d8fe0df3c",
+      "text": "Aferin sana! Şimdi hop hop zıpla!",
+      "heard": "Aferin sana, şimdi hop hop zıpla.",
+      "cer": 0,
+      "ok": true,
+      "attempts": 1
+    },
+    "s1_sh4-0": {
+      "fingerprint": "d090b1e7bb501b9f",
+      "text": "Aferin! Hoşça kal minik!",
+      "heard": "Aferin, hoşça kal minik.",
+      "cer": 0,
+      "ok": true,
+      "attempts": 1
+    }
+  }
+}

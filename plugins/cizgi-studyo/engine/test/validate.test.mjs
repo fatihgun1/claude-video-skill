@@ -24,7 +24,7 @@ function episode(overrides = {}) {
 }
 
 test("a valid episode passes", () => {
-  assert.deepEqual(validateEpisode(episode(), lib), { ok: true, errors: [] });
+  assert.deepEqual(validateEpisode(episode(), lib), { ok: true, errors: [], warnings: [] });
 });
 
 test("schema errors are reported before library checks", () => {
@@ -47,7 +47,7 @@ test("unknown action, framing, move, rig and background are rejected with the al
   for (const bad of ['action "takla"', 'framing "drone"', 'move "spin"', 'rig "ejderha"', 'background "uzay"']) {
     assert.ok(joined.includes(bad), `expected error about ${bad}`);
   }
-  assert.ok(joined.includes("alkis, bekle, selam, zipla"));
+  assert.ok(/\(alkis, bak, [a-z, -]*zipla\)/.test(joined), "lists the library actions");
 });
 
 test("cast, speaker and camera target must refer to known characters", () => {

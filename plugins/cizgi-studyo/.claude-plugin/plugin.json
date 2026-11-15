@@ -1,6 +1,9 @@
 {
   "name": "cizgi-studyo",
-  "version": "0.1.0-alpha.1",
+  "version": "0.2.0-alpha.1",
   "description": "Human-controlled 2D cartoon production: library-driven characters, approval gates, HyperFrames rendering.",
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "author": {
+    "name": "cizgi-studyo contributors"
+  }
 }

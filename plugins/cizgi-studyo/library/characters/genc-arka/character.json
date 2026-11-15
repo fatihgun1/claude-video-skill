@@ -1,0 +1,65 @@
+{
+  "name": {
+    "tr": "Genç (arkadan 3/4)",
+    "en": "Young man (back three-quarter)"
+  },
+  "temporary": true,
+  "view": "back-three-quarter-right",
+  "same_as": "genc",
+  "license": "CC0-1.0",
+  "palette_vars": [
+    "skin",
+    "skin-dark",
+    "hair",
+    "top",
+    "top-dark",
+    "pants",
+    "pants-dark",
+    "shoe",
+    "bag",
+    "line"
+  ],
+  "face_y": 135,
+  "limits": {
+    "arm_L_upper": [
+      -40,
+      40
+    ],
+    "arm_L_lower": [
+      -60,
+      5
+    ],
+    "arm_R_upper": [
+      -40,
+      40
+    ],
+    "arm_R_lower": [
+      -60,
+      5
+    ],
+    "leg_L_upper": [
+      -25,
+      25
+    ],
+    "leg_L_lower": [
+      -5,
+      60
+    ],
+    "leg_R_upper": [
+      -25,
+      25
+    ],
+    "leg_R_lower": [
+      -5,
+      60
+    ],
+    "head": [
+      -20,
+      20
+    ],
+    "body": [
+      -10,
+      10
+    ]
+  }
+}

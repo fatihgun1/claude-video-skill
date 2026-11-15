@@ -13,19 +13,23 @@ test("missing part, missing pivot and wrong viewBox are reported", () => {
   const broken = rig
     .replace('viewBox="0 0 1000 1000"', 'viewBox="0 0 800 800"')
     .replace('<g id="mouth_O" display="none">', '<g id="mouth_X" display="none">')
-    .replace(' data-pivot="500,540"', "");
+    .replace(' data-pivot="500,565"', "")
+    .replace('data-hose="408,640 392,715 388,785"', 'data-hose="408,640"')
+    .replace('<path class="hose-fill" d="M592 640', '<path class="kol" d="M592 640');
   const errors = checkRig(broken);
   assert.ok(errors.some((e) => e.includes("viewBox")));
   assert.ok(errors.some((e) => e.includes("#mouth_O")));
   assert.ok(errors.some((e) => e.includes("#head needs data-pivot")));
+  assert.ok(errors.some((e) => e.includes('#arm_R needs data-hose')));
+  assert.ok(errors.some((e) => e.includes('#arm_L needs a <path class="hose-fill">')));
 });
 
 test("authored transforms and wrong nesting are rejected", () => {
-  const svg = `<svg viewBox="0 0 1000 1000"><g id="root"><g id="hand_L" data-pivot="1,1" transform="rotate(4)"></g><g id="arm_L_lower" data-pivot="1,1"></g></g></svg>`;
+  const svg = `<svg viewBox="0 0 1000 1000"><g id="root"><g id="hand_L" data-pivot="1,1" transform="rotate(4)"></g><g id="arm_L" data-hose="1,1 2,2 3,3"></g></g></svg>`;
   const errors = checkRig(svg);
   assert.ok(errors.some((e) => e.includes("#hand_L must not have a transform")));
-  assert.ok(errors.some((e) => e.includes("#hand_L must be inside #arm_L_lower")));
-  assert.ok(errors.some((e) => e.includes("#arm_L_lower must be inside #arm_L_upper")));
+  assert.ok(errors.some((e) => e.includes("#hand_L must be inside #arm_L")));
+  assert.ok(errors.some((e) => e.includes("#arm_L must be inside #body")));
 });
 
 test("root must be outermost", () => {

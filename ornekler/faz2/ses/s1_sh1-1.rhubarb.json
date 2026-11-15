@@ -1,0 +1,16 @@
+{
+  "metadata": {
+    "soundFile": "C:\\Users\\Fatih\\Desktop\\Video\\cizgi-studyo\\ornekler\\faz2\\ses\\s1_sh1-1.wav",
+    "duration": 1.40
+  },
+  "mouthCues": [
+    { "start": 0.00, "end": 0.01, "value": "X" },
+    { "start": 0.01, "end": 0.09, "value": "B" },
+    { "start": 0.09, "end": 0.16, "value": "A" },
+    { "start": 0.16, "end": 0.38, "value": "C" },
+    { "start": 0.38, "end": 0.46, "value": "A" },
+    { "start": 0.46, "end": 0.61, "value": "F" },
+    { "start": 0.61, "end": 1.03, "value": "B" },
+    { "start": 1.03, "end": 1.40, "value": "X" }
+  ]
+}

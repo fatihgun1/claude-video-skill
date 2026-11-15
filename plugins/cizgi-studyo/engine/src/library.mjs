@@ -5,12 +5,12 @@
  */
 import { readdirSync, existsSync } from "node:fs";
 import { join, basename, extname } from "node:path";
-import { checkRig, checkSvgSafety, ROTATABLE_PARTS, OPTIONAL_ROTATABLE } from "./rigspec.mjs";
+import { checkRig, checkSvgSafety, POSE_CHANNELS as CHANNEL_LIST } from "./rigspec.mjs";
 import { readJson, readText, ID_PATTERN, has } from "./util.mjs";
 import "./runtime/core.js";
 
 const { EASES } = globalThis.CizgiCore;
-const POSE_CHANNELS = new Set([...ROTATABLE_PARTS, ...OPTIONAL_ROTATABLE, "root_y", "root_sx", "root_sy"]);
+const POSE_CHANNELS = new Set(CHANNEL_LIST);
 const MARKS = ["sol", "orta", "sag"];
 
 function entries(dir, ext) {
@@ -60,6 +60,9 @@ export function checkAction(action, name) {
     }
   }
   if (action.keys[0]?.t !== 0) errors.push(`${name}: first key must be at t=0`);
+  if (action.grab !== undefined && !(isNum(action.grab?.t) && action.grab.t >= 0 && action.grab.t <= action.duration)) {
+    errors.push(`${name}: grab.t must be a time within the action`);
+  }
   if (action.loop && action.keys.at(-1)?.t !== action.duration) {
     errors.push(`${name}: a looping action needs its last key at t=duration`);
   }
@@ -78,20 +81,72 @@ export function checkSettings(world, cameras) {
     if (!isNum(world[f]) || world[f] <= 0) errors.push(`world.json: ${f} must be a positive number`);
   }
   for (const m of MARKS) if (!isNum(world.marks?.[m])) errors.push(`world.json: marks.${m} must be a number`);
+  if (world.portrait !== undefined) {
+    for (const m of MARKS) if (!isNum(world.portrait.marks?.[m])) errors.push(`world.json: portrait.marks.${m} must be a number`);
+    const s = world.portrait.character_scale;
+    if (!isNum(s) || s < 0.3 || s > 1.5) errors.push("world.json: portrait.character_scale must be 0.3..1.5");
+  }
   if (!cameras.framings || !Object.keys(cameras.framings).length) errors.push("cameras.json: needs framings");
   if (!has(cameras.moves, "static")) errors.push('cameras.json: moves must include "static"');
   for (const [id, f] of Object.entries(cameras.framings || {})) {
     if (!ID_PATTERN.test(id)) errors.push(`cameras.json: bad framing id "${id}"`);
     if (!isNum(f.zoom) || f.zoom < 1) errors.push(`cameras.json: framing ${id} needs zoom >= 1`);
+    if (f.anchor !== undefined && !["face", "body", "chest"].includes(f.anchor)) errors.push(`cameras.json: framing ${id} anchor must be "face", "body" or "chest"`);
+    if (f.blur !== undefined && !(isNum(f.blur) && f.blur >= 0 && f.blur <= 20)) errors.push(`cameras.json: framing ${id} blur must be 0..20`);
   }
   for (const [id, m] of Object.entries(cameras.moves || {})) {
     if (!ID_PATTERN.test(id)) errors.push(`cameras.json: bad move id "${id}"`);
-    for (const f of ["zoom_from", "zoom_to", "pan_from", "pan_to"]) {
+    for (const f of ["zoom_from", "zoom_to", "pan_from", "pan_to", "dolly_to"]) {
       if (m[f] !== undefined && !isNum(m[f])) errors.push(`cameras.json: move ${id}.${f} must be a number`);
     }
     if (m.ease !== undefined && !has(EASES, m.ease)) errors.push(`cameras.json: move ${id} has unknown ease "${m.ease}"`);
   }
   return errors;
+}
+
+const TIMING_FIELDS = ["lead", "gap", "default_hold", "tail", "min_shot"];
+const INT_RULES = ["max_cast", "max_words_per_sentence", "max_count"];
+
+/**
+ * Check a profile (timing, speech and content rules); returns errors.
+ * @param {object} profile
+ * @param {string} name
+ * @returns {string[]}
+ */
+export function checkProfile(profile, name) {
+  const errors = [];
+  for (const f of TIMING_FIELDS) {
+    if (!isNum(profile.timing?.[f]) || profile.timing[f] < 0) errors.push(`${name}: timing.${f} must be a number >= 0`);
+  }
+  const sp = profile.speech || {};
+  if (!isNum(sp.tempo) || sp.tempo < 0.5 || sp.tempo > 1.5) errors.push(`${name}: speech.tempo must be 0.5..1.5`);
+  if (!isNum(sp.max_cer) || sp.max_cer < 0 || sp.max_cer > 1) errors.push(`${name}: speech.max_cer must be 0..1`);
+  if (!Number.isInteger(sp.retries) || sp.retries < 0 || sp.retries > 5) errors.push(`${name}: speech.retries must be 0..5`);
+  const rules = profile.rules || {};
+  for (const r of INT_RULES) {
+    if (rules[r] !== undefined && !(Number.isInteger(rules[r]) && rules[r] > 0)) errors.push(`${name}: rules.${r} must be a positive integer`);
+  }
+  if (rules.min_hold !== undefined && !isNum(rules.min_hold)) errors.push(`${name}: rules.min_hold must be a number`);
+  if (rules.allowed_moves !== undefined && !Array.isArray(rules.allowed_moves)) errors.push(`${name}: rules.allowed_moves must be a list`);
+  return errors;
+}
+
+/**
+ * A prop is an SVG drawn in world units with two anchors on its <svg> element:
+ *   data-base="x,y"  the point that rests on the ground
+ *   data-grip="x,y"  the point that sits in a character's hand
+ * @param {string} svg
+ * @returns {{errors: string[], grip: number[]|null, base: number[]|null}}
+ */
+export function checkProp(svg) {
+  const errors = checkSvgSafety(svg);
+  const tag = /<svg\b[^>]*>/.exec(svg)?.[0] || "";
+  const point = (name) => {
+    const m = new RegExp(`${name}=["'](-?\\d+(?:\\.\\d+)?),(-?\\d+(?:\\.\\d+)?)["']`).exec(tag);
+    if (!m) errors.push(`<svg> needs ${name}="x,y"`);
+    return m ? [Number(m[1]), Number(m[2])] : null;
+  };
+  return { errors, grip: point("data-grip"), base: point("data-base") };
 }
 
 function checkId(kind, id, errors) {
@@ -101,7 +156,7 @@ function checkId(kind, id, errors) {
 /**
  * Load and verify a library folder.
  * @param {string} dir
- * @returns {{dir:string, world:object, cameras:object, characters:Map<string,{meta:object,svg:string}>, actions:Map<string,object>, backgrounds:Map<string,string>}}
+ * @returns {{dir:string, world:object, cameras:object, characters:Map<string,{meta:object,svg:string}>, actions:Map<string,object>, backgrounds:Map<string,string>, profiles:Map<string,object>}}
  * @throws when any asset breaks the specification
  */
 export function loadLibrary(dir) {
@@ -136,6 +191,26 @@ export function loadLibrary(dir) {
     backgrounds.set(id, svg);
   }
 
+  const props = new Map();
+  for (const file of entries(join(dir, "props"), ".svg")) {
+    const id = basename(file, ".svg");
+    checkId("prop", id, errors);
+    const svg = readText(join(dir, "props", file));
+    const { errors: propErrors, grip, base } = checkProp(svg);
+    for (const e of propErrors) errors.push(`prop ${id}: ${e}`);
+    props.set(id, { svg, grip, base });
+  }
+
+  const profiles = new Map();
+  for (const file of entries(join(dir, "profiles"), ".json")) {
+    const id = basename(file, ".json");
+    checkId("profile", id, errors);
+    const profile = readJson(join(dir, "profiles", file));
+    errors.push(...checkProfile(profile, `profile ${file}`));
+    profiles.set(id, profile);
+  }
+  if (!profiles.has("genel")) errors.push('profiles/genel.json is required (the default profile)');
+
   if (errors.length) throw new Error(`library is invalid:\n- ${errors.join("\n- ")}`);
-  return { dir, world, cameras, characters, actions, backgrounds };
+  return { dir, world, cameras, characters, actions, backgrounds, profiles, props };
 }

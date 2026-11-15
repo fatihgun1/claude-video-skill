@@ -1,0 +1,176 @@
+{
+  "episode": "sokakta-bir-sise",
+  "title": "Sokakta bir şişe",
+  "language": "tr",
+  "profile": "genel",
+  "characters": [
+    {
+      "id": "genc_arka",
+      "name": "Genç (arkadan)",
+      "rig": "genc-arka",
+      "static_features": "same person as genc, back three-quarter view"
+    },
+    {
+      "id": "genc",
+      "name": "Genç",
+      "rig": "genc",
+      "static_features": "sage-green hoodie, brown backpack, jeans, white sneakers"
+    },
+    {
+      "id": "genc_on",
+      "name": "Genç (önden)",
+      "rig": "genc-on",
+      "static_features": "same person as genc, front three-quarter view"
+    }
+  ],
+  "scenes": [
+    {
+      "scene_id": "s0",
+      "bg": "sokak-derinlik",
+      "shots": [
+        {
+          "shot_id": "s1_sh1",
+          "cast": [
+            {
+              "id": "genc_arka",
+              "action": "yuru-arka",
+              "mark": "orta"
+            }
+          ],
+          "props": [
+            {
+              "id": "sise",
+              "prop": "plastik-sise",
+              "depth": {
+                "x": 1100,
+                "y": 630,
+                "scale": 0.4
+              }
+            }
+          ],
+          "camera": {
+            "framing": "medium",
+            "move": "dolly_ileri",
+            "target": "genc_arka"
+          },
+          "hold": 2.7,
+          "notes": "Third person from behind: he walks away from us along the sidewalk; the camera follows at the same distance (dolly), so the street and the bottle lying ahead come toward us. Establishes place, character and direction."
+        }
+      ]
+    },
+    {
+      "scene_id": "s1",
+      "bg": "sokak",
+      "shots": [
+        {
+          "shot_id": "s1_sh2",
+          "cast": [
+            {
+              "id": "genc",
+              "action": "gelip-fark-et",
+              "mark": "orta",
+              "walk": {
+                "dx": 290,
+                "time": 1.2,
+                "arrive": true
+              }
+            }
+          ],
+          "props": [
+            {
+              "id": "sise",
+              "prop": "plastik-sise",
+              "mark": "orta",
+              "dx": 203
+            }
+          ],
+          "camera": {
+            "framing": "medium",
+            "move": "static",
+            "target": "genc"
+          },
+          "hold": 2.6,
+          "notes": "Medium, profile, same screen direction: the walk continues across the cut (match on action), he stops on his mark, then his eyes and head go down to the bottle (motivation, eyeline)."
+        },
+        {
+          "shot_id": "s1_sh3",
+          "cast": [
+            {
+              "id": "genc",
+              "action": "egil-al",
+              "mark": "orta"
+            }
+          ],
+          "props": [
+            {
+              "id": "sise",
+              "prop": "plastik-sise",
+              "mark": "orta",
+              "dx": 203,
+              "holder": "genc"
+            }
+          ],
+          "camera": {
+            "framing": "wide",
+            "move": "push_in",
+            "target": "genc"
+          },
+          "hold": 0,
+          "notes": "Wide, profile: he crouches and reaches with an open hand; cut just before the hand arrives."
+        },
+        {
+          "shot_id": "s1_sh4",
+          "cast": [
+            {
+              "id": "genc",
+              "action": "egil-al",
+              "mark": "orta",
+              "from": 0.75
+            }
+          ],
+          "props": [
+            {
+              "id": "sise",
+              "prop": "plastik-sise",
+              "mark": "orta",
+              "dx": 203,
+              "holder": "genc"
+            }
+          ],
+          "camera": {
+            "framing": "detay",
+            "move": "static",
+            "target": "sise"
+          },
+          "hold": 0.25,
+          "notes": "Insert, shallow focus, action continued: the open hand arrives, the fingers close around the bottle and lift it."
+        },
+        {
+          "shot_id": "s1_sh5",
+          "cast": [
+            {
+              "id": "genc_on",
+              "action": "bak-on",
+              "mark": "orta"
+            }
+          ],
+          "props": [
+            {
+              "id": "sise",
+              "prop": "plastik-sise",
+              "mark": "orta",
+              "holder": "genc_on"
+            }
+          ],
+          "camera": {
+            "framing": "gogus",
+            "move": "push_in",
+            "target": "genc_on"
+          },
+          "hold": 3.5,
+          "notes": "Medium close-up, front three-quarter, shallow focus: face and the bottle he holds in one frame; his eyes and head go down to it."
+        }
+      ]
+    }
+  ]
+}

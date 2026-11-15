@@ -125,17 +125,57 @@ test("pan moves the centre across the shot", () => {
   near(b.cx - a.cx, 0.2 * 1920);
 });
 
-test("portrait viewport covers the world height (zoom ≥ fit)", () => {
-  const vp916 = { width: 1080, height: 1920 };
+const vp916 = { width: 1080, height: 1920 };
+const fit916 = 1920 / 1080;
+
+test("portrait wide shot zooms slightly past fit and looks up for caption headroom", () => {
   const cam = C.cameraAt({ framing: "wide" }, 0, 960, world, presets, vp916);
-  near(cam.zoom, 1920 / 1080);
-  near(cam.cy, 540);
+  near(cam.zoom, fit916 * 1.1);
+  const halfH = 1920 / cam.zoom / 2;
+  near(cam.cy, halfH, 1e-6); // pushed up as far as the world allows
+  assert.ok(cam.cy < 540);
 });
 
 test("portrait framing zoom is compressed, not multiplied", () => {
-  const vp916 = { width: 1080, height: 1920 };
-  const fit = 1920 / 1080;
   const close = C.cameraAt({ framing: "close" }, 0, 960, world, presets, vp916);
-  near(close.zoom, Math.max(2, fit * (1 + 1 * 0.35)));
-  assert.ok(close.zoom < 2 * fit);
+  near(close.zoom, Math.max(2, fit916 * 1.1 * (1 + 1 * 0.35)));
+  assert.ok(close.zoom < 2 * fit916);
+});
+
+test("landscape framing is unaffected by portrait rules", () => {
+  const cam = C.cameraAt({ framing: "close" }, 0, 960, world, presets, vp169);
+  near(cam.zoom, 2);
+  near(cam.cy, 540);
+});
+
+test("hose arm: rest pose keeps the drawing, bends move elbow and wrist on one smooth curve", () => {
+  const rest = [[0, 0], [0, 100], [0, 180]];
+  const straight = C.hoseGeometry(rest, 0, 0);
+  near(straight.wrist[0], 0);
+  near(straight.wrist[1], 180);
+  assert.match(straight.d, /^M0\.0 0\.0 Q0\.0 105\.0 0\.0 180\.0$/, "control point on the line: still straight");
+  const raised = C.hoseGeometry(rest, 180, 0);
+  near(raised.elbow[1], -100);
+  near(raised.wrist[1], -180);
+  const bent = C.hoseGeometry(rest, 0, 90);
+  near(bent.elbow[1], 100);
+  near(bent.wrist[0], -80);
+  near(bent.wrist[1], 100);
+  assert.equal(bent.d.split("Q").length, 2, "a single quadratic: no joint seam");
+});
+
+test("follow-through: ears react to head turns and jumps, forearms trail", () => {
+  const still = C.secondaryMotion({ head: 5 }, { head: 5 });
+  near(still.ear_L, 0);
+  near(still.arm_L_lower, 0);
+  const turned = C.secondaryMotion({ head: 10 }, { head: 0 });
+  near(turned.ear_L, -12);
+  near(turned.ear_R, -12);
+  const rising = C.secondaryMotion({ root_y: -40 }, { root_y: 0 });
+  near(rising.ear_L, 10);
+  near(rising.ear_R, -10);
+  const capped = C.secondaryMotion({ head: 90 }, { head: 0 });
+  near(capped.ear_L, -25);
+  const arm = C.secondaryMotion({ arm_L_upper: -100, arm_L_lower: 10 }, { arm_L_upper: -60 });
+  near(arm.arm_L_lower, 10 + 40 * 0.35);
 });

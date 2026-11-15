@@ -57,7 +57,7 @@ const ep = {
     },
   ],
 };
-const info = (path) => ({ duration: path === "1.wav" ? 1 : 2, words: [{ start: 0 }] });
+const info = (u) => ({ duration: u.audio === "1.wav" ? 1 : 2, words: [{ start: 0 }] });
 
 test("buildTimeline places lines with lead, gap, hold and tail", () => {
   const tl = buildTimeline(ep, info);
@@ -68,7 +68,12 @@ test("buildTimeline places lines with lead, gap, hold and tail", () => {
   assert.equal(a.utterances[0].words.length, 1);
   assert.deepEqual(a.utterances[0].cues, []);
   assert.equal(b.start, a.end);
-  assert.equal(b.end - b.start, TIMING.minShot);
+  assert.ok(Math.abs(b.end - b.start - (TIMING.lead + TIMING.default_hold + TIMING.tail)) < 1e-9);
   assert.equal(tl.duration, b.end);
   assert.equal(a.bg, "cayir");
+});
+
+test("a shot never ends before min_shot", () => {
+  const tl = buildTimeline({ scenes: [{ scene_id: "s", bg: "b", shots: [{ shot_id: "x", hold: 0 }] }] }, info, { ...TIMING, min_shot: 3 });
+  assert.equal(tl.shots[0].end, 3);
 });

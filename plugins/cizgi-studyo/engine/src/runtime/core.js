@@ -26,6 +26,10 @@
 
   /** How much of a framing's extra zoom survives in a portrait viewport. */
   const PORTRAIT_ZOOM_SHARE = 0.35;
+  /** Share of the portrait frame height kept free above the characters for captions. */
+  const PORTRAIT_HEADROOM = 0.12;
+  /** Portrait wide shots zoom this much past "just covers the frame", so headroom can apply. */
+  const PORTRAIT_MIN_ZOOM = 1.1;
 
   /** Channels whose neutral value is 1 instead of 0. */
   const UNIT_CHANNELS = { root_sx: true, root_sy: true };
@@ -148,7 +152,7 @@
    * Returns {zoom, cx, cy}: the world point shown at the canvas centre and the zoom factor.
    * The view is clamped so the camera never shows outside the world.
    */
-  function cameraAt(shotCamera, p, targetX, world, presets, viewport) {
+  function cameraAt(shotCamera, p, targetX, world, presets, viewport, keepWidth, faceY) {
     const framing = presets.framings[shotCamera.framing];
     const move = presets.moves[shotCamera.move || "static"];
     const zStart = framing.zoom * (move.zoom_from || 1);
@@ -158,19 +162,227 @@
     // frame is already tight, so framing zoom is compressed there instead of multiplied.
     const fit = Math.max(viewport.width / world.width, viewport.height / world.height);
     const z = Math.max(zStart + (zEnd - zStart) * k, 1);
-    const zoom = Math.max(z, fit * (1 + (z - 1) * PORTRAIT_ZOOM_SHARE));
+    const portrait = viewport.height > viewport.width;
+    // In portrait a little extra zoom leaves room to shift the view for caption headroom.
+    const base = portrait ? fit * PORTRAIT_MIN_ZOOM : fit;
+    let zoom = Math.max(z, base * (1 + (z - 1) * PORTRAIT_ZOOM_SHARE));
+    // Without a target the whole cast must stay visible: zoom out as far as covering the frame allows.
+    if (keepWidth) zoom = Math.max(Math.min(zoom, viewport.width / keepWidth), fit);
 
     const panFrom = move.pan_from || 0;
     const panTo = move.pan_to || 0;
     const baseX = targetX == null ? world.width / 2 : targetX;
     let cx = baseX + (panFrom + (panTo - panFrom) * k) * world.width;
+    // Framings anchored to the character follow its face (close) or its upper body (medium),
+    // so tall and short characters are framed alike. Others use a fixed height in the world.
     let cy = world.height * (framing.focus_y == null ? 0.5 : framing.focus_y);
+    if (faceY != null && framing.anchor === "face") cy = faceY;
+    if (faceY != null && framing.anchor === "body") cy = (faceY + world.ground_y) / 2;
+    // chest: a medium close-up that keeps the face and what the hands hold in one frame
+    if (faceY != null && framing.anchor === "chest") cy = faceY + (world.ground_y - faceY) * 0.22;
+    // A reveal starts centred on its target (e.g. a bottle) and settles on the framing.
+    if (faceY != null && move.from_target) cy = faceY + (cy - faceY) * k;
+    // Portrait frames keep captions at the top, so look a little higher to push the characters down.
+    if (portrait) cy -= (viewport.height / zoom) * PORTRAIT_HEADROOM;
 
     const halfW = viewport.width / zoom / 2;
     const halfH = viewport.height / zoom / 2;
     cx = Math.min(Math.max(cx, halfW), world.width - halfW);
     cy = Math.min(Math.max(cy, halfH), world.height - halfH);
     return { zoom, cx, cy };
+  }
+
+  function rotate(x, y, deg) {
+    const r = (deg * Math.PI) / 180;
+    const c = Math.cos(r);
+    const s = Math.sin(r);
+    return [x * c - y * s, x * s + y * c];
+  }
+
+  /** How far the curve's control point leans toward a sharp elbow (0 = soft hose, 1 = through the elbow). */
+  const HOSE_ELBOW = 0.5;
+
+  /**
+   * Rubber-hose arm: shoulder stays put, the elbow and wrist follow the two angles, and one
+   * smooth quadratic curve joins them — no visible joint.
+   * @param {number[][]} rest [[sx,sy],[ex,ey],[wx,wy]] rest pose
+   * @returns {{elbow:number[], wrist:number[], d:string}}
+   */
+  function hoseGeometry(rest, upperDeg, lowerDeg, lift) {
+    const S = rest[0];
+    // lift (rig units) raises the end straight up, the middle joint half as much: a leg seen
+    // from the front or back steps by lifting the foot, not by swinging sideways.
+    const up = lift || 0;
+    const E = [rest[1][0], rest[1][1] - up * 0.5];
+    const W = [rest[2][0], rest[2][1] - up];
+    const u = rotate(E[0] - S[0], E[1] - S[1], upperDeg);
+    const elbow = [S[0] + u[0], S[1] + u[1]];
+    const l = rotate(W[0] - E[0], W[1] - E[1], upperDeg + lowerDeg);
+    const wrist = [elbow[0] + l[0], elbow[1] + l[1]];
+    const through = [2 * elbow[0] - (S[0] + wrist[0]) / 2, 2 * elbow[1] - (S[1] + wrist[1]) / 2];
+    const cx = elbow[0] + (through[0] - elbow[0]) * HOSE_ELBOW;
+    const cy = elbow[1] + (through[1] - elbow[1]) * HOSE_ELBOW;
+    const f = (n) => n.toFixed(1);
+    return { elbow, wrist, d: "M" + f(S[0]) + " " + f(S[1]) + " Q" + f(cx) + " " + f(cy) + " " + f(wrist[0]) + " " + f(wrist[1]) };
+  }
+
+  /** Seconds between the pose and the earlier pose used for follow-through. */
+  const LAG = 0.1;
+
+  /**
+   * Follow-through: parts that hang off the body lag behind it.
+   * Ears swing against head turns and flop on vertical moves; forearms trail the upper arm.
+   * @param {object} pose pose at t
+   * @param {object} prev pose at t - LAG
+   */
+  function secondaryMotion(pose, prev) {
+    const out = Object.assign({}, pose);
+    const g = (p, ch) => p[ch] || 0;
+    const turn = g(prev, "head") - g(pose, "head") + g(prev, "body") - g(pose, "body");
+    const lift = -(g(pose, "root_y") - g(prev, "root_y")) * 0.25;
+    const clampDeg = (x) => Math.max(-25, Math.min(25, x));
+    out.ear_L = g(pose, "ear_L") + clampDeg(turn * 1.2 + lift);
+    out.ear_R = g(pose, "ear_R") + clampDeg(turn * 1.2 - lift);
+    out.arm_L_lower = g(pose, "arm_L_lower") + (g(prev, "arm_L_upper") - g(pose, "arm_L_upper")) * 0.35;
+    out.arm_R_lower = g(pose, "arm_R_lower") + (g(prev, "arm_R_upper") - g(pose, "arm_R_upper")) * 0.35;
+    return out;
+  }
+
+  /** Rig height in rig units (feet at 950, top of ears near 50). */
+  const RIG_HEIGHT = 900;
+  /** Half the width a character occupies, in rig units (arms out, ears). */
+  const RIG_HALF_WIDTH = 250;
+
+  /**
+   * Marks and character scale for a viewport. Portrait frames are narrow, so marks move
+   * closer together and characters shrink a little (world.portrait).
+   */
+  function layoutFor(world, viewport) {
+    const portrait = viewport.height > viewport.width && world.portrait;
+    const ratio = portrait ? world.portrait.character_scale : 1;
+    return {
+      marks: portrait ? world.portrait.marks : world.marks,
+      scale: (world.character_height / RIG_HEIGHT) * ratio,
+      ratio, // world distances shrink with the characters in portrait
+    };
+  }
+
+  /**
+   * World x of a cast member at shot-local time t. A walking member (cast.walk = {dx, time})
+   * moves dx world units from its mark at constant speed over `time` seconds (default: the shot).
+   */
+  function memberX(member, layout, t, shotDuration) {
+    const x = layout.marks[member.mark];
+    if (!member.walk) return x;
+    const span = member.walk.time || shotDuration || 1;
+    const k = clamp01(t / span);
+    // arrive: walk in and stop ON the mark (start dx before it); otherwise start on the mark.
+    return x + member.walk.dx * layout.ratio * (member.walk.arrive ? k - 1 : k);
+  }
+
+  function shotDuration(shot) {
+    return shot.end != null && shot.start != null ? shot.end - shot.start : 1;
+  }
+
+  /** Where the camera looks at progress p: a targeted prop, its target, else the middle of the cast. */
+  function focusX(shot, layout, p) {
+    const anchor = propAnchor(shot);
+    if (anchor) return anchor[0];
+    const cast = shot.camera.target ? shot.cast.filter((m) => m.id === shot.camera.target) : shot.cast;
+    if (!cast.length) return null;
+    const dur = shotDuration(shot);
+    let sum = 0;
+    for (const m of cast) sum += memberX(m, layout, (p || 0) * dur, dur);
+    return sum / cast.length;
+  }
+
+  /** Walking direction (+1 right, -1 left, 0 standing) of the member the camera follows. */
+  function walkDirection(shot) {
+    const id = shot.camera.target || (shot.cast.length === 1 ? shot.cast[0].id : null);
+    const m = id && shot.cast.filter((c) => c.id === id)[0];
+    return m && m.walk ? Math.sign(m.walk.dx) : 0;
+  }
+
+  /** World point of the prop the camera targets, if its target is a prop ([x, y]) — else null. */
+  function propAnchor(shot) {
+    const t = shot.camera.target;
+    return t && shot.anchors && shot.anchors[t] ? shot.anchors[t] : null;
+  }
+
+  /** Margin kept on each side of the cast when the camera frames everyone. */
+  const CAST_MARGIN = 20;
+
+  /** World width the camera must keep visible: the whole cast, unless it follows a target. */
+  function keepWidthFor(shot, layout) {
+    if (shot.camera.target || !shot.cast.length) return null;
+    let lo = Infinity;
+    let hi = -Infinity;
+    const dur = shotDuration(shot);
+    for (const m of shot.cast) {
+      for (const x of [memberX(m, layout, 0, dur), memberX(m, layout, dur, dur)]) {
+        lo = Math.min(lo, x);
+        hi = Math.max(hi, x);
+      }
+    }
+    return hi - lo + 2 * (RIG_HALF_WIDTH * layout.scale + CAST_MARGIN);
+  }
+
+  /** Default rig face height (rig units) when a character does not declare one. */
+  const DEFAULT_FACE_Y = 400;
+
+  /**
+   * World y the camera anchors to: a targeted prop, else the faces of its target or the cast.
+   * @param {Record<string, number>} [faces] character id → face y in rig units
+   */
+  function focusFaceY(shot, layout, world, faces) {
+    const anchor = propAnchor(shot);
+    if (anchor) return anchor[1];
+    const cast = shot.camera.target ? shot.cast.filter((m) => m.id === shot.camera.target) : shot.cast;
+    if (!cast.length) return null;
+    let sum = 0;
+    for (const m of cast) {
+      const fy = faces && faces[m.id] != null ? faces[m.id] : DEFAULT_FACE_Y;
+      sum += world.ground_y - (950 - fy) * layout.scale;
+    }
+    return sum / cast.length;
+  }
+
+  /** Share of the visible width kept as lead room ahead of a walker the camera follows. */
+  const LEAD_ROOM = 0.15;
+
+  /** Camera of a shot at progress p, with focus and cast framing worked out. */
+  function shotCamera(shot, p, world, presets, viewport, faces) {
+    const layout = layoutFor(world, viewport);
+    let x = focusX(shot, layout, p);
+    const move = presets.moves[shot.camera.move || "static"];
+    if (move.follow && x != null) {
+      // tracking: stay with the walker and keep space ahead of them (lead room)
+      const fit = Math.max(viewport.width / world.width, viewport.height / world.height);
+      const zoom = presets.framings[shot.camera.framing].zoom * fit;
+      x += walkDirection(shot) * LEAD_ROOM * (viewport.width / zoom);
+    }
+    return cameraAt(shot.camera, p, x, world, presets, viewport, keepWidthFor(shot, layout), focusFaceY(shot, layout, world, faces));
+  }
+
+  /**
+   * Cast members that are not fully inside the frame at the start, middle or end of a shot.
+   * @returns {string[]} character ids
+   */
+  function outOfFrame(shot, world, presets, viewport, faces) {
+    if (propAnchor(shot)) return []; // an insert on a prop leaves people out on purpose
+    const layout = layoutFor(world, viewport);
+    const half = RIG_HALF_WIDTH * layout.scale;
+    const out = {};
+    for (const p of [0, 0.5, 1]) {
+      const cam = shotCamera(shot, p, world, presets, viewport, faces);
+      const left = cam.cx - viewport.width / cam.zoom / 2;
+      const right = cam.cx + viewport.width / cam.zoom / 2;
+      for (const m of shot.cast) {
+        const x = memberX(m, layout, p * shotDuration(shot), shotDuration(shot));
+        if (x - half < left || x + half > right) out[m.id] = true;
+      }
+    }
+    return Object.keys(out);
   }
 
   /** SVG transform string that puts camera point (cx,cy) at the viewport centre. */
@@ -193,6 +405,15 @@
     wordIndexAt,
     cameraAt,
     cameraTransform,
+    layoutFor,
+    focusX,
+    memberX,
+    keepWidthFor,
+    shotCamera,
+    outOfFrame,
+    hoseGeometry,
+    secondaryMotion,
+    LAG,
   };
   root.CizgiCore = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

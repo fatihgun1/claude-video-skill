@@ -1,110 +1,106 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
-  <!-- TEMPORARY test rig for engine development (Faz 1). Not part of the starter pack.
-       Colours use CSS variables so episodes can recolour without editing the drawing:
-       --fur, --fur-dark, --belly, --accent, --line -->
+  <!-- TEMPORARY test rig (spec v2, design v3). Cute-design rules applied:
+       eyes low and far apart, simple dot eyes with one highlight, tiny nose and mouth,
+       ears on the sides, round head ~1:1 with the body, flat pastel colours, no gloss or hard shading.
+       Colours: --fur, --belly, --accent, --line -->
   <g id="root">
-    <g id="leg_R" data-pivot="440,770">
-      <line x1="440" y1="770" x2="430" y2="900" stroke="var(--line, #6b4a33)" stroke-width="96" stroke-linecap="round"/>
-      <line x1="440" y1="770" x2="430" y2="900" stroke="var(--fur, #d9a877)" stroke-width="82" stroke-linecap="round"/>
-      <ellipse cx="420" cy="920" rx="62" ry="34" fill="var(--fur-dark, #b98656)" stroke="var(--line, #6b4a33)" stroke-width="7"/>
+    <g id="leg_R" data-pivot="448,820">
+      <path d="M448 820 L444 890" fill="none" stroke="var(--line, #7a5038)" stroke-width="88" stroke-linecap="round"/>
+      <path d="M448 820 L444 890" fill="none" stroke="var(--fur, #e2b48a)" stroke-width="75" stroke-linecap="round"/>
+      <ellipse cx="438" cy="918" rx="54" ry="30" fill="var(--fur, #e2b48a)" stroke="var(--line, #7a5038)" stroke-width="7"/>
+      <ellipse cx="438" cy="922" rx="24" ry="12" fill="var(--belly, #f8e8d2)"/>
     </g>
-    <g id="leg_L" data-pivot="560,770">
-      <line x1="560" y1="770" x2="570" y2="900" stroke="var(--line, #6b4a33)" stroke-width="96" stroke-linecap="round"/>
-      <line x1="560" y1="770" x2="570" y2="900" stroke="var(--fur, #d9a877)" stroke-width="82" stroke-linecap="round"/>
-      <ellipse cx="580" cy="920" rx="62" ry="34" fill="var(--fur-dark, #b98656)" stroke="var(--line, #6b4a33)" stroke-width="7"/>
+    <g id="leg_L" data-pivot="552,820">
+      <path d="M552 820 L556 890" fill="none" stroke="var(--line, #7a5038)" stroke-width="88" stroke-linecap="round"/>
+      <path d="M552 820 L556 890" fill="none" stroke="var(--fur, #e2b48a)" stroke-width="75" stroke-linecap="round"/>
+      <ellipse cx="562" cy="918" rx="54" ry="30" fill="var(--fur, #e2b48a)" stroke="var(--line, #7a5038)" stroke-width="7"/>
+      <ellipse cx="562" cy="922" rx="24" ry="12" fill="var(--belly, #f8e8d2)"/>
     </g>
-    <g id="body" data-pivot="500,800">
-      <g id="tail" data-pivot="500,760">
-        <circle cx="500" cy="790" r="34" fill="var(--fur-dark, #b98656)" stroke="var(--line, #6b4a33)" stroke-width="7"/>
-      </g>
-      <ellipse cx="500" cy="680" rx="165" ry="170" fill="var(--fur, #d9a877)" stroke="var(--line, #6b4a33)" stroke-width="8"/>
-      <ellipse cx="500" cy="705" rx="105" ry="115" fill="var(--belly, #f6e3c8)"/>
-      <path d="M380 540 Q500 590 620 540 L615 580 Q500 625 385 580 Z" fill="var(--accent, #e8736c)" stroke="var(--line, #6b4a33)" stroke-width="7" stroke-linejoin="round"/>
-      <g id="head" data-pivot="500,540">
-        <g id="ear_R" data-pivot="370,250">
-          <circle cx="352" cy="215" r="64" fill="var(--fur, #d9a877)" stroke="var(--line, #6b4a33)" stroke-width="8"/>
-          <circle cx="352" cy="215" r="34" fill="var(--belly, #f6e3c8)"/>
+    <g id="body" data-pivot="500,840">
+      <path d="M500 548 C600 548 655 625 650 725 C645 830 580 878 500 878 C420 878 355 830 350 725 C345 625 400 548 500 548 Z" fill="var(--fur, #e2b48a)" stroke="var(--line, #7a5038)" stroke-width="7"/>
+      <ellipse cx="500" cy="752" rx="100" ry="94" fill="var(--belly, #f8e8d2)"/>
+      <path d="M380 562 Q500 610 620 562 L616 598 Q500 648 384 598 Z" fill="var(--accent, #f19c94)" stroke="var(--line, #7a5038)" stroke-width="6" stroke-linejoin="round"/>
+      <g id="head" data-pivot="500,565">
+        <g id="ear_R" data-pivot="352,262">
+          <circle cx="318" cy="228" r="62" fill="var(--fur, #e2b48a)" stroke="var(--line, #7a5038)" stroke-width="7"/>
+          <circle cx="318" cy="228" r="32" fill="var(--belly, #f8e8d2)"/>
         </g>
-        <g id="ear_L" data-pivot="630,250">
-          <circle cx="648" cy="215" r="64" fill="var(--fur, #d9a877)" stroke="var(--line, #6b4a33)" stroke-width="8"/>
-          <circle cx="648" cy="215" r="34" fill="var(--belly, #f6e3c8)"/>
+        <g id="ear_L" data-pivot="648,262">
+          <circle cx="682" cy="228" r="62" fill="var(--fur, #e2b48a)" stroke="var(--line, #7a5038)" stroke-width="7"/>
+          <circle cx="682" cy="228" r="32" fill="var(--belly, #f8e8d2)"/>
         </g>
-        <ellipse cx="500" cy="365" rx="195" ry="180" fill="var(--fur, #d9a877)" stroke="var(--line, #6b4a33)" stroke-width="8"/>
-        <circle cx="395" cy="425" r="30" fill="#f4a3a0" opacity="0.6"/>
-        <circle cx="605" cy="425" r="30" fill="#f4a3a0" opacity="0.6"/>
+        <ellipse cx="500" cy="365" rx="222" ry="200" fill="var(--fur, #e2b48a)" stroke="var(--line, #7a5038)" stroke-width="7"/>
+        <ellipse cx="368" cy="452" rx="30" ry="16" fill="#f5a3a0" opacity="0.5"/>
+        <ellipse cx="632" cy="452" rx="30" ry="16" fill="#f5a3a0" opacity="0.5"/>
         <g id="eye_R">
           <g id="eye_R_open">
-            <ellipse cx="430" cy="350" rx="23" ry="29" fill="#3a2a20"/>
-            <circle cx="438" cy="339" r="8" fill="#ffffff"/>
+            <ellipse cx="408" cy="405" rx="19" ry="25" fill="#3a2a24"/>
+            <circle cx="414" cy="396" r="7" fill="#ffffff"/>
           </g>
           <g id="eye_R_closed" display="none">
-            <path d="M406 352 Q430 368 454 352" fill="none" stroke="#3a2a20" stroke-width="8" stroke-linecap="round"/>
+            <path d="M390 410 Q408 422 426 410" fill="none" stroke="#3a2a24" stroke-width="7" stroke-linecap="round"/>
           </g>
         </g>
         <g id="eye_L">
           <g id="eye_L_open">
-            <ellipse cx="570" cy="350" rx="23" ry="29" fill="#3a2a20"/>
-            <circle cx="578" cy="339" r="8" fill="#ffffff"/>
+            <ellipse cx="592" cy="405" rx="19" ry="25" fill="#3a2a24"/>
+            <circle cx="598" cy="396" r="7" fill="#ffffff"/>
           </g>
           <g id="eye_L_closed" display="none">
-            <path d="M546 352 Q570 368 594 352" fill="none" stroke="#3a2a20" stroke-width="8" stroke-linecap="round"/>
+            <path d="M574 410 Q592 422 610 410" fill="none" stroke="#3a2a24" stroke-width="7" stroke-linecap="round"/>
           </g>
         </g>
-        <ellipse cx="500" cy="432" rx="84" ry="62" fill="var(--belly, #f6e3c8)" stroke="var(--line, #6b4a33)" stroke-width="6"/>
-        <ellipse cx="500" cy="405" rx="27" ry="19" fill="#3a2a20"/>
+        <ellipse cx="500" cy="452" rx="58" ry="40" fill="var(--belly, #f8e8d2)"/>
+        <path d="M485 432 Q500 425 515 432 Q517 441 506 447 Q500 451 494 447 Q483 441 485 432 Z" fill="#3a2a24"/>
         <g id="mouth">
           <g id="mouth_rest">
-            <path d="M478 450 Q500 466 522 450" fill="none" stroke="#3a2a20" stroke-width="7" stroke-linecap="round"/>
+            <path d="M486 458 Q493 467 500 459 Q507 467 514 458" fill="none" stroke="#3a2a24" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
           </g>
           <g id="mouth_smile" display="none">
-            <path d="M470 446 Q500 476 530 446" fill="none" stroke="#3a2a20" stroke-width="7" stroke-linecap="round"/>
+            <path d="M484 457 Q500 482 516 457 Z" fill="#8a3a3a" stroke="#3a2a24" stroke-width="4" stroke-linejoin="round"/>
           </g>
           <g id="mouth_A" display="none">
-            <ellipse cx="500" cy="460" rx="24" ry="22" fill="#5a2b2b" stroke="#3a2a20" stroke-width="5"/>
-            <ellipse cx="500" cy="470" rx="13" ry="8" fill="#e67b7b"/>
+            <ellipse cx="500" cy="467" rx="14" ry="15" fill="#8a3a3a" stroke="#3a2a24" stroke-width="4"/>
+            <ellipse cx="500" cy="474" rx="8" ry="5" fill="#f08c8c"/>
           </g>
           <g id="mouth_E" display="none">
-            <ellipse cx="500" cy="456" rx="27" ry="10" fill="#5a2b2b" stroke="#3a2a20" stroke-width="5"/>
+            <ellipse cx="500" cy="463" rx="16" ry="7" fill="#8a3a3a" stroke="#3a2a24" stroke-width="4"/>
           </g>
           <g id="mouth_O" display="none">
-            <ellipse cx="500" cy="458" rx="15" ry="18" fill="#5a2b2b" stroke="#3a2a20" stroke-width="5"/>
+            <ellipse cx="500" cy="465" rx="9" ry="11" fill="#8a3a3a" stroke="#3a2a24" stroke-width="4"/>
           </g>
           <g id="mouth_U" display="none">
-            <ellipse cx="500" cy="456" rx="10" ry="11" fill="#5a2b2b" stroke="#3a2a20" stroke-width="5"/>
+            <ellipse cx="500" cy="463" rx="6" ry="7" fill="#8a3a3a" stroke="#3a2a24" stroke-width="4"/>
           </g>
           <g id="mouth_MBP" display="none">
-            <path d="M480 454 L520 454" fill="none" stroke="#3a2a20" stroke-width="7" stroke-linecap="round"/>
+            <path d="M489 461 Q500 465 511 461" fill="none" stroke="#3a2a24" stroke-width="5" stroke-linecap="round"/>
           </g>
           <g id="mouth_FV" display="none">
-            <ellipse cx="500" cy="456" rx="20" ry="9" fill="#5a2b2b" stroke="#3a2a20" stroke-width="5"/>
-            <rect x="488" y="447" width="24" height="7" rx="2" fill="#ffffff"/>
+            <ellipse cx="500" cy="463" rx="13" ry="6" fill="#8a3a3a" stroke="#3a2a24" stroke-width="4"/>
+            <rect x="493" y="457" width="14" height="5" rx="2" fill="#ffffff"/>
           </g>
           <g id="mouth_L" display="none">
-            <ellipse cx="500" cy="458" rx="19" ry="15" fill="#5a2b2b" stroke="#3a2a20" stroke-width="5"/>
-            <ellipse cx="500" cy="451" rx="9" ry="5" fill="#e67b7b"/>
+            <ellipse cx="500" cy="465" rx="12" ry="10" fill="#8a3a3a" stroke="#3a2a24" stroke-width="4"/>
+            <ellipse cx="500" cy="460" rx="6" ry="4" fill="#f08c8c"/>
           </g>
         </g>
       </g>
-      <g id="arm_R_upper" data-pivot="370,590">
-        <line x1="370" y1="590" x2="350" y2="690" stroke="var(--line, #6b4a33)" stroke-width="80" stroke-linecap="round"/>
-        <line x1="370" y1="590" x2="350" y2="690" stroke="var(--fur, #d9a877)" stroke-width="66" stroke-linecap="round"/>
-        <g id="arm_R_lower" data-pivot="350,690">
-          <line x1="350" y1="690" x2="345" y2="770" stroke="var(--line, #6b4a33)" stroke-width="76" stroke-linecap="round"/>
-          <line x1="350" y1="690" x2="345" y2="770" stroke="var(--fur, #d9a877)" stroke-width="62" stroke-linecap="round"/>
-          <g id="hand_R" data-pivot="345,770">
-            <circle cx="345" cy="790" r="40" fill="var(--fur-dark, #b98656)" stroke="var(--line, #6b4a33)" stroke-width="7"/>
-          </g>
+      <g id="arm_R" data-hose="408,640 392,715 388,785">
+        <path class="hose-line" d="M408 640 Q392 715 388 785" fill="none" stroke="var(--line, #7a5038)" stroke-width="68" stroke-linecap="round"/>
+        <path class="hose-fill" d="M408 640 Q392 715 388 785" fill="none" stroke="var(--fur, #e2b48a)" stroke-width="55" stroke-linecap="round"/>
+        <circle cx="408" cy="640" r="34" fill="var(--fur, #e2b48a)"/>
+        <g id="hand_R" data-pivot="388,785">
+          <circle cx="387" cy="798" r="32" fill="var(--fur, #e2b48a)" stroke="var(--line, #7a5038)" stroke-width="6.5"/>
+          <circle cx="388" cy="778" r="26" fill="var(--fur, #e2b48a)"/>
         </g>
       </g>
-      <g id="arm_L_upper" data-pivot="630,590">
-        <line x1="630" y1="590" x2="650" y2="690" stroke="var(--line, #6b4a33)" stroke-width="80" stroke-linecap="round"/>
-        <line x1="630" y1="590" x2="650" y2="690" stroke="var(--fur, #d9a877)" stroke-width="66" stroke-linecap="round"/>
-        <g id="arm_L_lower" data-pivot="650,690">
-          <line x1="650" y1="690" x2="655" y2="770" stroke="var(--line, #6b4a33)" stroke-width="76" stroke-linecap="round"/>
-          <line x1="650" y1="690" x2="655" y2="770" stroke="var(--fur, #d9a877)" stroke-width="62" stroke-linecap="round"/>
-          <g id="hand_L" data-pivot="655,770">
-            <circle cx="655" cy="790" r="40" fill="var(--fur-dark, #b98656)" stroke="var(--line, #6b4a33)" stroke-width="7"/>
-          </g>
+      <g id="arm_L" data-hose="592,640 608,715 612,785">
+        <path class="hose-line" d="M592 640 Q608 715 612 785" fill="none" stroke="var(--line, #7a5038)" stroke-width="68" stroke-linecap="round"/>
+        <path class="hose-fill" d="M592 640 Q608 715 612 785" fill="none" stroke="var(--fur, #e2b48a)" stroke-width="55" stroke-linecap="round"/>
+        <circle cx="592" cy="640" r="34" fill="var(--fur, #e2b48a)"/>
+        <g id="hand_L" data-pivot="612,785">
+          <circle cx="613" cy="798" r="32" fill="var(--fur, #e2b48a)" stroke="var(--line, #7a5038)" stroke-width="6.5"/>
+          <circle cx="612" cy="778" r="26" fill="var(--fur, #e2b48a)"/>
         </g>
       </g>
     </g>

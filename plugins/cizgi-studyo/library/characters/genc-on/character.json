@@ -1,0 +1,73 @@
+{
+  "name": {
+    "tr": "Genç (önden 3/4)",
+    "en": "Young man (front three-quarter)"
+  },
+  "temporary": true,
+  "view": "three-quarter-right",
+  "same_as": "genc",
+  "license": "CC0-1.0",
+  "palette_vars": [
+    "skin",
+    "skin-dark",
+    "hair",
+    "top",
+    "top-dark",
+    "pants",
+    "pants-dark",
+    "shoe",
+    "bag",
+    "line"
+  ],
+  "face_y": 140,
+  "limits": {
+    "arm_L_upper": [
+      -90,
+      10
+    ],
+    "arm_L_lower": [
+      -145,
+      5
+    ],
+    "arm_R_upper": [
+      -90,
+      10
+    ],
+    "arm_R_lower": [
+      -145,
+      5
+    ],
+    "leg_L_upper": [
+      -40,
+      40
+    ],
+    "leg_L_lower": [
+      -5,
+      120
+    ],
+    "leg_R_upper": [
+      -40,
+      40
+    ],
+    "leg_R_lower": [
+      -5,
+      120
+    ],
+    "head": [
+      -25,
+      25
+    ],
+    "body": [
+      -15,
+      25
+    ],
+    "hand_L": [
+      -55,
+      55
+    ],
+    "hand_R": [
+      -55,
+      55
+    ]
+  }
+}

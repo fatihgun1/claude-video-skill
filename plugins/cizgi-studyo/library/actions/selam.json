@@ -4,10 +4,10 @@
   "loop": true,
   "beats": [],
   "keys": [
-    { "t": 0,    "pose": { "arm_L_upper": -150, "arm_L_lower": -15, "hand_L": -10, "head": -5, "arm_R_upper": 8 } },
-    { "t": 0.25, "pose": { "arm_L_upper": -145, "arm_L_lower": 30,  "hand_L": 15,  "head": -3, "arm_R_upper": 8 }, "ease": "inOutSine" },
-    { "t": 0.5,  "pose": { "arm_L_upper": -150, "arm_L_lower": -15, "hand_L": -10, "head": -5, "arm_R_upper": 8 }, "ease": "inOutSine" },
-    { "t": 0.75, "pose": { "arm_L_upper": -145, "arm_L_lower": 30,  "hand_L": 15,  "head": -3, "arm_R_upper": 8 }, "ease": "inOutSine" },
-    { "t": 1.0,  "pose": { "arm_L_upper": -150, "arm_L_lower": -15, "hand_L": -10, "head": -5, "arm_R_upper": 8 }, "ease": "inOutSine" }
+    { "t": 0,    "pose": { "arm_L_upper": -125, "arm_L_lower": -25, "hand_L": -15, "head": -5, "arm_R_upper": 8 } },
+    { "t": 0.25, "pose": { "arm_L_upper": -120, "arm_L_lower": 15,  "hand_L": 20,  "head": -3, "arm_R_upper": 8 }, "ease": "inOutSine" },
+    { "t": 0.5,  "pose": { "arm_L_upper": -125, "arm_L_lower": -25, "hand_L": -15, "head": -5, "arm_R_upper": 8 }, "ease": "inOutSine" },
+    { "t": 0.75, "pose": { "arm_L_upper": -120, "arm_L_lower": 15,  "hand_L": 20,  "head": -3, "arm_R_upper": 8 }, "ease": "inOutSine" },
+    { "t": 1.0,  "pose": { "arm_L_upper": -125, "arm_L_lower": -25, "hand_L": -15, "head": -5, "arm_R_upper": 8 }, "ease": "inOutSine" }
   ]
 }

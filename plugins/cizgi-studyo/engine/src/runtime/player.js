@@ -9,10 +9,15 @@
   "use strict";
   const C = window.CizgiCore;
   const D = window.__CIZGI__;
-  const BLEND = 0.3; // seconds to blend from the previous shot's pose
-  const ROTATABLE = ["body", "head", "arm_L_upper", "arm_L_lower", "hand_L", "arm_R_upper", "arm_R_lower", "hand_R", "leg_L", "leg_R", "ear_L", "ear_R", "tail"];
+  const BLEND = 0.45; // seconds to blend from the previous shot's pose
+  const ROTATABLE = ["body", "body_back", "head", "leg_L", "leg_R", "ear_L", "ear_R", "tail"];
+  // body_back (the layer drawn behind the legs) turns with the body.
+  const CHANNEL_OF = { body_back: "body" };
+  // [hose group, end group that follows it]; legs are hoses only when the rig draws knees.
+  const HOSES = [["arm_L", "hand_L"], ["arm_R", "hand_R"], ["leg_L", "foot_L"], ["leg_R", "foot_R"]];
   const VISEMES = ["mouth_rest", "mouth_A", "mouth_E", "mouth_O", "mouth_U", "mouth_MBP", "mouth_FV", "mouth_L", "mouth_smile"];
-  const rigScale = D.world.character_height / 900;
+  const layout = C.layoutFor(D.world, D.viewport);
+  const rigScale = layout.scale;
 
   function byId(id) {
     return document.getElementById(id);
@@ -31,9 +36,23 @@
     const joints = [];
     for (const name of ROTATABLE) {
       const el = part(name);
-      if (!el) continue;
+      if (!el || el.hasAttribute("data-hose")) continue;
       const pivot = el.getAttribute("data-pivot").split(",").map(Number);
-      joints.push({ name, el, px: pivot[0], py: pivot[1] });
+      joints.push({ name: CHANNEL_OF[name] || name, el, px: pivot[0], py: pivot[1] });
+    }
+    const hoses = [];
+    for (const pair of HOSES) {
+      const limb = part(pair[0]);
+      if (!limb || !limb.hasAttribute("data-hose")) continue;
+      const rest = limb.getAttribute("data-hose").trim().split(/\s+/).map((pt) => pt.split(",").map(Number));
+      const paths = Array.prototype.slice.call(limb.querySelectorAll(":scope > path.hose-line, :scope > path.hose-fill"));
+      hoses.push({ name: pair[0], endName: pair[1], rest, paths, end: part(pair[1]) });
+    }
+    const grips = [];
+    for (const side of ["L", "R"]) {
+      const open = part("hand_" + side + "_open");
+      const closed = part("hand_" + side + "_grip");
+      if (open || closed) grips.push({ channel: "grip_" + side, open, closed });
     }
     const visemes = {};
     for (const v of VISEMES) visemes[v] = part(v);
@@ -41,6 +60,8 @@
       wrap: byId("kar-" + ch.id),
       root: part("root"),
       joints,
+      hoses,
+      grips,
       visemes,
       shownViseme: "mouth_rest",
       eyes: [
@@ -51,8 +72,18 @@
     };
   }
   const camera = byId("kamera");
+  const dofBlur = byId("dof-blur");
   const backgrounds = {};
   for (const bg of D.backgrounds) backgrounds[bg] = byId("bg-" + bg);
+  // Props: a ground copy in the world and a copy inside the holder's hand; one is shown at a time.
+  const props = D.shots.map((shot) =>
+    (shot.props || []).map((pr) => ({
+      holder: pr.holder,
+      grab: pr.grab,
+      ground: byId("prop-" + pr.key + "-yer"),
+      held: byId("prop-" + pr.key + "-el"),
+    })),
+  );
   const captions = D.shots.map((shot) =>
     shot.utterances.map((u, i) => {
       const box = byId("altyazi-" + shot.shot_id + "-" + i);
@@ -72,16 +103,17 @@
   }
 
   function poseFor(shotIdx, member, local) {
-    const pose = C.sampleAction(D.actions[member.action], local);
+    // cast.from starts the action part-way, so a cut can continue a movement (cut on action)
+    const pose = C.sampleAction(D.actions[member.action], local + (member.from || 0));
     const prev = shotIdx > 0 ? D.shots[shotIdx - 1] : null;
     const prevMember = prev && castMember(prev, member.id);
     if (!prevMember || local >= BLEND) return pose;
-    const prevPose = C.sampleAction(D.actions[prevMember.action], prev.end - prev.start);
+    const prevPose = C.sampleAction(D.actions[prevMember.action], prev.end - prev.start + (prevMember.from || 0));
     return C.blendPose(prevPose, pose, C.ease("inOutSine", local / BLEND));
   }
 
-  function drawCharacter(rig, member, pose, t, speaking) {
-    const x = D.world.marks[member.mark];
+  function drawCharacter(rig, member, pose, t, speaking, local, duration) {
+    const x = C.memberX(member, layout, local, duration);
     const flip = member.facing === "sol" ? -1 : 1;
     const sx = (pose.root_sx == null ? 1 : pose.root_sx) * rigScale * flip;
     const sy = (pose.root_sy == null ? 1 : pose.root_sy) * rigScale;
@@ -94,10 +126,33 @@
       j.el.setAttribute("transform", "rotate(" + angle.toFixed(2) + " " + j.px + " " + j.py + ")");
     }
 
+    for (const h of rig.hoses) {
+      const upper = pose[h.name + "_upper"] || 0;
+      const lower = pose[h.name + "_lower"] || 0;
+      const geo = C.hoseGeometry(h.rest, upper, lower, pose[h.name + "_lift"] || 0);
+      for (const path of h.paths) path.setAttribute("d", geo.d);
+      if (!h.end) continue;
+      const w = h.rest[2];
+      const turn = upper + lower + (pose[h.endName] || 0);
+      h.end.setAttribute(
+        "transform",
+        "translate(" + (geo.wrist[0] - w[0]).toFixed(2) + " " + (geo.wrist[1] - w[1]).toFixed(2) + ") rotate(" + turn.toFixed(2) + " " + w[0] + " " + w[1] + ")",
+      );
+    }
+
+    for (const g of rig.grips) {
+      const gripping = (pose[g.channel] || 0) >= 0.5;
+      setShown(g.open, !gripping);
+      setShown(g.closed, gripping);
+    }
+
     const closed = C.blinkClosed(t, rig.phase);
+    // gaze: the eyes look where the pose says (rig units), e.g. down at what the hands hold
+    const gaze = "translate(" + (pose.gaze_x || 0).toFixed(1) + " " + (pose.gaze_y || 0).toFixed(1) + ")";
     for (const pair of rig.eyes) {
       setShown(pair[0], !closed);
       setShown(pair[1], closed);
+      for (const el of pair) if (el) el.setAttribute("transform", gaze);
     }
 
     const viseme = speaking ? C.visemeAt(speaking.cues, t - speaking.start) : "mouth_rest";
@@ -122,7 +177,24 @@
     const local = t - shot.start;
     const line = activeLine(shot, t);
 
-    for (const bg in backgrounds) setShown(backgrounds[bg], bg === shot.bg);
+    // Shallow focus: close framings soften the background so the eye goes to the subject.
+    const blur = (D.cameras.framings[shot.camera.framing] || {}).blur || 0;
+    if (dofBlur) dofBlur.setAttribute("stdDeviation", String(blur));
+    for (const bg in backgrounds) {
+      setShown(backgrounds[bg], bg === shot.bg);
+      if (!backgrounds[bg]) continue;
+      if (blur > 0 && bg === shot.bg) backgrounds[bg].setAttribute("filter", "url(#dof)");
+      else backgrounds[bg].removeAttribute("filter");
+      // Dolly: the camera moves forward along a perspective background, so the background
+      // (and what lies in it) grows around its vanishing point while the characters keep their size.
+      const move = D.cameras.moves[shot.camera.move || "static"] || {};
+      const vp = D.vanishing && D.vanishing[bg];
+      if (bg === shot.bg && move.dolly_to && vp) {
+        const k = C.ease(move.ease || "linear", (t - shot.start) / (shot.end - shot.start));
+        const s = 1 + (move.dolly_to - 1) * k;
+        backgrounds[bg].setAttribute("transform", "translate(" + vp[0] + " " + vp[1] + ") scale(" + s.toFixed(4) + ") translate(" + -vp[0] + " " + -vp[1] + ")");
+      } else backgrounds[bg].removeAttribute("transform");
+    }
 
     for (const ch of D.characters) {
       const rig = rigs[ch.id];
@@ -130,14 +202,22 @@
       setShown(rig.wrap, !!member);
       if (!member) continue;
       const speaking = line && line.u.speaker === ch.id ? line.u : null;
-      drawCharacter(rig, member, poseFor(idx, member, local), t, speaking);
+      const pose = C.secondaryMotion(poseFor(idx, member, local), poseFor(idx, member, Math.max(0, local - C.LAG)));
+      drawCharacter(rig, member, pose, t, speaking, local, shot.end - shot.start);
     }
 
-    const target = shot.camera.target ? castMember(shot, shot.camera.target) : null;
-    const targetX = target ? D.world.marks[target.mark] : null;
     const p = (t - shot.start) / (shot.end - shot.start);
-    const cam = C.cameraAt(shot.camera, p, targetX, D.world, D.cameras, D.viewport);
+    const cam = C.shotCamera(shot, p, D.world, D.cameras, D.viewport, D.faces);
     camera.setAttribute("transform", C.cameraTransform(cam, D.viewport));
+
+    props.forEach((list, si) =>
+      list.forEach((pr) => {
+        const active = si === idx;
+        const attached = !!pr.holder && (pr.grab == null || local >= pr.grab);
+        setShown(pr.ground, active && !attached);
+        setShown(pr.held, active && attached);
+      }),
+    );
 
     captions.forEach((lines, si) =>
       lines.forEach((cap, li) => {

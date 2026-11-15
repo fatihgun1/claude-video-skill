@@ -5,32 +5,75 @@
   "description": "A cartoon episode. Every id that refers to a character rig, action, background or camera must exist in the library; validate.mjs checks those references.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["episode", "language", "characters", "scenes"],
+  "required": [
+    "episode",
+    "language",
+    "characters",
+    "scenes"
+  ],
   "properties": {
-    "episode": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
-    "title": { "type": "string" },
-    "language": { "type": "string", "pattern": "^[a-z]{2}$" },
-    "revision": { "type": "integer", "minimum": 0 },
-    "content_locked": { "type": "boolean" },
-    "profile": { "type": "string" },
-    "format": { "enum": ["16:9", "9:16"] },
+    "episode": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "title": {
+      "type": "string"
+    },
+    "language": {
+      "type": "string",
+      "pattern": "^[a-z]{2}$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "content_locked": {
+      "type": "boolean"
+    },
+    "profile": {
+      "$ref": "#/definitions/id"
+    },
+    "format": {
+      "enum": [
+        "16:9",
+        "9:16"
+      ]
+    },
     "characters": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "rig"],
+        "required": [
+          "id",
+          "rig"
+        ],
         "properties": {
-          "id": { "$ref": "#/definitions/id" },
-          "name": { "type": "string" },
-          "rig": { "$ref": "#/definitions/id" },
+          "id": {
+            "$ref": "#/definitions/id"
+          },
+          "name": {
+            "type": "string"
+          },
+          "rig": {
+            "$ref": "#/definitions/id"
+          },
           "palette": {
             "type": "object",
-            "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },
-            "additionalProperties": { "$ref": "#/definitions/color" }
+            "propertyNames": {
+              "pattern": "^[a-z][a-z0-9-]*$"
+            },
+            "additionalProperties": {
+              "$ref": "#/definitions/color"
+            }
           },
-          "static_features": { "type": "string" }
+          "static_features": {
+            "type": "string"
+          },
+          "voice": {
+            "$ref": "#/definitions/voice"
+          }
         }
       }
     },
@@ -40,11 +83,25 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["scene_id", "bg", "shots"],
+        "required": [
+          "scene_id",
+          "bg",
+          "shots"
+        ],
         "properties": {
-          "scene_id": { "$ref": "#/definitions/id" },
-          "bg": { "$ref": "#/definitions/id" },
-          "shots": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/shot" } }
+          "scene_id": {
+            "$ref": "#/definitions/id"
+          },
+          "bg": {
+            "$ref": "#/definitions/id"
+          },
+          "shots": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/definitions/shot"
+            }
+          }
         }
       }
     },
@@ -53,35 +110,82 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["name", "type"],
+        "required": [
+          "name",
+          "type"
+        ],
         "properties": {
-          "name": { "type": "string" },
-          "type": { "enum": ["character", "action", "background", "prop", "camera"] },
-          "note": { "type": "string" }
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "character",
+              "action",
+              "background",
+              "prop",
+              "camera"
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
         }
       }
+    },
+    "narrator_voice": {
+      "$ref": "#/definitions/voice"
     }
   },
   "definitions": {
-    "id": { "type": "string", "pattern": "^[a-z0-9]+([_-][a-z0-9]+)*$" },
-    "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+([_-][a-z0-9]+)*$"
+    },
+    "color": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$"
+    },
     "shot": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["shot_id", "cast", "camera"],
+      "required": [
+        "shot_id",
+        "cast",
+        "camera"
+      ],
       "properties": {
-        "shot_id": { "$ref": "#/definitions/id" },
-        "status": { "enum": ["draft", "approved", "stale"] },
+        "shot_id": {
+          "$ref": "#/definitions/id"
+        },
+        "status": {
+          "enum": [
+            "draft",
+            "approved",
+            "stale"
+          ]
+        },
         "utterances": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["speaker", "text", "audio"],
+            "required": [
+              "speaker",
+              "text"
+            ],
             "properties": {
-              "speaker": { "$ref": "#/definitions/id" },
-              "text": { "type": "string", "minLength": 1 },
-              "audio": { "type": "string", "description": "Path relative to the episode folder; .words.json and .rhubarb.json siblings are optional." }
+              "speaker": {
+                "$ref": "#/definitions/id"
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1
+              },
+              "audio": {
+                "type": "string",
+                "description": "Optional. Path relative to the episode folder. When omitted the audio step writes ses/<shot_id>-<n>.wav. Sidecars <name>.words.json and <name>.rhubarb.json are optional."
+              }
             }
           }
         },
@@ -91,27 +195,173 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["id", "action", "mark"],
+            "required": [
+              "id",
+              "action",
+              "mark"
+            ],
             "properties": {
-              "id": { "$ref": "#/definitions/id" },
-              "action": { "$ref": "#/definitions/id" },
-              "mark": { "enum": ["sol", "orta", "sag"] },
-              "facing": { "enum": ["sag", "sol"] }
+              "id": {
+                "$ref": "#/definitions/id"
+              },
+              "action": {
+                "$ref": "#/definitions/id"
+              },
+              "mark": {
+                "enum": [
+                  "sol",
+                  "orta",
+                  "sag"
+                ]
+              },
+              "facing": {
+                "enum": [
+                  "sag",
+                  "sol"
+                ]
+              },
+              "from": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Start the action this many seconds in (continue a movement across a cut: cut on action)."
+              },
+              "walk": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dx"
+                ],
+                "description": "Walk dx world units from the mark (negative = left) at constant speed over time seconds (default: the whole shot). Pair with a walk-cycle action.",
+                "properties": {
+                  "dx": {
+                    "type": "number",
+                    "minimum": -1500,
+                    "maximum": 1500
+                  },
+                  "time": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "arrive": {
+                    "type": "boolean",
+                    "description": "Walk in from dx before the mark and stop on it (instead of starting on the mark)."
+                  }
+                }
+              }
             }
           }
         },
         "camera": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["framing"],
+          "required": [
+            "framing"
+          ],
           "properties": {
-            "framing": { "$ref": "#/definitions/id" },
-            "move": { "$ref": "#/definitions/id" },
-            "target": { "$ref": "#/definitions/id" }
+            "framing": {
+              "$ref": "#/definitions/id"
+            },
+            "move": {
+              "$ref": "#/definitions/id"
+            },
+            "target": {
+              "$ref": "#/definitions/id"
+            }
           }
         },
-        "hold": { "type": "number", "minimum": 0, "maximum": 10 },
-        "notes": { "type": "string" }
+        "hold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "notes": {
+          "type": "string"
+        },
+        "props": {
+          "type": "array",
+          "description": "Library props in this shot. A prop rests on the ground at its mark (+dx world units) until its holder's action reaches its grab time; from then on it is in the holder's hand. A holder whose action has no grab holds it from the start of the shot.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "prop"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/definitions/id"
+              },
+              "prop": {
+                "$ref": "#/definitions/id"
+              },
+              "mark": {
+                "enum": [
+                  "sol",
+                  "orta",
+                  "sag"
+                ]
+              },
+              "dx": {
+                "type": "number",
+                "minimum": -600,
+                "maximum": 600
+              },
+              "holder": {
+                "$ref": "#/definitions/id"
+              },
+              "hand": {
+                "enum": [
+                  "L",
+                  "R"
+                ]
+              },
+              "depth": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y",
+                  "scale"
+                ],
+                "description": "Place the prop inside the background (background coordinates) instead of at a mark, so a dolly move brings it closer. Use with perspective backgrounds (data-vp).",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  },
+                  "scale": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 3
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "voice": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "type": "string",
+          "description": "Reference clip (about 10 s, episode-relative) for voice cloning."
+        },
+        "exaggeration": {
+          "type": "number",
+          "minimum": 0.25,
+          "maximum": 1.5
+        },
+        "cfg": {
+          "type": "number",
+          "minimum": 0.4,
+          "maximum": 1,
+          "description": "Below 0.4 Chatterbox starts adding or mangling words (Faz 0)."
+        }
       }
     }
   }

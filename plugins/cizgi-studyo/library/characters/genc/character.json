@@ -1,0 +1,72 @@
+{
+  "name": {
+    "tr": "Genç (profil)",
+    "en": "Young man (profile)"
+  },
+  "temporary": true,
+  "view": "profile-right",
+  "license": "CC0-1.0",
+  "palette_vars": [
+    "skin",
+    "skin-dark",
+    "hair",
+    "top",
+    "top-dark",
+    "pants",
+    "pants-dark",
+    "shoe",
+    "bag",
+    "line"
+  ],
+  "face_y": 125,
+  "limits": {
+    "arm_L_upper": [
+      -160,
+      50
+    ],
+    "arm_L_lower": [
+      -145,
+      5
+    ],
+    "arm_R_upper": [
+      -160,
+      50
+    ],
+    "arm_R_lower": [
+      -145,
+      5
+    ],
+    "leg_L_upper": [
+      -90,
+      40
+    ],
+    "leg_L_lower": [
+      -5,
+      150
+    ],
+    "leg_R_upper": [
+      -90,
+      40
+    ],
+    "leg_R_lower": [
+      -5,
+      150
+    ],
+    "head": [
+      -30,
+      35
+    ],
+    "body": [
+      -15,
+      70
+    ],
+    "hand_L": [
+      -55,
+      55
+    ],
+    "hand_R": [
+      -55,
+      55
+    ]
+  }
+}

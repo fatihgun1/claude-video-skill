@@ -4,8 +4,8 @@
   "loop": true,
   "beats": [0.3],
   "keys": [
-    { "t": 0,   "pose": { "arm_L_upper": 10, "arm_L_lower": 95,  "arm_R_upper": -10, "arm_R_lower": -95,  "head": 0 } },
-    { "t": 0.3, "pose": { "arm_L_upper": 25, "arm_L_lower": 120, "arm_R_upper": -25, "arm_R_lower": -120, "head": 3, "root_sy": 0.985 }, "ease": "inCubic" },
-    { "t": 0.6, "pose": { "arm_L_upper": 10, "arm_L_lower": 95,  "arm_R_upper": -10, "arm_R_lower": -95,  "head": 0 }, "ease": "outCubic" }
+    { "t": 0,   "pose": { "arm_L_upper": -50, "arm_L_lower": 135, "arm_R_upper": 50, "arm_R_lower": -135, "head": 0 } },
+    { "t": 0.3, "pose": { "arm_L_upper": 0,   "arm_L_lower": 120, "arm_R_upper": 0,  "arm_R_lower": -120, "head": 3, "root_sy": 0.985 }, "ease": "inCubic" },
+    { "t": 0.6, "pose": { "arm_L_upper": -50, "arm_L_lower": 135, "arm_R_upper": 50, "arm_R_lower": -135, "head": 0 }, "ease": "outCubic" }
   ]
 }

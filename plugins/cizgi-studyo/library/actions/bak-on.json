@@ -1,0 +1,52 @@
+{
+  "label": {
+    "tr": "Elindekine bak (önden 3/4)",
+    "en": "Look at what you hold (front 3/4)"
+  },
+  "notes": "Natural hold for three-quarter rigs (genc-on): upper arm along the body (-5), elbow ~90° (lower -85) so the forearm points forward and the object sits in front of the belly, upright (hand = -90-(upper+lower), the bottle lies across the palm). The hand stays still: no turning or shaking. Only breathing (automatic) and a slow head settle as he looks down at it.",
+  "duration": 3,
+  "loop": false,
+  "keys": [
+    {
+      "t": 0,
+      "pose": {
+        "arm_L_upper": -5,
+        "arm_L_lower": -85,
+        "hand_L": 0,
+        "grip_L": 1,
+        "head": 10,
+        "arm_R_upper": 4,
+        "gaze_x": 2,
+        "gaze_y": 3
+      }
+    },
+    {
+      "t": 1.4,
+      "pose": {
+        "arm_L_upper": -5,
+        "arm_L_lower": -85,
+        "hand_L": 0,
+        "grip_L": 1,
+        "head": 15,
+        "arm_R_upper": 4,
+        "gaze_x": 2,
+        "gaze_y": 6
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 3,
+      "pose": {
+        "arm_L_upper": -5,
+        "arm_L_lower": -85,
+        "hand_L": 0,
+        "grip_L": 1,
+        "head": 14,
+        "arm_R_upper": 4,
+        "gaze_x": 2,
+        "gaze_y": 6
+      },
+      "ease": "inOutSine"
+    }
+  ]
+}

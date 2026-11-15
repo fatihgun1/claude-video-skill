@@ -1,14 +1,111 @@
 {
   "framings": {
-    "wide":   { "zoom": 1.0,  "focus_y": 0.5,  "label": { "tr": "Geniş", "en": "Wide" } },
-    "medium": { "zoom": 1.45, "focus_y": 0.6,  "label": { "tr": "Orta", "en": "Medium" } },
-    "close":  { "zoom": 2.2,  "focus_y": 0.47, "label": { "tr": "Yakın", "en": "Close-up" } }
+    "wide": {
+      "zoom": 1,
+      "focus_y": 0.5,
+      "label": {
+        "tr": "Geniş",
+        "en": "Wide"
+      }
+    },
+    "medium": {
+      "zoom": 1.45,
+      "anchor": "body",
+      "label": {
+        "tr": "Orta",
+        "en": "Medium"
+      }
+    },
+    "close": {
+      "zoom": 2.2,
+      "anchor": "face",
+      "label": {
+        "tr": "Yakın",
+        "en": "Close-up"
+      },
+      "blur": 3
+    },
+    "detay": {
+      "zoom": 3.6,
+      "anchor": "face",
+      "label": {
+        "tr": "Detay",
+        "en": "Insert / detail"
+      },
+      "blur": 4
+    },
+    "gogus": {
+      "zoom": 2,
+      "anchor": "chest",
+      "blur": 3,
+      "label": {
+        "tr": "Göğüs planı (yüz + eller)",
+        "en": "Medium close-up (face and hands)"
+      }
+    }
   },
   "moves": {
-    "static":    { "label": { "tr": "Sabit", "en": "Static" } },
-    "push_in":   { "zoom_to": 1.15, "ease": "inOutSine", "label": { "tr": "Yaklaş", "en": "Push in" } },
-    "pull_out":  { "zoom_from": 1.15, "ease": "inOutSine", "label": { "tr": "Uzaklaş", "en": "Pull out" } },
-    "pan_left":  { "pan_from": 0.04, "pan_to": -0.04, "label": { "tr": "Sola kaydır", "en": "Pan left" } },
-    "pan_right": { "pan_from": -0.04, "pan_to": 0.04, "label": { "tr": "Sağa kaydır", "en": "Pan right" } }
+    "static": {
+      "label": {
+        "tr": "Sabit",
+        "en": "Static"
+      }
+    },
+    "push_in": {
+      "zoom_to": 1.15,
+      "ease": "inOutSine",
+      "label": {
+        "tr": "Yaklaş",
+        "en": "Push in"
+      }
+    },
+    "pull_out": {
+      "zoom_from": 1.15,
+      "ease": "inOutSine",
+      "label": {
+        "tr": "Uzaklaş",
+        "en": "Pull out"
+      }
+    },
+    "pan_left": {
+      "pan_from": 0.04,
+      "pan_to": -0.04,
+      "label": {
+        "tr": "Sola kaydır",
+        "en": "Pan left"
+      }
+    },
+    "pan_right": {
+      "pan_from": -0.04,
+      "pan_to": 0.04,
+      "label": {
+        "tr": "Sağa kaydır",
+        "en": "Pan right"
+      }
+    },
+    "acilis": {
+      "zoom_from": 3.6,
+      "ease": "outCubic",
+      "from_target": true,
+      "label": {
+        "tr": "Detaydan açılış",
+        "en": "Reveal from detail"
+      }
+    },
+    "follow": {
+      "follow": true,
+      "label": {
+        "tr": "Takip (yürüyeni izle)",
+        "en": "Follow (tracking)"
+      }
+    },
+    "dolly_ileri": {
+      "dolly_to": 2.3,
+      "ease": "linear",
+      "label": {
+        "tr": "Dolly ileri (derinliğe yürüyüş)",
+        "en": "Dolly forward (walk into depth)"
+      }
+    }
   }
 }

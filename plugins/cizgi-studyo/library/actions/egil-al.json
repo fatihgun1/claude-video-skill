@@ -1,0 +1,173 @@
+{
+  "label": {
+    "tr": "Eğilip yerden al",
+    "en": "Crouch and pick up"
+  },
+  "notes": "Solved for the genc profile rig (knee legs, bottle across the palm): feet stay planted (root_y matches the knee bend); at the grab the forearm comes in at 45° with the wrist cocked back 50°, the bottle stays upright at every key (body+arm+hand+90 = 0) and the wrist never passes ±50°. Place the prop at the mark with dx 203, holder = the character.",
+  "duration": 3.2,
+  "loop": false,
+  "grab": {
+    "t": 0.9
+  },
+  "keys": [
+    {
+      "t": 0,
+      "pose": {
+        "leg_L_upper": 0,
+        "leg_L_lower": 0,
+        "leg_R_upper": 0,
+        "leg_R_lower": 0,
+        "foot_L": 0,
+        "foot_R": 0,
+        "root_y": 0,
+        "body": 0,
+        "head": 0,
+        "arm_L_upper": 0,
+        "arm_L_lower": 0,
+        "hand_L": 0,
+        "grip_L": 0,
+        "arm_R_upper": 0
+      }
+    },
+    {
+      "t": 0.4,
+      "ease": "inOutSine",
+      "pose": {
+        "leg_L_upper": -30,
+        "leg_L_lower": 64.5,
+        "leg_R_upper": -30,
+        "leg_R_lower": 64.5,
+        "foot_L": -34.5,
+        "foot_R": -34.5,
+        "root_y": 66.7,
+        "body": 25,
+        "head": 6,
+        "arm_L_upper": -20,
+        "arm_L_lower": -25,
+        "hand_L": -20,
+        "grip_L": 0,
+        "arm_R_upper": -10
+      }
+    },
+    {
+      "t": 0.85,
+      "ease": "outSine",
+      "pose": {
+        "leg_L_upper": -60,
+        "leg_L_lower": 140,
+        "leg_R_upper": -60,
+        "leg_R_lower": 140,
+        "foot_L": -80,
+        "foot_R": -80,
+        "root_y": 259.3,
+        "body": 60,
+        "head": 10,
+        "arm_L_upper": -35,
+        "arm_L_lower": -65,
+        "hand_L": -50,
+        "grip_L": 0,
+        "arm_R_upper": -20
+      }
+    },
+    {
+      "t": 0.92,
+      "ease": "linear",
+      "pose": {
+        "leg_L_upper": -60,
+        "leg_L_lower": 140,
+        "leg_R_upper": -60,
+        "leg_R_lower": 140,
+        "foot_L": -80,
+        "foot_R": -80,
+        "root_y": 259.3,
+        "body": 60,
+        "head": 10,
+        "arm_L_upper": -35,
+        "arm_L_lower": -65,
+        "hand_L": -50,
+        "grip_L": 1,
+        "arm_R_upper": -20
+      }
+    },
+    {
+      "t": 1.35,
+      "ease": "linear",
+      "pose": {
+        "leg_L_upper": -60,
+        "leg_L_lower": 140,
+        "leg_R_upper": -60,
+        "leg_R_lower": 140,
+        "foot_L": -80,
+        "foot_R": -80,
+        "root_y": 259.3,
+        "body": 60,
+        "head": 10,
+        "arm_L_upper": -35,
+        "arm_L_lower": -65,
+        "hand_L": -50,
+        "grip_L": 1,
+        "arm_R_upper": -20
+      }
+    },
+    {
+      "t": 1.8,
+      "ease": "inSine",
+      "pose": {
+        "leg_L_upper": -30,
+        "leg_L_lower": 64.5,
+        "leg_R_upper": -30,
+        "leg_R_lower": 64.5,
+        "foot_L": -34.5,
+        "foot_R": -34.5,
+        "root_y": 66.7,
+        "body": 25,
+        "head": 8,
+        "arm_L_upper": -35,
+        "arm_L_lower": -75,
+        "hand_L": -5,
+        "grip_L": 1,
+        "arm_R_upper": -10
+      }
+    },
+    {
+      "t": 2.4,
+      "ease": "outSine",
+      "pose": {
+        "leg_L_upper": 0,
+        "leg_L_lower": 0,
+        "leg_R_upper": 0,
+        "leg_R_lower": 0,
+        "foot_L": 0,
+        "foot_R": 0,
+        "root_y": 0,
+        "body": 0,
+        "head": 8,
+        "arm_L_upper": -25,
+        "arm_L_lower": -95,
+        "hand_L": 30,
+        "grip_L": 1,
+        "arm_R_upper": 0
+      }
+    },
+    {
+      "t": 3.2,
+      "ease": "inOutSine",
+      "pose": {
+        "leg_L_upper": 0,
+        "leg_L_lower": 0,
+        "leg_R_upper": 0,
+        "leg_R_lower": 0,
+        "foot_L": 0,
+        "foot_R": 0,
+        "root_y": 0,
+        "body": 0,
+        "head": 12,
+        "arm_L_upper": -25,
+        "arm_L_lower": -95,
+        "hand_L": 30,
+        "grip_L": 1,
+        "arm_R_upper": 0
+      }
+    }
+  ]
+}

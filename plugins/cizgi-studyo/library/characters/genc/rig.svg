@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+  <!-- TEMPORARY test rig: young man in profile, facing right (spec v2, knee legs).
+       ~6 heads tall, shoulders wider than hips, calm upright posture; flat colours, thin warm outline.
+       Colours: --skin --skin-dark --hair --top --top-dark --pants --pants-dark --shoe --bag --line -->
+  <g id="root">
+    <g id="body_back" data-pivot="506,525">
+      <path d="M404 292 Q404 274 424 274 L456 274 Q470 274 470 292 L470 458 Q470 476 452 476 L422 476 Q404 476 404 458 Z" fill="var(--bag, #8a6a52)" stroke="var(--line, #3f3530)" stroke-width="5"/>
+      <path d="M410 392 L464 392" fill="none" stroke="var(--line, #3f3530)" stroke-width="4" opacity="0.6"/>
+      <g id="arm_R" data-hose="500,282 504,413 506,546">
+        <path class="hose-line" d="M500 282 Q504 413 506 546" fill="none" stroke="var(--line, #3f3530)" stroke-width="54" stroke-linecap="round"/>
+        <path class="hose-fill" d="M500 282 Q504 413 506 546" fill="none" stroke="var(--top-dark, #5b7866)" stroke-width="45" stroke-linecap="round"/>
+        <g id="hand_R" data-pivot="506,546">
+          <circle cx="507" cy="563" r="20" fill="var(--skin-dark, #c98f6c)" stroke="var(--line, #3f3530)" stroke-width="5"/>
+        </g>
+      </g>
+    </g>
+    <g id="leg_R" data-hose="500,530 510,728 502,902">
+      <path class="hose-line" d="M500 530 Q510 728 502 902" fill="none" stroke="var(--line, #3f3530)" stroke-width="62" stroke-linecap="round"/>
+      <path class="hose-fill" d="M500 530 Q510 728 502 902" fill="none" stroke="var(--pants-dark, #3f5a7c)" stroke-width="51" stroke-linecap="round"/>
+      <g id="foot_R" data-pivot="502,902">
+        <path d="M480 893 Q482 878 502 880 L524 882 Q562 890 574 916 Q578 940 560 946 L488 946 Q473 944 475 924 Z" fill="var(--shoe, #d9d6cf)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
+        <path d="M477 934 L574 934" fill="none" stroke="var(--line, #3f3530)" stroke-width="4"/>
+      </g>
+    </g>
+    <g id="leg_L" data-hose="512,530 522,728 514,902">
+      <path class="hose-line" d="M512 530 Q522 728 514 902" fill="none" stroke="var(--line, #3f3530)" stroke-width="64" stroke-linecap="round"/>
+      <path class="hose-fill" d="M512 530 Q522 728 514 902" fill="none" stroke="var(--pants, #4f6f95)" stroke-width="53" stroke-linecap="round"/>
+      <g id="foot_L" data-pivot="514,902">
+        <path d="M492 893 Q494 878 514 880 L536 882 Q574 890 586 916 Q590 940 572 946 L500 946 Q485 944 487 924 Z" fill="var(--shoe, #ecebe6)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
+        <path d="M489 934 L586 934" fill="none" stroke="var(--line, #3f3530)" stroke-width="4"/>
+      </g>
+    </g>
+    <g id="body" data-pivot="506,525">
+      <path d="M498 188 L536 188 L534 240 L500 240 Z" fill="var(--skin-dark, #c98f6c)"/>
+      <path d="M478 236 Q500 224 524 226 Q552 230 562 246 Q577 264 577 302 L573 420 Q571 498 563 540 L458 540 Q449 470 451 400 L452 302 Q452 250 478 236 Z" fill="var(--top, #6f8f7a)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
+      <path d="M482 222 Q458 226 448 252 Q444 290 470 300 Q478 270 504 256 Q506 236 482 222 Z" fill="var(--top-dark, #5b7866)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
+      <path d="M459 528 L563 528" fill="none" stroke="var(--line, #3f3530)" stroke-width="4" opacity="0.55"/>
+      <path d="M500 470 L562 470" fill="none" stroke="var(--line, #3f3530)" stroke-width="4" opacity="0.45"/>
+      <path d="M544 246 L548 290 M554 248 L558 286" fill="none" stroke="#e8e4da" stroke-width="3" stroke-linecap="round"/>
+      <path d="M476 262 Q514 300 508 382" fill="none" stroke="var(--bag, #8a6a52)" stroke-width="11" stroke-linecap="round"/>
+      <g id="head" data-pivot="516,205">
+        <path d="M512 58 C556 56 582 86 582 120 Q600 140 586 150 Q588 168 576 176 Q572 196 548 202 Q520 206 500 196 C468 186 450 158 452 122 C454 84 478 60 512 58 Z" fill="var(--skin, #e3ac86)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
+        <path d="M452 128 C446 80 478 48 520 50 C556 50 586 70 588 98 Q572 88 556 93 Q548 78 532 85 Q520 72 507 85 Q493 77 487 93 Q478 101 477 118 Q470 112 462 128 Q458 136 452 128 Z" fill="var(--hair, #3b2b24)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/>
+        <ellipse cx="500" cy="134" rx="12" ry="17" fill="var(--skin, #e3ac86)" stroke="var(--line, #3f3530)" stroke-width="4"/>
+        <path d="M497 128 Q503 134 498 142" fill="none" stroke="var(--line, #3f3530)" stroke-width="3" opacity="0.6"/>
+        <path d="M549 104 Q562 99 575 104" fill="none" stroke="var(--hair, #3b2b24)" stroke-width="5" stroke-linecap="round"/>
+        <ellipse cx="571" cy="146" rx="9" ry="5" fill="#e88f80" opacity="0.35"/>
+        <g id="eye_L">
+          <g id="eye_L_open">
+            <ellipse cx="561" cy="122" rx="6" ry="8" fill="#2c2420"/>
+            <circle cx="563" cy="119" r="2" fill="#ffffff"/>
+          </g>
+          <g id="eye_L_closed" display="none">
+            <path d="M554 124 Q561 128 568 124" fill="none" stroke="#2c2420" stroke-width="4" stroke-linecap="round"/>
+          </g>
+        </g>
+        <g id="eye_R"><g id="eye_R_open"></g><g id="eye_R_closed" display="none"></g></g>
+        <g id="mouth">
+          <g id="mouth_rest">
+            <path d="M563 177 Q570 179 577 175" fill="none" stroke="#5a3a30" stroke-width="4" stroke-linecap="round"/>
+          </g>
+          <g id="mouth_smile" display="none">
+            <path d="M561 175 Q570 183 578 173" fill="none" stroke="#5a3a30" stroke-width="4" stroke-linecap="round"/>
+          </g>
+          <g id="mouth_A" display="none"><ellipse cx="571" cy="178" rx="5" ry="7" fill="#6e3030"/></g>
+          <g id="mouth_E" display="none"><ellipse cx="571" cy="177" rx="6" ry="3" fill="#6e3030"/></g>
+          <g id="mouth_O" display="none"><ellipse cx="572" cy="177" rx="4" ry="5" fill="#6e3030"/></g>
+          <g id="mouth_U" display="none"><ellipse cx="573" cy="177" rx="3" ry="4" fill="#6e3030"/></g>
+          <g id="mouth_MBP" display="none"><path d="M565 177 L577 176" fill="none" stroke="#5a3a30" stroke-width="4" stroke-linecap="round"/></g>
+          <g id="mouth_FV" display="none"><ellipse cx="571" cy="177" rx="5" ry="3" fill="#6e3030"/></g>
+          <g id="mouth_L" display="none"><ellipse cx="571" cy="178" rx="5" ry="5" fill="#6e3030"/></g>
+        </g>
+      </g>
+      <g id="arm_L" data-hose="516,284 524,415 528,548">
+        <path class="hose-line" d="M516 284 Q524 415 528 548" fill="none" stroke="var(--line, #3f3530)" stroke-width="56" stroke-linecap="round"/>
+        <path class="hose-fill" d="M516 284 Q524 415 528 548" fill="none" stroke="var(--top, #6f8f7a)" stroke-width="47" stroke-linecap="round"/>
+        <circle cx="516" cy="284" r="23" fill="var(--top, #6f8f7a)"/>
+        <g id="hand_L" data-pivot="528,548" data-grip="530,583" data-grip-angle="90">
+          <g id="hand_L_slot"/>
+          <g id="hand_L_open">
+            <rect x="509" y="572" width="11" height="37" rx="5.5" fill="var(--skin, #e3ac86)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/><rect x="519.5" y="572" width="11" height="42" rx="5.5" fill="var(--skin, #e3ac86)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/><rect x="530" y="572" width="11" height="42" rx="5.5" fill="var(--skin, #e3ac86)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/><rect x="540.5" y="572" width="11" height="37" rx="5.5" fill="var(--skin, #e3ac86)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/>
+            <path d="M511 554 Q509 545 518 545 L544 545 Q552 546 552 555 L552 580 L511 580 Z" fill="var(--skin, #e3ac86)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/>
+            <path d="M551 560 Q567 562 567 578 Q563 587 554 581 Z" fill="var(--skin, #e3ac86)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/>
+          </g>
+          <g id="hand_L_grip" display="none">
+            <rect x="509" y="562" width="11" height="44" rx="5.5" fill="var(--skin, #e3ac86)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/><rect x="519.5" y="562" width="11" height="44" rx="5.5" fill="var(--skin, #e3ac86)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/><rect x="530" y="562" width="11" height="44" rx="5.5" fill="var(--skin, #e3ac86)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/><rect x="540.5" y="562" width="11" height="44" rx="5.5" fill="var(--skin, #e3ac86)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/>
+            <path d="M511 554 Q509 545 518 545 L544 545 Q552 546 552 555 L552 568 L511 568 Z" fill="var(--skin, #e3ac86)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/>
+            <path d="M549 556 Q567 556 569 573 Q569 586 558 590 Q551 581 549 572 Z" fill="var(--skin, #e3ac86)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

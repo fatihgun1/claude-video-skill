@@ -91,7 +91,7 @@ test("compileEpisode writes a HyperFrames project with escaped text and copied a
   assert.ok(html.includes("data-no-timeline"));
   assert.ok(html.includes(`data-duration="${res.duration}"`));
   assert.ok(html.includes("<title>T &amp; &lt;x&gt;</title>"));
-  assert.ok(html.includes('id="pamuk--arm_L_upper"'));
+  assert.ok(html.includes('id="pamuk--arm_L"'));
   assert.ok(html.includes("--accent:#123456"));
   assert.ok(html.includes('<audio id="ses-s1_sh1-0"'));
   assert.ok(!html.includes("<b>"), "caption text must be escaped");

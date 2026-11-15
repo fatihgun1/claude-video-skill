@@ -1,0 +1,13 @@
+{
+  "label": { "tr": "0-3 yaş (pedagojik)", "en": "Ages 0-3 (pedagogical)" },
+  "timing": { "lead": 0.6, "gap": 0.5, "default_hold": 3, "tail": 0.6, "min_shot": 4 },
+  "speech": { "tempo": 0.85, "max_cer": 0.05, "retries": 2 },
+  "rules": {
+    "max_cast": 2,
+    "max_words_per_sentence": 6,
+    "max_count": 3,
+    "min_hold": 1,
+    "allowed_moves": ["static", "push_in", "pull_out"],
+    "notes": "See notlar/pedagoji-0-3.md: one body movement per shot, invite then wait then praise, no scary content."
+  }
+}

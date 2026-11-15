@@ -1,0 +1,46 @@
+{
+  "label": {
+    "tr": "Elindekine bak",
+    "en": "Look at what you hold"
+  },
+  "notes": "Profile hold: forearm forward at chest height, object upright and still (hand = -90-(upper+lower), the bottle lies across the palm). No turning or shaking; the head settles down toward it.",
+  "duration": 3,
+  "loop": false,
+  "keys": [
+    {
+      "t": 0,
+      "pose": {
+        "arm_L_upper": -25,
+        "arm_L_lower": -95,
+        "hand_L": 30,
+        "grip_L": 1,
+        "head": 10,
+        "gaze_y": 2
+      }
+    },
+    {
+      "t": 1.4,
+      "pose": {
+        "arm_L_upper": -25,
+        "arm_L_lower": -95,
+        "hand_L": 30,
+        "grip_L": 1,
+        "head": 14,
+        "gaze_y": 4
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 3,
+      "pose": {
+        "arm_L_upper": -25,
+        "arm_L_lower": -95,
+        "hand_L": 30,
+        "grip_L": 1,
+        "head": 13,
+        "gaze_y": 4
+      },
+      "ease": "inOutSine"
+    }
+  ]
+}

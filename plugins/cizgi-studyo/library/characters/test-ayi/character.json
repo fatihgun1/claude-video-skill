@@ -1,6 +1,16 @@
 {
-  "name": { "tr": "Test ayısı", "en": "Test bear" },
+  "name": {
+    "tr": "Test ayısı",
+    "en": "Test bear"
+  },
   "temporary": true,
   "license": "CC0-1.0",
-  "palette_vars": ["fur", "fur-dark", "belly", "accent", "line"]
+  "palette_vars": [
+    "fur",
+    "belly",
+    "accent",
+    "line"
+  ],
+  "face_y": 405,
+  "view": "front"
 }

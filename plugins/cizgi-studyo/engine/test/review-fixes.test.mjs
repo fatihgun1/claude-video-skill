@@ -93,8 +93,8 @@ test("SVG safety: script, handlers, external references are rejected", () => {
 
 test("rig checker: single-quoted transform, duplicate ids and viseme visibility", () => {
   const bad = rig
-    .replace('<g id="hand_L" data-pivot="655,770">', `<g id='hand_L' data-pivot='655,770' transform='rotate(3)'>`)
-    .replace('<g id="tail" data-pivot="500,760">', '<g id="head" data-pivot="500,760">')
+    .replace('<g id="hand_L" data-pivot="612,785">', `<g id='hand_L' data-pivot='612,785' transform='rotate(3)'>`)
+    .replace('<g id="ear_R" data-pivot="352,262">', '<g id="head" data-pivot="352,262">')
     .replace('<g id="mouth_O" display="none">', '<g id="mouth_O">')
     .replace('<g id="mouth_rest">', '<g id="mouth_rest" display="none">');
   const errs = checkRig(bad).join("\n");

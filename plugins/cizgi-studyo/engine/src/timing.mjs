@@ -1,13 +1,15 @@
 /**
  * Timing is derived, never written by the LLM: shot length = lead + speech + gaps + hold + tail.
+ * The numbers come from the episode's profile (library/profiles/*.json → timing).
  */
 
+/** Defaults, identical to profiles/genel.json. */
 export const TIMING = Object.freeze({
   lead: 0.4, // silence before the first line of a shot
   gap: 0.3, // silence between lines in the same shot
-  defaultHold: 1.5, // time after speech for the viewer to imitate
+  default_hold: 1.5, // time after speech for the viewer to imitate
   tail: 0.4,
-  minShot: 2.5,
+  min_shot: 0.6,
 });
 
 /**
@@ -45,25 +47,26 @@ const ms = (x) => Math.round(x * 1000) / 1000;
 /**
  * Lay out every shot and line on the episode clock.
  * @param {object} episode validated episode
- * @param {(audioPath: string) => {duration: number, words?: object[], cues?: object[]}} audioInfo
+ * @param {(utterance: object, shot: object, index: number) => {duration: number, words?: object[], cues?: object[]}} audioInfo
+ * @param {typeof TIMING} [timing]
  * @returns {{duration: number, shots: object[]}}
  */
-export function buildTimeline(episode, audioInfo) {
+export function buildTimeline(episode, audioInfo, timing = TIMING) {
   const shots = [];
   let clock = 0;
   for (const scene of episode.scenes) {
     for (const shot of scene.shots) {
       const start = clock;
-      let cursor = ms(start + TIMING.lead);
+      let cursor = ms(start + timing.lead);
       const utterances = (shot.utterances || []).map((u, i) => {
-        if (i > 0) cursor = ms(cursor + TIMING.gap);
-        const info = audioInfo(u.audio);
+        if (i > 0) cursor = ms(cursor + timing.gap);
+        const info = audioInfo(u, shot, i);
         const line = { ...u, start: cursor, end: ms(cursor + info.duration), words: info.words || [], cues: info.cues || [] };
         cursor = line.end;
         return line;
       });
-      const hold = shot.hold == null ? TIMING.defaultHold : shot.hold;
-      const end = ms(Math.max(cursor + hold + TIMING.tail, start + TIMING.minShot));
+      const hold = shot.hold == null ? timing.default_hold : shot.hold;
+      const end = ms(Math.max(cursor + hold + timing.tail, start + timing.min_shot));
       shots.push({ scene_id: scene.scene_id, bg: scene.bg, ...shot, start, end, utterances });
       clock = end;
     }

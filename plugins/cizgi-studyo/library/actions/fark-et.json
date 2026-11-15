@@ -1,0 +1,50 @@
+{
+  "label": {
+    "tr": "Fark et (aşağı bak)",
+    "en": "Notice (look down)"
+  },
+  "notes": "Head turns down toward something on the ground ahead; the shoulders follow a little. Holds the last pose.",
+  "duration": 1.6,
+  "loop": false,
+  "keys": [
+    {
+      "t": 0,
+      "pose": {
+        "head": 0,
+        "body": 0,
+        "arm_L_upper": -6,
+        "arm_R_upper": 6
+      }
+    },
+    {
+      "t": 0.35,
+      "pose": {
+        "head": -4,
+        "body": -1,
+        "arm_L_upper": -6,
+        "arm_R_upper": 6
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 1,
+      "pose": {
+        "head": 20,
+        "body": 5,
+        "arm_L_upper": -4,
+        "arm_R_upper": 6
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 1.6,
+      "pose": {
+        "head": 18,
+        "body": 4,
+        "arm_L_upper": -4,
+        "arm_R_upper": 6
+      },
+      "ease": "inOutSine"
+    }
+  ]
+}

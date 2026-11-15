@@ -1,0 +1,35 @@
+{
+  "metadata": {
+    "soundFile": "C:\\Users\\Fatih\\Desktop\\Video\\cizgi-studyo\\ornekler\\faz2\\ses\\s1_sh2-0.wav",
+    "duration": 4.45
+  },
+  "mouthCues": [
+    { "start": 0.00, "end": 0.06, "value": "B" },
+    { "start": 0.06, "end": 0.11, "value": "D" },
+    { "start": 0.11, "end": 0.19, "value": "A" },
+    { "start": 0.19, "end": 0.53, "value": "B" },
+    { "start": 0.53, "end": 0.64, "value": "D" },
+    { "start": 0.64, "end": 0.78, "value": "B" },
+    { "start": 0.78, "end": 0.92, "value": "F" },
+    { "start": 0.92, "end": 1.00, "value": "A" },
+    { "start": 1.00, "end": 1.12, "value": "F" },
+    { "start": 1.12, "end": 1.20, "value": "A" },
+    { "start": 1.20, "end": 1.31, "value": "C" },
+    { "start": 1.31, "end": 1.52, "value": "B" },
+    { "start": 1.52, "end": 1.59, "value": "C" },
+    { "start": 1.59, "end": 1.71, "value": "A" },
+    { "start": 1.71, "end": 1.88, "value": "C" },
+    { "start": 1.88, "end": 2.30, "value": "B" },
+    { "start": 2.30, "end": 2.61, "value": "X" },
+    { "start": 2.61, "end": 2.98, "value": "B" },
+    { "start": 2.98, "end": 3.26, "value": "C" },
+    { "start": 3.26, "end": 3.40, "value": "B" },
+    { "start": 3.40, "end": 3.53, "value": "X" },
+    { "start": 3.53, "end": 3.60, "value": "B" },
+    { "start": 3.60, "end": 3.73, "value": "E" },
+    { "start": 3.73, "end": 3.94, "value": "C" },
+    { "start": 3.94, "end": 4.34, "value": "B" },
+    { "start": 4.34, "end": 4.41, "value": "G" },
+    { "start": 4.41, "end": 4.45, "value": "X" }
+  ]
+}

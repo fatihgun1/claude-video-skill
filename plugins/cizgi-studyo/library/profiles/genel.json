@@ -1,0 +1,19 @@
+{
+  "label": {
+    "tr": "Genel",
+    "en": "General"
+  },
+  "timing": {
+    "lead": 0.4,
+    "gap": 0.3,
+    "default_hold": 1.5,
+    "tail": 0.4,
+    "min_shot": 0.6
+  },
+  "speech": {
+    "tempo": 1,
+    "max_cer": 0.05,
+    "retries": 2
+  },
+  "rules": {}
+}

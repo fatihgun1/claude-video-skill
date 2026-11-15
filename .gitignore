@@ -5,3 +5,9 @@ ornekler/**/snap*/
 ornekler/**/*.mp4
 renders/
 ornekler/**/*.png
+ornekler/**/.cizgi/
+ornekler/**/storyboard/
+ornekler/**/cikti/
+ornekler/**/*-qa/
+ornekler/**/*.jpg
+*.panel-tmp

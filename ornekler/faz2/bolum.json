@@ -1,0 +1,145 @@
+{
+  "episode": "pamuk-ile-pitir",
+  "title": "Pamuk ile Pıtır: Alkış ve Zıplama",
+  "language": "tr",
+  "profile": "pedagoji-0-3",
+  "characters": [
+    {
+      "id": "pamuk",
+      "name": "Pamuk",
+      "rig": "test-ayi",
+      "palette": {
+        "accent": "#8cc3ec"
+      },
+      "voice": {
+        "exaggeration": 0.6
+      }
+    },
+    {
+      "id": "pitir",
+      "name": "Pıtır",
+      "rig": "test-ayi",
+      "palette": {
+        "fur": "#c3cbd8",
+        "belly": "#f1f3f7",
+        "accent": "#f5c25c"
+      }
+    }
+  ],
+  "scenes": [
+    {
+      "scene_id": "s1",
+      "bg": "cayir",
+      "shots": [
+        {
+          "shot_id": "s1_sh1",
+          "utterances": [
+            {
+              "speaker": "pamuk",
+              "text": "Merhaba! Ben Pamuk."
+            },
+            {
+              "speaker": "pitir",
+              "text": "Ben de Pıtır!"
+            }
+          ],
+          "cast": [
+            {
+              "id": "pamuk",
+              "action": "selam",
+              "mark": "sol"
+            },
+            {
+              "id": "pitir",
+              "action": "selam",
+              "mark": "sag"
+            }
+          ],
+          "camera": {
+            "framing": "wide",
+            "move": "push_in"
+          },
+          "hold": 1
+        },
+        {
+          "shot_id": "s1_sh2",
+          "utterances": [
+            {
+              "speaker": "anlatici",
+              "text": "Bak! Alkış yapıyorlar. Sen de alkışla!"
+            }
+          ],
+          "cast": [
+            {
+              "id": "pamuk",
+              "action": "alkis",
+              "mark": "sol"
+            },
+            {
+              "id": "pitir",
+              "action": "alkis",
+              "mark": "sag"
+            }
+          ],
+          "camera": {
+            "framing": "medium",
+            "move": "static"
+          },
+          "hold": 3
+        },
+        {
+          "shot_id": "s1_sh3",
+          "utterances": [
+            {
+              "speaker": "anlatici",
+              "text": "Aferin sana! Şimdi hop hop zıpla!"
+            }
+          ],
+          "cast": [
+            {
+              "id": "pamuk",
+              "action": "zipla",
+              "mark": "sol"
+            },
+            {
+              "id": "pitir",
+              "action": "zipla",
+              "mark": "sag"
+            }
+          ],
+          "camera": {
+            "framing": "wide",
+            "move": "static"
+          },
+          "hold": 3
+        },
+        {
+          "shot_id": "s1_sh4",
+          "utterances": [
+            {
+              "speaker": "anlatici",
+              "text": "Aferin! Hoşça kal minik!"
+            }
+          ],
+          "cast": [
+            {
+              "id": "pamuk",
+              "action": "selam",
+              "mark": "sol"
+            },
+            {
+              "id": "pitir",
+              "action": "selam",
+              "mark": "sag"
+            }
+          ],
+          "camera": {
+            "framing": "wide",
+            "move": "pull_out"
+          },
+          "hold": 1.5
+        }
+      ]
+    }
+  ]
+}

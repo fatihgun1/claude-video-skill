@@ -3,5 +3,17 @@
   "height": 1080,
   "ground_y": 870,
   "character_height": 620,
-  "marks": { "sol": 560, "orta": 960, "sag": 1360 }
+  "marks": {
+    "sol": 560,
+    "orta": 960,
+    "sag": 1360
+  },
+  "portrait": {
+    "marks": {
+      "sol": 820,
+      "orta": 960,
+      "sag": 1100
+    },
+    "character_scale": 0.75
+  }
 }
