@@ -17,6 +17,15 @@ $CLI panel <klasör> --port 4900
 Open the project root (the folder holding `ornekler/` and `bolumler/`) when the person works on several episodes: the panel then lists them all and switches between them without a restart. Run it in the background (it keeps serving until stopped) and give the person the printed URL. In the Claude desktop app, open it in the built-in browser. The layout needs a window at least 1180 px wide; narrower windows stack the panes.
 
 ## What the person can do there
+- **Left pane: Proje | Kütüphane** (the choice is remembered in the browser).
+  - **Proje** is the project tree: every episode in the folder; the open one lists its scenes (background thumbnail, name, shot count, length, error count) and their shots.
+    - A shot row selects the shot.
+    - Drag a shot row onto another shot or onto a scene's header to move it there; Alt+↑/↓ does the same from the keyboard and crosses into the next scene at the edge. A scene keeps at least one shot. A shot that moves to another scene plays in that scene's place (background).
+    - The selected scene has **Adlandır** (a working name, `scene.title`, not in the film; double-click the name too), **↑ / ↓** (scene order) and **Sil** (the scene with its shots; an episode keeps one scene). **+ Sahne** adds a scene after the selected one: same place, the people of its last shot standing, no lines.
+    - Another episode opens with a click (unsaved edits are asked about first).
+  - **Kütüphane** holds the library cards described below.
+- **Timeline: Sahne | Bölüm**. Sahne shows only the selected shot's scene (the ruler still reads film seconds); Bölüm shows the whole episode.
+- Script approval: moving or reordering shots or scenes changes the shot order, so the senaryo approval goes stale after saving (as with adding or deleting shots). A scene name does not.
 - **Bölümler** (the episode name in the top bar): a card per `bolum.json` in the folder with its background, title, shot count, length and approval state. A click opens it; with unsaved changes the panel asks first. **Yeni bölüm** asks for a title and an id and writes `bolumler/<id>/bolum.json` from a minimal valid template (one scene, one shot, Ela standing in the park); it never overwrites. The open episode stays in the address (`#b=…`), so a reload keeps it.
 - **Timeline** (bottom): a ruler with scene marks and these tracks.
   - **Shot:** one block per shot, as wide as it lasts, with its background as the picture and a red badge when it has errors. Click to select; drag the block to reorder it within its scene; drag its right edge to change `hold` (it stops where the lines end). **+ Shot** adds a shot after the selected one with the same people standing; **Çoğalt** (Ctrl+D) copies it without its lines; **Sil** (Delete) removes it (a scene keeps at least one shot).

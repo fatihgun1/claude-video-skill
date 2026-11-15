@@ -150,5 +150,12 @@ export function createProjects(dialog, ctx) {
       if (!dialog.open) dialog.showModal();
       await refresh();
     },
+    /** Switch to an episode through the picker, which asks first when there are unsaved edits. */
+    async pick(rel) {
+      pending = null;
+      if (!dialog.open) dialog.showModal();
+      await refresh();
+      await choose(rel);
+    },
   };
 }

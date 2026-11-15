@@ -8,6 +8,7 @@ import { createStage, shotOfMessage } from "./sahne.js";
 import { createInspector, renameMember } from "./denetleyici.js";
 import { createProjects } from "./projeler.js";
 import { createTimeline } from "./zaman.js";
+import { createTree } from "./agac.js";
 import {
   addShotAfter, duplicateShot, deleteShot, moveShot, createHistory, rowOfMessage,
   moveSegmentStart, insertSegment, replaceSegmentAction, removeSegment, segmentIndexAt,
@@ -429,6 +430,7 @@ function renderMessages(preview) {
 /* ---------- edit cycle ---------- */
 function renderAll() {
   renderHeader();
+  tree.render();
   timeline.render();
   inspector.render();
   library.render();
@@ -463,6 +465,7 @@ async function refreshPreview() {
     renderMessages(res.preview);
     if (state.previewOk) stage.load(res.preview);
     timeline.render();
+    tree.render(); // shot lengths and problem badges
     inspector.render(); // messages, badges and line notes follow the new validation
     renderHeader();
     if (!res.validation.ok) say("hatalı: kaydedilemez");
@@ -490,6 +493,7 @@ async function save() {
     stage.load(res.preview);
     production.refresh();
     timeline.render();
+    tree.refresh(); // the episode list's validity and length follow the saved file
     renderHeader();
     say(dirty() ? "kaydedildi; sonraki değişiklikler kaydedilmedi" : "kaydedildi");
   } catch (err) {
@@ -524,10 +528,60 @@ async function open(rel) {
   renderMessages(res.preview);
   stage.load(res.preview);
   renderAll();
+  tree.refresh();
   say("");
 }
 
 const projects = createProjects($("projects"), { current: () => state.path, dirty: () => !!state.draft && dirty(), open, api });
+
+/* ---------- left pane: project tree | library ---------- */
+const tree = createTree($("proje-pane"), {
+  episode: () => state.draft,
+  path: () => state.path,
+  selected: () => state.sel.shot,
+  choose,
+  problems,
+  timing: () => stage.timing(),
+  framingLabel: (id) => (state.vocab?.framings.find((f) => f.id === id)?.label || id).replace(/\s*\(.*\)$/, ""),
+  vocab: () => state.vocab,
+  viewOf: (id) => viewOf(id),
+  changed: (shotId, text) => {
+    if (shotId) state.sel = { shot: shotId, kind: null, index: -1 }; // null: naming or moving a scene keeps the selection
+    changed(true);
+    if (text) note(text);
+  },
+  say: note, // a refusal must outlive the preview status of the edit before it
+  api,
+  // another episode: straight there, or through the picker's "discard your edits?" when there are some
+  openEpisode: (rel) => (dirty() ? projects.pick(rel) : open(rel).catch((err) => say(`açılamadı: ${err.message}`))),
+});
+const LEFT_KEY = "cizgi.sol";
+function showLeft(which) {
+  const lib = which === "kutuphane";
+  $("lt-proje").setAttribute("aria-selected", String(!lib));
+  $("lt-kutuphane").setAttribute("aria-selected", String(lib));
+  $("proje-pane").hidden = lib;
+  $("lib-pane").hidden = !lib;
+  try {
+    localStorage.setItem(LEFT_KEY, which);
+  } catch {
+    /* storage off: the choice lasts until reload */
+  }
+}
+$("lt-proje").addEventListener("click", () => showLeft("proje"));
+$("lt-kutuphane").addEventListener("click", () => showLeft("kutuphane"));
+try {
+  if (localStorage.getItem(LEFT_KEY) === "kutuphane") showLeft("kutuphane");
+} catch {
+  /* storage off */
+}
+function setTimelineView(v) {
+  $("tl-sahne").setAttribute("aria-pressed", String(v === "sahne"));
+  $("tl-bolum").setAttribute("aria-pressed", String(v === "bolum"));
+  timeline.setView(v);
+}
+$("tl-sahne").addEventListener("click", () => setTimelineView("sahne"));
+$("tl-bolum").addEventListener("click", () => setTimelineView("bolum"));
 
 /** Start with the episode in the address, else the one the panel was started with, else the picker. */
 async function start() {

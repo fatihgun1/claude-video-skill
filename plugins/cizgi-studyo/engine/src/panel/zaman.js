@@ -27,7 +27,11 @@ const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
  *          moveShot:(id:string, index:number) => void}} ctx
  */
 export function createTimeline(els, ctx) {
-  let places = []; // {shot, scene, start, len, t (compiled timing or null)}
+  let places = []; // the shots on show: {shot, scene, start (from the view's origin), len, t (compiled timing or null)}
+  let all = []; // every shot of the episode, start from the film's start
+  let filmLen = 0;
+  let origin = 0; // film time at the left edge: the scene's start in scene view, else 0
+  let view = "sahne"; // "sahne": only the selected shot's scene · "bolum": the whole episode
   let playhead = null;
   let dragging = false;
   let redrawLater = false;
@@ -46,15 +50,28 @@ export function createTimeline(els, ctx) {
     const timing = ctx.timing();
     const byId = new Map((timing?.shots || []).map((t) => [t.shot_id, t]));
     let clock = 0;
-    places = ctx.shots().map(({ shot, scene }) => {
+    all = ctx.shots().map(({ shot, scene }) => {
       const t = byId.get(shot.shot_id) || null;
       const len = t ? shotLength(t, shot, timing.rules) : 0.8 + (shot.hold ?? 1.5) + 2 * (shot.utterances?.length || 0);
       const p = { shot, scene, start: clock, len, t };
       clock += len;
       return p;
     });
-    return clock;
+    filmLen = clock;
+    const scene = view === "sahne" ? all.find((p) => p.shot.shot_id === ctx.selected())?.scene : null;
+    if (!scene) {
+      origin = 0;
+      places = all;
+      return clock;
+    }
+    const mine = all.filter((p) => p.scene === scene);
+    origin = mine[0].start;
+    places = mine.map((p) => ({ ...p, start: p.start - origin }));
+    return mine.reduce((n, p) => n + p.len, 0);
   }
+
+  /** The scene on show in scene view, or null for the whole episode. */
+  const shownScene = () => (places !== all ? places[0]?.scene || null : null);
 
   /** Follow the pointer from a pointerdown until release; onMove gets the x distance. */
   function follow(down, { onMove, onEnd, onClick }) {
@@ -204,14 +221,15 @@ export function createTimeline(els, ctx) {
     if (!music) {
       return [el("div", { class: "music-none", text: "Müzik yok · Ses sekmesinden bir parça seç" })];
     }
-    const speech = places.flatMap((p) => (p.t ? p.t.utterances.map((u) => ({ start: p.start + u.start - p.t.start, end: p.start + u.end - p.t.start })) : []));
+    // the curve is the whole film's (fades at its ends, dips under every line); a scene shows its stretch of it
+    const speech = all.flatMap((p) => (p.t ? p.t.utterances.map((u) => ({ start: p.start + u.start - p.t.start, end: p.start + u.end - p.t.start })) : []));
     const w = Math.max(1, total * PX);
     const h = ROW.music - 6;
     const steps = Math.max(2, Math.ceil(total * 10));
     const pts = [];
     for (let k = 0; k <= steps; k++) {
       const t = (k / steps) * total;
-      pts.push(`${(t * PX).toFixed(1)},${(h - musicGain(t, total, music, speech) * h).toFixed(1)}`);
+      pts.push(`${(t * PX).toFixed(1)},${(h - musicGain(origin + t, filmLen, music, speech) * h).toFixed(1)}`);
     }
     const sel = ctx.sel().kind === "mix";
     return [el("div", {
@@ -323,8 +341,9 @@ export function createTimeline(els, ctx) {
 
   function ruler(total) {
     const ticks = [];
-    for (let s = 0; s <= Math.ceil(total); s++) {
-      ticks.push(el("span", { class: s % 5 === 0 ? "tick major" : "tick", style: { left: `${s * PX}px` } }, `${s}`));
+    // film seconds, so a scene's ruler reads the same times as the stage clock
+    for (let s = Math.ceil(origin - 1e-9); s <= origin + total; s++) {
+      ticks.push(el("span", { class: s % 5 === 0 ? "tick major" : "tick", style: { left: `${(s - origin) * PX}px` } }, `${s}`));
     }
     // Where each scene starts: shots move only within their scene, and a scene keeps one shot.
     const scenes = places.filter((p, i) => i === 0 || places[i - 1].scene !== p.scene);
@@ -336,7 +355,7 @@ export function createTimeline(els, ctx) {
 
   function seekAt(e) {
     const box = els.tracks.getBoundingClientRect();
-    ctx.seek(Math.max(0, (e.clientX - box.left) / PX));
+    ctx.seek(Math.max(0, origin + (e.clientX - box.left) / PX));
   }
 
   function render() {
@@ -372,14 +391,17 @@ export function createTimeline(els, ctx) {
       playhead,
     );
     const rough = places.some((p) => !p.t); // a shot not compiled yet: its length is a guess
-    els.info.textContent = `${places.length} shot · ${rough ? "≈" : ""}${total.toFixed(1)} s`;
+    const scene = shownScene();
+    els.info.textContent = `${scene ? `${scene.title || `sahne ${scene.scene_id}`} · ` : ""}${places.length} shot · ${rough ? "≈" : ""}${(Math.round(total * 100) / 100).toFixed(1)} s`;
     place(ctx.now());
   }
 
-  /** Move the playhead; while playing, keep it in view. */
+  /** Move the playhead; while playing, keep it in view. In scene view it hides outside the scene. */
   function place(t, follow = false) {
     if (!playhead) return;
-    const x = t * PX;
+    const x = (t - origin) * PX;
+    const total = places.reduce((n, p) => n + p.len, 0);
+    playhead.style.display = x < 0 || x > total * PX + 1 ? "none" : ""; // (a CSS display would beat [hidden])
     playhead.style.left = `${x}px`;
     if (follow) {
       const { scrollLeft, clientWidth } = els.scroll;
@@ -406,5 +428,14 @@ export function createTimeline(els, ctx) {
   });
   els.tracks.addEventListener("click", (e) => { if (e.target.classList.contains("track")) seekAt(e); });
 
-  return { render, place };
+  return {
+    render,
+    place,
+    view: () => view,
+    setView(v) {
+      view = v;
+      els.scroll.scrollLeft = 0;
+      render();
+    },
+  };
 }

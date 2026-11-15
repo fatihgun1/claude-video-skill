@@ -254,21 +254,93 @@ export function standingAction(vocab, view, fallback) {
  * @param {(characterId:string) => string} viewOf the rig view of a cast member
  */
 export function addShotAfter(episode, scene, after, vocab, viewOf) {
-  const cast = after.cast.map((m) => ({
+  const shot = standingShot(nextShotId(episode, scene), after, vocab, viewOf);
+  scene.shots.splice(scene.shots.indexOf(after) + 1, 0, shot);
+  return shot;
+}
+
+/** A wide, still shot with `from`'s people standing where they stood. */
+function standingShot(shotId, from, vocab, viewOf) {
+  const cast = from.cast.map((m) => ({
     id: m.id,
     action: standingAction(vocab, viewOf(m.id), m.action),
     mark: m.mark,
     ...(m.facing ? { facing: m.facing } : {}),
   }));
-  const target = cast.some((m) => m.id === after.camera.target) ? after.camera.target : cast[0]?.id;
-  const shot = {
-    shot_id: nextShotId(episode, scene),
-    cast,
-    camera: { framing: "wide", move: "static", ...(target ? { target } : {}) },
-    hold: NEW_HOLD,
-  };
-  scene.shots.splice(scene.shots.indexOf(after) + 1, 0, shot);
-  return shot;
+  const target = cast.some((m) => m.id === from.camera.target) ? from.camera.target : cast[0]?.id;
+  return { shot_id: shotId, cast, camera: { framing: "wide", move: "static", ...(target ? { target } : {}) }, hold: NEW_HOLD };
+}
+
+/* ---------- scenes (the project tree) ---------- */
+
+export const SCENE_TITLE_MAX = 80; // schema limit of scene.title
+
+/** A scene id not used in the episode: "s<n>". */
+export function nextSceneId(episode) {
+  const taken = new Set(episode.scenes.map((s) => s.scene_id));
+  let n = episode.scenes.length;
+  while (taken.has(`s${n}`)) n++;
+  return `s${n}`;
+}
+
+/**
+ * A new scene after `after`, in the same place, with one shot: the people of `after`'s last
+ * shot standing where they were. Lines are not added: they come from the script.
+ */
+export function addSceneAfter(episode, after, vocab, viewOf) {
+  const id = nextSceneId(episode);
+  const taken = new Set(episode.scenes.flatMap((s) => s.shots.map((x) => x.shot_id)));
+  let n = 1;
+  while (taken.has(`${id}_sh${n}`)) n++;
+  const scene = { scene_id: id, bg: after.bg, shots: [standingShot(`${id}_sh${n}`, after.shots.at(-1), vocab, viewOf)] };
+  episode.scenes.splice(episode.scenes.indexOf(after) + 1, 0, scene);
+  return scene;
+}
+
+/**
+ * Remove a scene with its shots. An episode keeps at least one scene.
+ * @returns {string|null} the shot to select next (the first of the scene now in its place, else
+ *   of the one before), or null when refused
+ */
+export function deleteScene(episode, scene) {
+  if (episode.scenes.length <= 1) return null;
+  const i = episode.scenes.indexOf(scene);
+  if (i === -1) return null;
+  episode.scenes.splice(i, 1);
+  return episode.scenes[Math.min(i, episode.scenes.length - 1)].shots[0].shot_id;
+}
+
+/** Move a scene to a new index. */
+export function moveScene(episode, sceneId, index) {
+  const from = episode.scenes.findIndex((s) => s.scene_id === sceneId);
+  if (from === -1) return false;
+  const to = Math.max(0, Math.min(index, episode.scenes.length - 1));
+  if (to === from) return false;
+  const [scene] = episode.scenes.splice(from, 1);
+  episode.scenes.splice(to, 0, scene);
+  return true;
+}
+
+/**
+ * Move a shot to `index` in scene `to` (its own scene: a reorder). It takes on that scene's
+ * place (bg). A scene keeps at least one shot.
+ */
+export function moveShotToScene(episode, shotId, to, index) {
+  const from = episode.scenes.find((s) => s.shots.some((x) => x.shot_id === shotId));
+  if (!from) return false;
+  if (from === to) return moveShot(from, shotId, index);
+  if (from.shots.length <= 1) return false;
+  const shot = from.shots.find((x) => x.shot_id === shotId);
+  from.shots = from.shots.filter((x) => x !== shot);
+  to.shots.splice(Math.max(0, Math.min(index, to.shots.length)), 0, shot);
+  return true;
+}
+
+/** Name a scene (a working label, not in the film); empty removes the name. */
+export function setSceneTitle(scene, text) {
+  const clean = String(text ?? "").trim().slice(0, SCENE_TITLE_MAX).trim();
+  if (clean) scene.title = clean;
+  else delete scene.title;
 }
 
 /** A copy of the shot right after it, without its lines (they belong to the script). */

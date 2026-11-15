@@ -77,6 +77,47 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .stage-wrap { grid-row: 1; background: var(--bg); padding: 16px 18px; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: auto; }
 .timeline { grid-column: 1 / -1; grid-row: 2; background: var(--pane); padding: 8px 14px 10px; display: flex; flex-direction: column; min-height: 0; }
 
+/* Left pane: Proje | Kütüphane */
+.ltabs { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--line); flex: none; }
+.ltab { border: 0; background: transparent; color: var(--muted); padding: 10px 6px 9px; cursor: pointer; font-size: 12.5px; font-weight: 600; letter-spacing: .02em; }
+.ltab:hover { color: var(--text); background: var(--pane-2); }
+.ltab[aria-selected="true"] { color: var(--text); box-shadow: inset 0 -2px 0 var(--select); }
+.lib-pane { display: flex; flex-direction: column; min-height: 0; }
+.lib-pane[hidden], .proje-pane[hidden] { display: none; }
+.proje-pane { padding: 8px 8px 14px; }
+
+/* Project tree: episodes > scenes > shots */
+.tree, .scenes, .shots { list-style: none; margin: 0; padding: 0; }
+.trow { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; border: 1px solid transparent; border-radius: 6px; background: transparent; cursor: pointer; text-align: left; min-width: 0; }
+.trow:hover { background: var(--pane-2); }
+.trow .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trow .len { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.ep-row { font-weight: 600; }
+.ep.here > .ep-row { color: var(--text); }
+.ep:not(.here) > .ep-row { color: var(--muted); font-weight: 400; }
+.fold-mark { width: 12px; color: var(--muted); }
+.ep-body { margin: 2px 0 8px 10px; padding-left: 8px; border-left: 1px solid var(--line); }
+.scene { margin: 4px 0 6px; }
+.scene-head { display: flex; align-items: center; gap: 6px; padding: 4px; border-radius: 6px; border: 1px solid transparent; }
+.scene-head.here { background: var(--pane-2); }
+.scene-head.drop, .shot-row.drop { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--pane-2)); }
+.fold { border: 0; background: transparent; color: var(--muted); width: 18px; cursor: pointer; padding: 0; }
+.sthumb { width: 44px; height: 25px; object-fit: cover; border-radius: 4px; background: var(--pane-3); flex: none; }
+.scene-title { flex: 1; min-width: 0; display: flex; flex-direction: column; border: 0; background: transparent; text-align: left; cursor: pointer; padding: 0; }
+.scene-title b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scene-name { flex: 1; min-width: 0; padding: 4px 6px; border: 1px solid var(--accent); border-radius: 5px; background: var(--bg); }
+.scene-tools { display: flex; gap: 4px; flex-wrap: wrap; margin: 4px 0 2px 24px; }
+.btn.icon-s { padding: 3px 7px; }
+.shots { margin-left: 24px; }
+.shot-row { padding: 4px 8px; font-size: 12px; user-select: none; }
+.shot-row b { font-weight: 600; }
+.shot-row.sel { border-color: var(--select); background: color-mix(in srgb, var(--select) 12%, var(--pane-2)); }
+.shot-row.dragging { opacity: .45; }
+.add-scene { margin: 4px 0 0 4px; }
+.tree-hint { margin: 10px 6px 0; }
+.trow .bad, .scene-head .bad { color: var(--err); font-size: 11px; font-weight: 700; }
+.trow .warnb { color: var(--warn); font-size: 11px; }
+
 /* Library */
 .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 10px 10px 6px; }
 .tab { border: 0; background: transparent; color: var(--muted); padding: 7px 4px; border-radius: 6px; cursor: pointer; font-size: 12.5px; }

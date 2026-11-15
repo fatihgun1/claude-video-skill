@@ -73,7 +73,8 @@ export function libraryFingerprint(episode, lib) {
  */
 export function storyboardFingerprint(episode, audioManifest, libFingerprint = "") {
   const { revision, content_locked, ...rest } = episode;
-  const scenes = rest.scenes.map((scene) => ({
+  // A scene's title is a working label (like a shot's notes): naming a scene does not change the film.
+  const scenes = rest.scenes.map(({ title, ...scene }) => ({
     ...scene,
     shots: scene.shots.map(({ status, notes, ...shot }) => shot),
   }));

@@ -92,6 +92,11 @@
           "scene_id": {
             "$ref": "#/definitions/id"
           },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
           "bg": {
             "$ref": "#/definitions/id"
           },
