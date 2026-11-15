@@ -130,7 +130,7 @@ test("framings anchored to the face follow tall and short characters", () => {
   assert.ok(Math.abs(medium.cy - (faceWorld + lib.world.ground_y) / 2) < 1e-6);
   const bear = C.shotCamera({ ...shot, camera: { framing: "medium" } }, 0, lib.world, lib.cameras, vp, {});
   assert.ok(bear.cy > medium.cy, "a short character's medium shot looks lower");
-  assert.deepEqual(facesOf({ characters: [{ id: "a", rig: "genc" }, { id: "b", rig: "test-ayi" }] }, lib), { a: 125, b: 405 });
+  assert.deepEqual(facesOf({ characters: [{ id: "a", rig: "genc" }, { id: "b", rig: "pamuk" }] }, lib), { a: 125, b: 568 });
 });
 
 test("a silent episode needs no audio tools", () => {
@@ -158,8 +158,10 @@ test("anatomy: a pose beyond the rig's joint limits is an error", () => {
   const res = validateEpisode(ep, { ...lib, actions });
   assert.equal(res.ok, false);
   assert.ok(res.errors.join().includes("bends arm_L_upper to 28°"));
-  ep.characters[0].rig = "test-ayi"; // no limits declared
-  assert.equal(validateEpisode(ep, { ...lib, actions }).ok, true);
+  ep.characters[0].rig = "pamuk"; // a front view: the elbow may not bend back to -128
+  const front = validateEpisode(ep, { ...lib, actions });
+  assert.equal(front.ok, false);
+  assert.ok(front.errors.join().includes("bends arm_L_lower to -128°"));
 });
 
 test("film: a back or front view must not walk sideways", () => {

@@ -1,0 +1,105 @@
+{
+  "label": {
+    "tr": "Yürü (çocuk, profil)",
+    "en": "Walk (child, profile)"
+  },
+  "notes": "Walk cycle for short-legged knee rigs seen from the side (ela-profil): quicker steps (0.8 s per cycle) and wider hip swing than 'yuru'. Pair with cast.walk at about 140 world units per second.",
+  "duration": 0.8,
+  "loop": true,
+  "keys": [
+    {
+      "t": 0,
+      "pose": {
+        "leg_L_upper": -21,
+        "leg_L_lower": 6,
+        "leg_R_upper": 18,
+        "leg_R_lower": 14,
+        "foot_L": 6,
+        "foot_R": -17,
+        "root_y": 3,
+        "body": 3,
+        "head": -2,
+        "arm_L_upper": 24,
+        "arm_L_lower": -6,
+        "arm_R_upper": -24,
+        "arm_R_lower": -6
+      }
+    },
+    {
+      "t": 0.2,
+      "pose": {
+        "leg_L_upper": 3,
+        "leg_L_lower": 4,
+        "leg_R_upper": -10,
+        "leg_R_lower": 40,
+        "foot_L": -4,
+        "foot_R": -19,
+        "root_y": -7,
+        "body": 3,
+        "head": -2,
+        "arm_L_upper": 0,
+        "arm_L_lower": -6,
+        "arm_R_upper": 0,
+        "arm_R_lower": -6
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 0.4,
+      "pose": {
+        "leg_L_upper": 18,
+        "leg_L_lower": 14,
+        "leg_R_upper": -21,
+        "leg_R_lower": 6,
+        "foot_L": -17,
+        "foot_R": 6,
+        "root_y": 3,
+        "body": 3,
+        "head": -2,
+        "arm_L_upper": -24,
+        "arm_L_lower": -6,
+        "arm_R_upper": 24,
+        "arm_R_lower": -6
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 0.6,
+      "pose": {
+        "leg_L_upper": -10,
+        "leg_L_lower": 40,
+        "leg_R_upper": 3,
+        "leg_R_lower": 4,
+        "foot_L": -19,
+        "foot_R": -4,
+        "root_y": -7,
+        "body": 3,
+        "head": -2,
+        "arm_L_upper": 0,
+        "arm_L_lower": -6,
+        "arm_R_upper": 0,
+        "arm_R_lower": -6
+      },
+      "ease": "inOutSine"
+    },
+    {
+      "t": 0.8,
+      "pose": {
+        "leg_L_upper": -21,
+        "leg_L_lower": 6,
+        "leg_R_upper": 18,
+        "leg_R_lower": 14,
+        "foot_L": 6,
+        "foot_R": -17,
+        "root_y": 3,
+        "body": 3,
+        "head": -2,
+        "arm_L_upper": 24,
+        "arm_L_lower": -6,
+        "arm_R_upper": -24,
+        "arm_R_lower": -6
+      },
+      "ease": "inOutSine"
+    }
+  ]
+}

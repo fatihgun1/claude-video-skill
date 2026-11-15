@@ -22,6 +22,8 @@ The first time, if `${CLAUDE_PLUGIN_ROOT}/engine/node_modules` is missing, run `
    - characters: `${CLAUDE_PLUGIN_ROOT}/library/characters/<id>/`. `character.json` lists the recolourable `palette_vars`.
    - actions: `library/actions/<id>.json`
    - backgrounds: `library/backgrounds/<id>.svg`
+   - props: `library/props/<id>.svg`
+   - sound effects: `library/sfx/<id>.wav` (sources in `KAYNAKLAR.md`)
    - camera framings and moves: `library/cameras.json`
    - marks (`sol`, `orta`, `sag`): `library/world.json`
    - profiles: `library/profiles/<id>.json`
@@ -30,7 +32,7 @@ The first time, if `${CLAUDE_PLUGIN_ROOT}/engine/node_modules` is missing, run `
    ```json
    {
      "episode": "minik-ayi-alkis", "title": "…", "language": "tr", "profile": "pedagoji-0-3",
-     "characters": [{ "id": "pamuk", "name": "Pamuk", "rig": "test-ayi", "palette": { "accent": "#7fb3e6" } }],
+     "characters": [{ "id": "pamuk", "name": "Pamuk", "rig": "pamuk", "palette": { "accent": "#7fb3e6" } }],
      "scenes": [{ "scene_id": "s1", "bg": "cayir", "shots": [{
        "shot_id": "s1_sh1",
        "utterances": [{ "speaker": "pamuk", "text": "Merhaba!" }],
@@ -42,6 +44,7 @@ The first time, if `${CLAUDE_PLUGIN_ROOT}/engine/node_modules` is missing, run `
 
    - Never write times, coordinates or audio paths. Timing comes from the audio and the profile. Audio lands in `ses/<shot_id>-<n>.wav`.
    - `speaker` is a cast member of that shot or `anlatici` (the narrator).
+   - A sound effect goes on the shot where it happens: `"sfx": [{ "sfx": "kapi-ac", "at": 0.5, "volume": 0.8 }]`, where `at` is seconds from the start of that shot. Use one only when the picture shows its cause: a door that opens, a foot that lands. Footsteps follow the walk cycle (every half cycle, for example every 0.4 s with `yuru-cocuk`).
    - If the story needs something the library lacks (a new action, background or character), **do not invent it**. Use the closest existing asset and add an entry to `new_assets` with a note, then tell the person what is missing.
 4. **Validate**: `cli.mjs dogrula bolumler/<id>/bolum.json`. Fix every error. Keep the warnings for the person to see at the script gate.
 5. Continue with **cizgi-senaryo** to show the script and get the first approval.

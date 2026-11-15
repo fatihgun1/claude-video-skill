@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+  <!-- Ela: a girl of about six, front view. CC0-1.0.
+       About 3.7 heads tall (large head and round eyes read young; Disney Research 2016).
+       _L is the character's left = the viewer's right.
+       Colour variables: skin, skin-dark, hair, top, top-dark, collar, pants, shoe, accent, line. -->
+  <g id="root">
+    <g id="leg_R" data-pivot="480,782">
+      <path d="M466 772 L494 772 L493 906 Q480 912 467 906 Z" fill="var(--pants, #5b6fa6)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
+      <path d="M447 931 Q447 899 476 898 Q500 898 502 924 Q504 948 482 949 L462 949 Q446 948 447 931 Z" fill="var(--shoe, #c94f4f)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
+      <path d="M452 934 L500 934" fill="none" stroke="var(--line, #3f3530)" stroke-width="4" opacity="0.6"/>
+    </g>
+    <g id="leg_L" data-pivot="520,782">
+      <path d="M506 772 L534 772 L533 906 Q520 912 507 906 Z" fill="var(--pants, #5b6fa6)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
+      <path d="M498 924 Q500 898 524 898 Q553 899 553 931 Q554 948 538 949 L518 949 Q496 948 498 924 Z" fill="var(--shoe, #c94f4f)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
+      <path d="M500 934 L548 934" fill="none" stroke="var(--line, #3f3530)" stroke-width="4" opacity="0.6"/>
+    </g>
+    <g id="body" data-pivot="500,780">
+      <path d="M489 570 L511 570 L512 606 L488 606 Z" fill="var(--skin-dark, #dea283)" stroke="var(--line, #3f3530)" stroke-width="4"/>
+      <path d="M462 599 Q500 588 538 599 Q556 606 559 632 L584 782 Q500 798 416 782 L441 632 Q444 606 462 599 Z" fill="var(--top, #f2a541)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
+      <path d="M424 766 Q500 780 576 766" fill="none" stroke="var(--top-dark, #d28a2c)" stroke-width="7" stroke-linecap="round"/>
+      <path d="M520 704 L548 702 L550 730 Q536 738 522 730 Z" fill="var(--top-dark, #d28a2c)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M470 596 Q478 622 500 610 Q522 622 530 596 Q500 588 470 596 Z" fill="var(--collar, #fdfbf5)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/>
+      <g id="arm_R" data-hose="456,622 440,690 434,752">
+        <path class="hose-line" d="M456 622 Q440 690 434 752" fill="none" stroke="var(--line, #3f3530)" stroke-width="32" stroke-linecap="round"/>
+        <path class="hose-fill" d="M456 622 Q440 690 434 752" fill="none" stroke="var(--top, #f2a541)" stroke-width="23" stroke-linecap="round"/>
+        <g id="hand_R" data-pivot="434,752" data-grip="434,773">
+          <circle cx="434" cy="773" r="19" fill="var(--skin, #f1c3a0)" stroke="var(--line, #3f3530)" stroke-width="4"/>
+          <g id="hand_R_slot"/>
+          <g id="hand_R_open">
+            <ellipse cx="451" cy="767" rx="8" ry="10" fill="var(--skin, #f1c3a0)" stroke="var(--line, #3f3530)" stroke-width="4"/>
+          </g>
+          <g id="hand_R_grip" display="none">
+            <path d="M414 769 Q434 763 454 769 Q456 789 434 793 Q412 789 414 769 Z" fill="var(--skin, #f1c3a0)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/>
+            <path d="M422 777 Q434 773 446 777" fill="none" stroke="var(--line, #3f3530)" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+          </g>
+        </g>
+      </g>
+      <g id="arm_L" data-hose="544,622 560,690 566,752">
+        <path class="hose-line" d="M544 622 Q560 690 566 752" fill="none" stroke="var(--line, #3f3530)" stroke-width="32" stroke-linecap="round"/>
+        <path class="hose-fill" d="M544 622 Q560 690 566 752" fill="none" stroke="var(--top, #f2a541)" stroke-width="23" stroke-linecap="round"/>
+        <g id="hand_L" data-pivot="566,752" data-grip="566,773">
+          <circle cx="566" cy="773" r="19" fill="var(--skin, #f1c3a0)" stroke="var(--line, #3f3530)" stroke-width="4"/>
+          <g id="hand_L_slot"/>
+          <g id="hand_L_open">
+            <ellipse cx="549" cy="767" rx="8" ry="10" fill="var(--skin, #f1c3a0)" stroke="var(--line, #3f3530)" stroke-width="4"/>
+          </g>
+          <g id="hand_L_grip" display="none">
+            <path d="M546 769 Q566 763 586 769 Q588 789 566 793 Q544 789 546 769 Z" fill="var(--skin, #f1c3a0)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/>
+            <path d="M554 777 Q566 773 578 777" fill="none" stroke="var(--line, #3f3530)" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+          </g>
+        </g>
+      </g>
+      <g id="head" data-pivot="500,585">
+        <path d="M403.7 505.5 Q397 398 500 389 Q603 398 596.3 505.5 L600.8 566 Q573.9 581.6 556 559.2 L444 559.2 Q426.1 581.6 399.2 566 Z" fill="var(--hair, #4a2f24)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
+        <ellipse cx="500" cy="496.5" rx="89.6" ry="85.1" fill="var(--skin, #f1c3a0)" stroke="var(--line, #3f3530)" stroke-width="5"/>
+        <path d="M412.6 485.3 Q417.1 411.4 500 404.7 Q582.9 411.4 587.4 485.3 Q567.2 465.2 547 476.4 Q533.6 456.2 515.7 471.9 Q500 454 484.3 471.9 Q466.4 456.2 453 476.4 Q432.8 465.2 412.6 485.3 Z" fill="var(--hair, #4a2f24)"/>
+        <path d="M412.6 485.3 Q432.8 465.2 453 476.4 Q466.4 456.2 484.3 471.9 Q500 454 515.7 471.9 Q533.6 456.2 547 476.4 Q567.2 465.2 587.4 485.3" fill="none" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+        <path d="M553.8 436 Q551.5 413.6 573.9 424.8 Q596.3 413.6 594.1 436 Q596.3 458.4 573.9 447.2 Q551.5 458.4 553.8 436 Z" fill="var(--accent, #5bb5a2)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/>
+        <circle cx="573.9" cy="436" r="6.7" fill="var(--accent, #5bb5a2)" stroke="var(--line, #3f3530)" stroke-width="3.5"/>
+        <path d="M453 486.4 Q466.4 479.7 479.8 485.3 M520.2 485.3 Q533.6 479.7 547 486.4" fill="none" stroke="var(--hair, #4a2f24)" stroke-width="4" stroke-linecap="round"/>
+        <g id="eye_R">
+          <g id="eye_R_open">
+            <ellipse cx="466.4" cy="512.2" rx="13.4" ry="16.8" fill="#2c2420"/>
+            <circle cx="470.9" cy="505.5" r="5" fill="#ffffff"/>
+            <circle cx="461.9" cy="518.9" r="2.2" fill="#ffffff" opacity="0.8"/>
+          </g>
+          <g id="eye_R_closed" display="none">
+            <path d="M453 514.4 Q466.4 523.4 479.8 514.4" fill="none" stroke="#2c2420" stroke-width="4.5" stroke-linecap="round"/>
+          </g>
+        </g>
+        <g id="eye_L">
+          <g id="eye_L_open">
+            <ellipse cx="533.6" cy="512.2" rx="13.4" ry="16.8" fill="#2c2420"/>
+            <circle cx="538.1" cy="505.5" r="5" fill="#ffffff"/>
+            <circle cx="529.1" cy="518.9" r="2.2" fill="#ffffff" opacity="0.8"/>
+          </g>
+          <g id="eye_L_closed" display="none">
+            <path d="M520.2 514.4 Q533.6 523.4 547 514.4" fill="none" stroke="#2c2420" stroke-width="4.5" stroke-linecap="round"/>
+          </g>
+        </g>
+        <ellipse cx="444" cy="539.1" rx="14.6" ry="9" fill="#e8806f" opacity="0.35"/>
+        <ellipse cx="556" cy="539.1" rx="14.6" ry="9" fill="#e8806f" opacity="0.35"/>
+        <path d="M494.4 535.7 Q500 540.2 505.6 535.7" fill="none" stroke="var(--skin-dark, #dea283)" stroke-width="4" stroke-linecap="round"/>
+        <g id="mouth">
+          <g id="mouth_rest">
+            <path d="M488.8 554.8 Q500 562.6 511.2 554.8" fill="none" stroke="#5a3a30" stroke-width="4" stroke-linecap="round"/>
+          </g>
+          <g id="mouth_smile" display="none">
+            <path d="M484.3 550.3 Q500 570.4 515.7 550.3 Q500 557 484.3 550.3 Z" fill="#8a3b34" stroke="#5a3a30" stroke-width="4" stroke-linejoin="round"/>
+          </g>
+          <g id="mouth_A" display="none"><ellipse cx="500" cy="558.1" rx="10.1" ry="11.2" fill="#8a3b34" stroke="#5a3a30" stroke-width="3"/></g>
+          <g id="mouth_E" display="none"><ellipse cx="500" cy="557" rx="11.2" ry="5.6" fill="#8a3b34" stroke="#5a3a30" stroke-width="3"/></g>
+          <g id="mouth_O" display="none"><ellipse cx="500" cy="558.1" rx="7.8" ry="9" fill="#8a3b34" stroke="#5a3a30" stroke-width="3"/></g>
+          <g id="mouth_U" display="none"><ellipse cx="500" cy="558.1" rx="5.6" ry="6.7" fill="#8a3b34" stroke="#5a3a30" stroke-width="3"/></g>
+          <g id="mouth_MBP" display="none"><path d="M488.8 557 L511.2 557" fill="none" stroke="#5a3a30" stroke-width="4" stroke-linecap="round"/></g>
+          <g id="mouth_FV" display="none"><path d="M488.8 554.8 Q500 561.5 511.2 554.8 L509 559.2 Q500 563.7 491 559.2 Z" fill="#8a3b34" stroke="#5a3a30" stroke-width="3" stroke-linejoin="round"/></g>
+          <g id="mouth_L" display="none"><ellipse cx="500" cy="558.1" rx="9" ry="7.8" fill="#8a3b34" stroke="#5a3a30" stroke-width="3"/><path d="M494.4 554.8 Q500 551.4 505.6 554.8" fill="none" stroke="#e48b86" stroke-width="3" stroke-linecap="round"/></g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

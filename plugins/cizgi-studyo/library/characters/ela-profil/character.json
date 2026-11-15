@@ -1,0 +1,37 @@
+{
+  "name": {
+    "tr": "Ela (profil)",
+    "en": "Ela (profile)"
+  },
+  "view": "profile-right",
+  "same_as": "ela",
+  "license": "CC0-1.0",
+  "palette_vars": [
+    "skin",
+    "skin-dark",
+    "hair",
+    "top",
+    "top-dark",
+    "collar",
+    "pants",
+    "pants-dark",
+    "shoe",
+    "accent",
+    "line"
+  ],
+  "face_y": 505,
+  "limits": {
+    "arm_L_upper": [-160, 50],
+    "arm_L_lower": [-145, 5],
+    "arm_R_upper": [-160, 50],
+    "arm_R_lower": [-145, 5],
+    "leg_L_upper": [-90, 40],
+    "leg_L_lower": [-5, 150],
+    "leg_R_upper": [-90, 40],
+    "leg_R_lower": [-5, 150],
+    "head": [-25, 30],
+    "body": [-15, 60],
+    "hand_L": [-55, 55],
+    "hand_R": [-55, 55]
+  }
+}

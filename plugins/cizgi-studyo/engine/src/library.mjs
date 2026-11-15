@@ -3,10 +3,11 @@
  * character rigs, actions, backgrounds, camera presets and the world layout.
  * Everything is checked on load so mistakes surface here, not as a blank render.
  */
-import { readdirSync, existsSync } from "node:fs";
+import { readdirSync, existsSync, readFileSync } from "node:fs";
 import { join, basename, extname } from "node:path";
 import { checkRig, checkSvgSafety, POSE_CHANNELS as CHANNEL_LIST } from "./rigspec.mjs";
 import { readJson, readText, ID_PATTERN, has } from "./util.mjs";
+import { wavDuration } from "./timing.mjs";
 import "./runtime/core.js";
 
 const { EASES } = globalThis.CizgiCore;
@@ -201,6 +202,19 @@ export function loadLibrary(dir) {
     props.set(id, { svg, grip, base });
   }
 
+  // Sound effects: short WAVs played at a time inside a shot (shot.sfx).
+  const sfx = new Map();
+  for (const file of entries(join(dir, "sfx"), ".wav")) {
+    const id = basename(file, ".wav");
+    checkId("sound effect", id, errors);
+    const path = join(dir, "sfx", file);
+    try {
+      sfx.set(id, { path, duration: wavDuration(readFileSync(path)) });
+    } catch (err) {
+      errors.push(`sound effect ${id}: ${err.message}`);
+    }
+  }
+
   const profiles = new Map();
   for (const file of entries(join(dir, "profiles"), ".json")) {
     const id = basename(file, ".json");
@@ -212,5 +226,5 @@ export function loadLibrary(dir) {
   if (!profiles.has("genel")) errors.push('profiles/genel.json is required (the default profile)');
 
   if (errors.length) throw new Error(`library is invalid:\n- ${errors.join("\n- ")}`);
-  return { dir, world, cameras, characters, actions, backgrounds, profiles, props };
+  return { dir, world, cameras, characters, actions, backgrounds, profiles, props, sfx };
 }

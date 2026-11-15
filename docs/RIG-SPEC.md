@@ -1,40 +1,77 @@
-# Character rig specification
+# Character rig specification (v2)
 
-A character is one SVG file (`library/characters/<id>/rig.svg`) plus `character.json`. The engine only animates what the drawing exposes, so an illustrator can work in any vector tool (Inkscape, Affinity, Illustrator) as long as the file follows these rules. `cizgi dogrula` and the library loader check them automatically (`engine/src/rigspec.mjs`).
+A character is one SVG file (`library/characters/<id>/rig.svg`) plus `character.json`. The engine only animates what the drawing exposes, so an illustrator can work in any vector tool (Inkscape, Affinity, Illustrator) as long as the file follows these rules. The library loader and `cizgi dogrula` check them automatically (`engine/src/rigspec.mjs`); a rig that breaks a rule is refused.
+
+One person seen from several sides is several rigs (for example `genc`, `genc-on`, `genc-arka`) that share a `same_as` id.
 
 ## Canvas
 - `viewBox="0 0 1000 1000"`. The feet rest on **y = 950** and the character is centred on **x = 500**.
-- Flat shapes; strokes may stay as strokes. No masks, filters or effects. Gradients are allowed but keep them simple.
+- Flat shapes; strokes may stay as strokes. No masks, filters, scripts, event handlers or external links. Simple gradients are allowed.
 - **No `transform` attribute on any `<g>`**: the player owns transforms. Bake positions into the shapes.
-- Colours may use CSS variables with a fallback, e.g. `fill="var(--fur, #d9a877)"`, so an episode can recolour the character without touching the drawing. List the variables in `character.json` → `palette_vars`.
+- Colours may use CSS variables with a fallback, e.g. `fill="var(--top, #8fb3a0)"`, so an episode can recolour the character without touching the drawing. List the variables in `character.json` → `palette_vars`.
+- Paint order is document order: far parts first, near parts last.
 
-## Required groups (ids)
-Nesting matters: a child moves with its parent.
+## Group tree
+Nesting matters: a child moves with its parent. `_L` / `_R` are the **character's** left and right; in a front view `_L` appears on the viewer's right.
 
 ```
-root                      outermost group
-├─ leg_R, leg_L           data-pivot = hip
-└─ body                   data-pivot = hips (whole upper body tilts around it)
-   ├─ tail (optional)     data-pivot = tail root
-   ├─ head                data-pivot = neck
-   │  ├─ ear_R, ear_L (optional)     data-pivot = ear root
+root                                  outermost group
+├─ body_back (optional)               data-pivot = hips; turns with the body channel
+│  └─ arm_R (hose) → hand_R           far arm and anything worn on the back, drawn behind the legs
+├─ leg_R, leg_L                       a rotating group (data-pivot = hip)
+│                                     or a hose (data-hose = hip knee ankle) with foot_R / foot_L inside
+└─ body                               data-pivot = hips (the whole upper body tilts around it)
+   ├─ tail (optional)                 data-pivot = tail root
+   ├─ head                            data-pivot = neck
+   │  ├─ ear_R, ear_L (optional)      data-pivot = ear root
    │  ├─ eye_R → eye_R_open, eye_R_closed
    │  ├─ eye_L → eye_L_open, eye_L_closed
    │  └─ mouth → mouth_rest, mouth_A, mouth_E, mouth_O, mouth_U,
    │             mouth_MBP, mouth_FV, mouth_L, mouth_smile
-   ├─ arm_R_upper         data-pivot = shoulder
-   │  └─ arm_R_lower      data-pivot = elbow
-   │     └─ hand_R        data-pivot = wrist
-   └─ arm_L_upper → arm_L_lower → hand_L   (same as right)
+   └─ arm_L (hose) → hand_L           near arm, drawn over the body
 ```
 
-- `_L` / `_R` are the **character's** left and right. In a front view `_L` appears on the viewer's right.
-- `data-pivot="x,y"` is required on every group the player rotates: body, head, upper and lower arms, hands, legs, and ears or tail if present.
-- Only `eye_*_open` and `mouth_rest` are visible by default. Give the other eye and mouth groups `display="none"`.
-- Overlap the shapes at the joints (round ends work best) so no gap opens when a joint bends 15–20°.
-- Paint order is document order: back limbs, then body, then head, then front arms.
+Rules the checker enforces:
+- `data-pivot="x,y"` on every group the player rotates: `body`, `head`, `hand_*`, non-hose legs, `foot_*` of hose legs, and `ear_*`, `tail`, `body_back` when present.
+- `body_back`, when present, is a direct child of `root`. Only arms may live in it instead of in `body`.
+- Only `eye_*_open` and `mouth_rest` are visible by default. Every other eye and mouth group has `display="none"`.
 
-## Mouth shapes
+## Hoses: arms and knee legs
+An arm is one continuous stroke from shoulder through elbow to wrist, redrawn every frame, so no joint seam can show.
+
+```xml
+<g id="arm_L" data-hose="516,284 524,415 528,548">   <!-- rest shoulder, elbow, wrist -->
+  <path class="hose-line" .../>                       <!-- outline (drawn wider) -->
+  <path class="hose-fill" .../>                       <!-- sleeve colour on top -->
+  <g id="hand_L" data-pivot="528,548"> ... </g>       <!-- follows the wrist -->
+</g>
+```
+
+- Channels: `arm_L_upper` bends at the shoulder, `arm_L_lower` at the elbow.
+- A leg drawn the same way gets a knee: `data-hose="hip knee ankle"` with channels `leg_L_upper` and `leg_L_lower`. Its `foot_L` group (pivot = ankle) follows the ankle and turns with `foot_L`.
+- `leg_L_lift` raises the foot of a hose leg (stepping toward or away from the camera).
+
+## Hands that hold things
+A hand can carry three optional parts, in this order:
+
+```xml
+<g id="hand_L" data-pivot="528,548" data-grip="530,583" data-grip-angle="90">
+  <path .../>                                  <!-- palm: behind the held object -->
+  <g id="hand_L_slot"/>                        <!-- the held prop is drawn here -->
+  <g id="hand_L_open"> ... </g>                <!-- fingers open (visible) -->
+  <g id="hand_L_grip" display="none"> ... </g> <!-- fingers closed around the object -->
+</g>
+```
+
+- `data-grip`: the point where a prop's own grip point sits. Without it the wrist pivot is used.
+- `data-grip-angle`: turns the prop in the hand, in degrees. Use 90 for an object that lies across a hand hanging down.
+- Channel `grip_L` ≥ 0.5 shows `hand_L_grip`, otherwise `hand_L_open`.
+- Shapes before the slot are behind the prop and shapes after it are in front, so the fingers wrap the object.
+
+## Eyes and mouth
+- Channels `gaze_x` and `gaze_y` (rig units) move both eye groups, open and closed, so a character looks at what it attends to. Keep the pupils far enough inside the eye shape for about 6 units of travel.
+- Blinking is automatic.
+
 | Group | Sound | Rhubarb shape |
 |---|---|---|
 | `mouth_MBP` | m, b, p (lips closed) | A |
@@ -47,12 +84,39 @@ root                      outermost group
 | `mouth_rest` | silence | X |
 | `mouth_smile` | expression, not speech | – |
 
+## character.json
+
+```json
+{
+  "name": { "tr": "Genç (profil)", "en": "Young man (profile)" },
+  "view": "profile-right",
+  "same_as": "genc",
+  "license": "CC0-1.0",
+  "palette_vars": ["skin", "hair", "top", "line"],
+  "face_y": 125,
+  "limits": { "arm_L_upper": [-90, 10], "arm_L_lower": [-145, 5], "hand_L": [-55, 55], "head": [-25, 25] }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `view` | `front`, `profile-right`, `three-quarter-right`, `back-three-quarter-right`. The cinema checks use it for screen direction and to stop front or back views from walking sideways. Draw facing right; the `facing` field of a cast member mirrors the rig. |
+| `same_as` | Rig id of the person this view belongs to. The 30° and jump-cut checks treat all views of one person as one subject. |
+| `face_y` | Height of the eyes in rig units. Close-ups and inserts frame on it. |
+| `limits` | `[min, max]` degrees per channel. An action that bends a joint past its limit is an **error**: anatomy is checked before anything is rendered. |
+| `temporary` | `true` while the drawing is a placeholder; starter-pack characters drop it. |
+
 ## Motion conventions
 Action files (`library/actions/*.json`) give rotation angles in degrees around each pivot. In SVG, positive angles turn clockwise. A hanging `_R` arm swings outward with a positive angle; a hanging `_L` arm swings outward with a negative angle. Special channels:
 - `root_y`: lift, in rig units; negative is up.
 - `root_sx` / `root_sy`: squash and stretch around the feet; 1 is neutral.
 
+## Backgrounds and props
+- A background is an SVG with `viewBox="0 0 1920 1080"` in `library/backgrounds/`; the ground line is at y = 870 (`world.json` → `ground_y`). A perspective background (for camera dollies) gives its vanishing point as `data-vp="x,y"` on the `<svg>` element.
+- A prop is an SVG in `library/props/` with `data-base="x,y"` (the point that rests on the ground) and `data-grip="x,y"` (the point that sits in a hand).
+
 ## Hand-off checklist for an illustrator
-- One SVG per character that follows the tree above, with ids spelled exactly as shown.
-- A front and 3/4 model sheet, a size line-up with the other characters, and the colour codes.
+- One SVG per view that follows the tree above, with ids spelled exactly as shown.
+- A model sheet (front, profile, 3/4, back), a size line-up with the other characters, and the colour codes.
+- Joint limits measured on the drawing: how far each arm, leg and the head can turn before the shapes break.
 - Written commercial-use permission and copyright assignment, so the asset can be published under CC0.

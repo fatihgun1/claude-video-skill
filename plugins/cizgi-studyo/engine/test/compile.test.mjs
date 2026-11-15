@@ -39,7 +39,7 @@ function makeEpisodeDir(text = "Merhaba <b>dünya</b>") {
     episode: "test",
     title: "T & <x>",
     language: "tr",
-    characters: [{ id: "pamuk", rig: "test-ayi", palette: { accent: "#123456" } }],
+    characters: [{ id: "pamuk", rig: "pamuk", palette: { accent: "#123456" } }],
     scenes: [
       {
         scene_id: "s1",

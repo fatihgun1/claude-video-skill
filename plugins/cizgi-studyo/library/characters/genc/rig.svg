@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
-  <!-- TEMPORARY test rig: young man in profile, facing right (spec v2, knee legs).
+  <!-- Young man in profile, facing right (spec v2, knee legs).
        ~6 heads tall, shoulders wider than hips, calm upright posture; flat colours, thin warm outline.
-       Colours: --skin --skin-dark --hair --top --top-dark --pants --pants-dark --shoe --bag --line -->
+       Colour variables: skin, skin-dark, hair, top, top-dark, pants, pants-dark, shoe, bag, line. CC0-1.0. -->
   <g id="root">
     <g id="body_back" data-pivot="506,525">
       <path d="M404 292 Q404 274 424 274 L456 274 Q470 274 470 292 L470 458 Q470 476 452 476 L422 476 Q404 476 404 458 Z" fill="var(--bag, #8a6a52)" stroke="var(--line, #3f3530)" stroke-width="5"/>

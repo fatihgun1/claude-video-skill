@@ -7,7 +7,7 @@
  *   storyboard  everything that shapes picture and sound, incl. the generated audio
  */
 import { createHash } from "node:crypto";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, writeFileSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { readJson } from "./util.mjs";
 
@@ -47,6 +47,7 @@ export function libraryFingerprint(episode, lib) {
   const rigs = [...new Set(episode.characters.map((c) => c.rig))].sort();
   const bgs = [...new Set(episode.scenes.map((s) => s.bg))].sort();
   const props = [...new Set(shots.flatMap((s) => (s.props || []).map((p) => p.prop)))].sort();
+  const sounds = [...new Set(shots.flatMap((s) => (s.sfx || []).map((x) => x.sfx)))].sort();
   return sha({
     world: lib.world,
     cameras: lib.cameras,
@@ -55,6 +56,8 @@ export function libraryFingerprint(episode, lib) {
     rigs: rigs.map((r) => lib.characters.get(r)?.svg ?? null),
     backgrounds: bgs.map((b) => lib.backgrounds.get(b) ?? null),
     props: props.map((p) => lib.props?.get(p)?.svg ?? null),
+    // Hash the sound itself, not its path, so replacing a WAV makes the approval stale.
+    ...(sounds.length ? { sfx: sounds.map((x) => (lib.sfx?.get(x) ? sha(readFileSync(lib.sfx.get(x).path).toString("base64")) : null)) } : {}),
   });
 }
 

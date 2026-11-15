@@ -14,14 +14,14 @@ import { wavDuration } from "../src/timing.mjs";
 
 const LIB_DIR = fileURLToPath(new URL("../../library", import.meta.url));
 const lib = loadLibrary(LIB_DIR);
-const rig = readFileSync(join(LIB_DIR, "characters", "test-ayi", "rig.svg"), "utf8");
+const rig = readFileSync(join(LIB_DIR, "characters", "pamuk", "rig.svg"), "utf8");
 const tmp = () => mkdtempSync(join(tmpdir(), "cizgi-rf-"));
 
 function episode() {
   return {
     episode: "deneme",
     language: "tr",
-    characters: [{ id: "pamuk", rig: "test-ayi" }],
+    characters: [{ id: "pamuk", rig: "pamuk" }],
     scenes: [{ scene_id: "s1", bg: "cayir", shots: [{ shot_id: "a", cast: [{ id: "pamuk", action: "selam", mark: "orta" }], camera: { framing: "wide" } }] }],
   };
 }
@@ -54,7 +54,7 @@ test("library loader skips stray files and rejects bad ids and settings", () => 
   const dir = tmp();
   cpSync(LIB_DIR, dir, { recursive: true });
   writeFileSync(join(dir, "characters", "Thumbs.db"), "x");
-  assert.ok(loadLibrary(dir).characters.has("test-ayi"));
+  assert.ok(loadLibrary(dir).characters.has("pamuk"));
   writeFileSync(join(dir, "actions", "Kotu Ad.json"), JSON.stringify({ duration: 1, keys: [{ t: 0, pose: {} }] }));
   assert.throws(() => loadLibrary(dir), /action "Kotu Ad"/);
 });
@@ -93,8 +93,8 @@ test("SVG safety: script, handlers, external references are rejected", () => {
 
 test("rig checker: single-quoted transform, duplicate ids and viseme visibility", () => {
   const bad = rig
-    .replace('<g id="hand_L" data-pivot="612,785">', `<g id='hand_L' data-pivot='612,785' transform='rotate(3)'>`)
-    .replace('<g id="ear_R" data-pivot="352,262">', '<g id="head" data-pivot="352,262">')
+    .replace('<g id="hand_L"', `<g id='hand_L' transform='rotate(3)'`)
+    .replace('<g id="ear_R"', '<g id="head"')
     .replace('<g id="mouth_O" display="none">', '<g id="mouth_O">')
     .replace('<g id="mouth_rest">', '<g id="mouth_rest" display="none">');
   const errs = checkRig(bad).join("\n");

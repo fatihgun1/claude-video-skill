@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+  <!-- Pamuk: a teddy-bear friend, front view, about 3/4 of Ela's height. CC0-1.0.
+       Cute-design rules: eyes low and far apart, simple dot eyes with one highlight, tiny nose and mouth,
+       ears on the sides, round head about 1:1 with the body, flat pastel colours, no gloss or hard shading.
+       Colour variables: fur, belly, accent, line. -->
+  <g id="root">
+    <g id="leg_R" data-pivot="463.6,859">
+      <path d="M463.6 859 L460.8 908" fill="none" stroke="var(--line, #7a5038)" stroke-width="70.4" stroke-linecap="round"/>
+      <path d="M463.6 859 L460.8 908" fill="none" stroke="var(--fur, #e2b48a)" stroke-width="60" stroke-linecap="round"/>
+      <ellipse cx="456.6" cy="927.6" rx="37.8" ry="21" fill="var(--fur, #e2b48a)" stroke="var(--line, #7a5038)" stroke-width="5.6"/>
+      <ellipse cx="456.6" cy="930.4" rx="16.8" ry="8.4" fill="var(--belly, #f8e8d2)"/>
+    </g>
+    <g id="leg_L" data-pivot="536.4,859">
+      <path d="M536.4 859 L539.2 908" fill="none" stroke="var(--line, #7a5038)" stroke-width="70.4" stroke-linecap="round"/>
+      <path d="M536.4 859 L539.2 908" fill="none" stroke="var(--fur, #e2b48a)" stroke-width="60" stroke-linecap="round"/>
+      <ellipse cx="543.4" cy="927.6" rx="37.8" ry="21" fill="var(--fur, #e2b48a)" stroke="var(--line, #7a5038)" stroke-width="5.6"/>
+      <ellipse cx="543.4" cy="930.4" rx="16.8" ry="8.4" fill="var(--belly, #f8e8d2)"/>
+    </g>
+    <g id="body" data-pivot="500,873">
+      <path d="M500 668.6 C570 668.6 608.5 722.5 605 792.5 C601.5 866 556 899.6 500 899.6 C444 899.6 398.5 866 395 792.5 C391.5 722.5 430 668.6 500 668.6 Z" fill="var(--fur, #e2b48a)" stroke="var(--line, #7a5038)" stroke-width="5.6"/>
+      <ellipse cx="500" cy="811.4" rx="70" ry="65.8" fill="var(--belly, #f8e8d2)"/>
+      <path d="M416 678.4 Q500 712 584 678.4 L581.2 703.6 Q500 738.6 418.8 703.6 Z" fill="var(--accent, #f19c94)" stroke="var(--line, #7a5038)" stroke-width="4.8" stroke-linejoin="round"/>
+      <g id="head" data-pivot="500,680.5">
+        <g id="ear_R" data-pivot="396.4,468.4">
+          <circle cx="372.6" cy="444.6" r="43.4" fill="var(--fur, #e2b48a)" stroke="var(--line, #7a5038)" stroke-width="5.6"/>
+          <circle cx="372.6" cy="444.6" r="22.4" fill="var(--belly, #f8e8d2)"/>
+        </g>
+        <g id="ear_L" data-pivot="603.6,468.4">
+          <circle cx="627.4" cy="444.6" r="43.4" fill="var(--fur, #e2b48a)" stroke="var(--line, #7a5038)" stroke-width="5.6"/>
+          <circle cx="627.4" cy="444.6" r="22.4" fill="var(--belly, #f8e8d2)"/>
+        </g>
+        <ellipse cx="500" cy="540.5" rx="155.4" ry="140" fill="var(--fur, #e2b48a)" stroke="var(--line, #7a5038)" stroke-width="5.6"/>
+        <ellipse cx="407.6" cy="601.4" rx="21" ry="11.2" fill="#f5a3a0" opacity="0.5"/>
+        <ellipse cx="592.4" cy="601.4" rx="21" ry="11.2" fill="#f5a3a0" opacity="0.5"/>
+        <g id="eye_R">
+          <g id="eye_R_open">
+            <ellipse cx="435.6" cy="568.5" rx="13.3" ry="17.5" fill="#3a2a24"/>
+            <circle cx="439.8" cy="562.2" r="4.9" fill="#ffffff"/>
+          </g>
+          <g id="eye_R_closed" display="none">
+            <path d="M423 572 Q435.6 580.4 448.2 572" fill="none" stroke="#3a2a24" stroke-width="5.6" stroke-linecap="round"/>
+          </g>
+        </g>
+        <g id="eye_L">
+          <g id="eye_L_open">
+            <ellipse cx="564.4" cy="568.5" rx="13.3" ry="17.5" fill="#3a2a24"/>
+            <circle cx="568.6" cy="562.2" r="4.9" fill="#ffffff"/>
+          </g>
+          <g id="eye_L_closed" display="none">
+            <path d="M551.8 572 Q564.4 580.4 577 572" fill="none" stroke="#3a2a24" stroke-width="5.6" stroke-linecap="round"/>
+          </g>
+        </g>
+        <ellipse cx="500" cy="601.4" rx="40.6" ry="28" fill="var(--belly, #f8e8d2)"/>
+        <path d="M489.5 587.4 Q500 582.5 510.5 587.4 Q511.9 593.7 504.2 597.9 Q500 600.7 495.8 597.9 Q488.1 593.7 489.5 587.4 Z" fill="#3a2a24"/>
+        <g id="mouth">
+          <g id="mouth_rest">
+            <path d="M490.2 605.6 Q495.1 611.9 500 606.3 Q504.9 611.9 509.8 605.6" fill="none" stroke="#3a2a24" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+          </g>
+          <g id="mouth_smile" display="none">
+            <path d="M488.8 604.9 Q500 622.4 511.2 604.9 Z" fill="#8a3a3a" stroke="#3a2a24" stroke-width="4" stroke-linejoin="round"/>
+          </g>
+          <g id="mouth_A" display="none">
+            <ellipse cx="500" cy="611.9" rx="9.8" ry="10.5" fill="#8a3a3a" stroke="#3a2a24" stroke-width="4"/>
+            <ellipse cx="500" cy="616.8" rx="5.6" ry="3.5" fill="#f08c8c"/>
+          </g>
+          <g id="mouth_E" display="none">
+            <ellipse cx="500" cy="609.1" rx="11.2" ry="4.9" fill="#8a3a3a" stroke="#3a2a24" stroke-width="4"/>
+          </g>
+          <g id="mouth_O" display="none">
+            <ellipse cx="500" cy="610.5" rx="6.3" ry="7.7" fill="#8a3a3a" stroke="#3a2a24" stroke-width="4"/>
+          </g>
+          <g id="mouth_U" display="none">
+            <ellipse cx="500" cy="609.1" rx="4.2" ry="4.9" fill="#8a3a3a" stroke="#3a2a24" stroke-width="4"/>
+          </g>
+          <g id="mouth_MBP" display="none">
+            <path d="M492.3 607.7 Q500 610.5 507.7 607.7" fill="none" stroke="#3a2a24" stroke-width="4" stroke-linecap="round"/>
+          </g>
+          <g id="mouth_FV" display="none">
+            <ellipse cx="500" cy="609.1" rx="9.1" ry="4.2" fill="#8a3a3a" stroke="#3a2a24" stroke-width="4"/>
+            <rect x="495.1" y="604.9" width="9.8" height="3.5" rx="1.4" fill="#ffffff"/>
+          </g>
+          <g id="mouth_L" display="none">
+            <ellipse cx="500" cy="610.5" rx="8.4" ry="7" fill="#8a3a3a" stroke="#3a2a24" stroke-width="4"/>
+            <ellipse cx="500" cy="607" rx="4.2" ry="2.8" fill="#f08c8c"/>
+          </g>
+        </g>
+      </g>
+      <g id="arm_R" data-hose="435.6,733 424.4,785.5 421.6,834.5">
+        <path class="hose-line" d="M435.6 733 Q424.4 785.5 421.6 834.5" fill="none" stroke="var(--line, #7a5038)" stroke-width="47.6" stroke-linecap="round"/>
+        <path class="hose-fill" d="M435.6 733 Q424.4 785.5 421.6 834.5" fill="none" stroke="var(--fur, #e2b48a)" stroke-width="38.5" stroke-linecap="round"/>
+        <circle cx="435.6" cy="733" r="23.8" fill="var(--fur, #e2b48a)"/>
+        <g id="hand_R" data-pivot="421.6,834.5" data-grip="420.9,843.6">
+          <circle cx="420.9" cy="843.6" r="22.4" fill="var(--fur, #e2b48a)" stroke="var(--line, #7a5038)" stroke-width="5.2"/>
+          <g id="hand_R_slot"/>
+          <g id="hand_R_open"><circle cx="421.6" cy="829.6" r="18.2" fill="var(--fur, #e2b48a)"/></g>
+          <g id="hand_R_grip" display="none">
+            <path d="M399.9 837.6 Q420.9 829.6 441.9 837.6 Q443.9 857.6 420.9 861.6 Q397.9 857.6 399.9 837.6 Z" fill="var(--fur, #e2b48a)" stroke="var(--line, #7a5038)" stroke-width="5.2" stroke-linejoin="round"/>
+            <path d="M409.9 846.6 L409.9 854.6 M420.9 847.6 L420.9 856.6 M431.9 846.6 L431.9 854.6" fill="none" stroke="var(--line, #7a5038)" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+          </g>
+        </g>
+      </g>
+      <g id="arm_L" data-hose="564.4,733 575.6,785.5 578.4,834.5">
+        <path class="hose-line" d="M564.4 733 Q575.6 785.5 578.4 834.5" fill="none" stroke="var(--line, #7a5038)" stroke-width="47.6" stroke-linecap="round"/>
+        <path class="hose-fill" d="M564.4 733 Q575.6 785.5 578.4 834.5" fill="none" stroke="var(--fur, #e2b48a)" stroke-width="38.5" stroke-linecap="round"/>
+        <circle cx="564.4" cy="733" r="23.8" fill="var(--fur, #e2b48a)"/>
+        <g id="hand_L" data-pivot="578.4,834.5" data-grip="579.1,843.6">
+          <circle cx="579.1" cy="843.6" r="22.4" fill="var(--fur, #e2b48a)" stroke="var(--line, #7a5038)" stroke-width="5.2"/>
+          <g id="hand_L_slot"/>
+          <g id="hand_L_open"><circle cx="578.4" cy="829.6" r="18.2" fill="var(--fur, #e2b48a)"/></g>
+          <g id="hand_L_grip" display="none">
+            <path d="M558.1 837.6 Q579.1 829.6 600.1 837.6 Q602.1 857.6 579.1 861.6 Q556.1 857.6 558.1 837.6 Z" fill="var(--fur, #e2b48a)" stroke="var(--line, #7a5038)" stroke-width="5.2" stroke-linejoin="round"/>
+            <path d="M568.1 846.6 L568.1 854.6 M579.1 847.6 L579.1 856.6 M590.1 846.6 L590.1 854.6" fill="none" stroke="var(--line, #7a5038)" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

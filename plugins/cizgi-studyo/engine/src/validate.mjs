@@ -82,6 +82,10 @@ function checkShot(shot, where, ctx) {
     if (pr.depth && pr.holder) errors.push(`${where}: prop "${pr.id}" lies in the background (depth) and cannot be held in the same shot`);
   }
 
+  for (const s of shot.sfx || []) {
+    if (!lib.sfx?.has(s.sfx)) errors.push(`${where}: sound effect "${s.sfx}" is not in the library (${list((lib.sfx || new Map()).keys())})`);
+  }
+
   for (const u of shot.utterances || []) {
     if (u.speaker !== NARRATOR && !castIds.includes(u.speaker)) {
       errors.push(`${where}: speaker "${u.speaker}" must be "${NARRATOR}" or in this shot's cast`);

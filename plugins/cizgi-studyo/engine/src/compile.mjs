@@ -156,6 +156,30 @@ export function propLayer(timeline, episode, lib, viewport) {
 }
 
 /**
+ * Place every sound effect on the episode clock, before anything is written to disk.
+ * Each occurrence gets its own track (utterances use track 1) so overlapping effects never
+ * cut each other off; an effect is cut where the film ends.
+ * @throws when an effect starts after its shot ends
+ */
+function soundEffects(episode, timeline, lib) {
+  const sfxOf = new Map(episode.scenes.flatMap((sc) => sc.shots).map((s) => [s.shot_id, s.sfx || []]));
+  const out = [];
+  for (const shot of timeline.shots) {
+    sfxOf.get(shot.shot_id).forEach((s, i) => {
+      const length = shot.end - shot.start;
+      if (s.at >= length) throw new Error(`shot ${shot.shot_id}: sound effect "${s.sfx}" at ${s.at}s starts after the shot ends (${length.toFixed(2)}s)`);
+      const { path, duration } = lib.sfx.get(s.sfx);
+      const start = Math.round((shot.start + s.at) * 1000) / 1000;
+      out.push({
+        id: `efekt-${shot.shot_id}-${i}`, path, start, track: 2 + out.length, volume: s.volume ?? 1,
+        duration: Math.min(duration, timeline.duration - start),
+      });
+    });
+  }
+  return out;
+}
+
+/**
  * Vanishing point of a perspective background (data-vp on its <svg>), or null.
  * @param {string} svg
  * @returns {number[]|null}
@@ -261,6 +285,8 @@ export function compileEpisode(episodePath, lib, outDir, opts = {}) {
   const audioFile = (u, shot, i) => safeJoin(episodeDir, audioPathFor(u, shot, i));
   const timeline = buildTimeline(episode, (u, shot, i) => readAudioInfo(audioFile(u, shot, i)), profileOf(episode, lib).timing);
 
+  const effects = soundEffects(episode, timeline, lib);
+
   mkdirSync(join(outDir, "assets", "audio"), { recursive: true });
   mkdirSync(join(outDir, "runtime"), { recursive: true });
   for (const f of ["core.js", "player.js"]) copyFileSync(join(RUNTIME_DIR, f), join(outDir, "runtime", f));
@@ -273,6 +299,11 @@ export function compileEpisode(episodePath, lib, outDir, opts = {}) {
       const dur = (u.end - u.start).toFixed(3);
       audioTags.push(`<audio id="${id}" src="assets/audio/${id}.wav" data-start="${u.start}" data-duration="${dur}" data-track-index="1" data-volume="1"></audio>`);
     });
+  }
+
+  for (const e of effects) {
+    copyFileSync(e.path, join(outDir, "assets", "audio", `${e.id}.wav`));
+    audioTags.push(`<audio id="${e.id}" src="assets/audio/${e.id}.wav" data-start="${e.start}" data-duration="${e.duration.toFixed(3)}" data-track-index="${e.track}" data-volume="${e.volume}"></audio>`);
   }
 
   const props = propLayer(timeline, episode, lib, viewport);

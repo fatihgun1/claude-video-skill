@@ -1,0 +1,58 @@
+{
+  "name": {
+    "tr": "Pamuk (ayı)",
+    "en": "Pamuk (bear)"
+  },
+  "view": "front",
+  "same_as": "pamuk",
+  "license": "CC0-1.0",
+  "palette_vars": [
+    "fur",
+    "belly",
+    "accent",
+    "line"
+  ],
+  "face_y": 568,
+  "limits": {
+    "arm_L_upper": [
+      -170,
+      40
+    ],
+    "arm_L_lower": [
+      -40,
+      145
+    ],
+    "arm_R_upper": [
+      -40,
+      170
+    ],
+    "arm_R_lower": [
+      -145,
+      40
+    ],
+    "hand_L": [
+      -45,
+      45
+    ],
+    "hand_R": [
+      -45,
+      45
+    ],
+    "head": [
+      -20,
+      20
+    ],
+    "body": [
+      -15,
+      15
+    ],
+    "leg_L": [
+      -25,
+      25
+    ],
+    "leg_R": [
+      -25,
+      25
+    ]
+  }
+}

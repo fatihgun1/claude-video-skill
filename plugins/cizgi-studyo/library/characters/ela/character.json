@@ -1,0 +1,34 @@
+{
+  "name": {
+    "tr": "Ela (önden)",
+    "en": "Ela (front)"
+  },
+  "view": "front",
+  "same_as": "ela",
+  "license": "CC0-1.0",
+  "palette_vars": [
+    "skin",
+    "skin-dark",
+    "hair",
+    "top",
+    "top-dark",
+    "collar",
+    "pants",
+    "shoe",
+    "accent",
+    "line"
+  ],
+  "face_y": 512,
+  "limits": {
+    "arm_L_upper": [-170, 30],
+    "arm_L_lower": [-40, 140],
+    "arm_R_upper": [-30, 170],
+    "arm_R_lower": [-140, 40],
+    "hand_L": [-45, 45],
+    "hand_R": [-45, 45],
+    "head": [-20, 20],
+    "body": [-15, 15],
+    "leg_L": [-25, 25],
+    "leg_R": [-25, 25]
+  }
+}

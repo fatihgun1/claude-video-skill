@@ -5,7 +5,7 @@
   "revision": 1,
   "content_locked": true,
   "characters": [
-    { "id": "pamuk", "name": "Pamuk", "rig": "test-ayi", "palette": { "accent": "#7fb3e6" } }
+    { "id": "pamuk", "name": "Pamuk", "rig": "pamuk", "palette": { "accent": "#7fb3e6" } }
   ],
   "scenes": [
     {

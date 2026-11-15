@@ -1,0 +1,17 @@
+Çizgi Stüdyo asset library: CC0 1.0 Universal
+
+Scope: every file under plugins/cizgi-studyo/library/ (character rigs and their
+character.json files, actions, backgrounds, props, sound effects, camera, world and
+profile settings) and the example episodes under ornekler/.
+
+To the extent possible under law, the contributors have waived all copyright and
+related or neighbouring rights to these assets. You can copy, modify, distribute and
+use them, even for commercial purposes, all without asking permission.
+
+The sound effects in library/sfx/ come from Kenney (www.kenney.nl), which published
+them under CC0 1.0; see library/sfx/KAYNAKLAR.md.
+
+Full legal text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+The engine code (plugins/cizgi-studyo/engine/) and the skills are licensed separately
+under the Apache License 2.0; see LICENSE.

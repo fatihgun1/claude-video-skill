@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <!-- A child's room. Characters stand on y = 870 (the rug and floor in front of the wall).
+       The middle (x 560-1360) is kept calm so the cast reads clearly. CC0-1.0. -->
+  <defs>
+    <linearGradient id="gok" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a9d6ef"/>
+      <stop offset="1" stop-color="#e3f2f7"/>
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="#f4e6cf"/>
+  <path d="M0 0 L1920 0 L1920 40 L0 40 Z" fill="#ead8bb"/>
+  <path d="M0 120 L1920 120 M0 200 L1920 200 M0 280 L1920 280 M0 360 L1920 360 M0 440 L1920 440 M0 520 L1920 520 M0 600 L1920 600 M0 680 L1920 680" stroke="#efdcc0" stroke-width="3"/>
+  <rect x="0" y="726" width="1920" height="24" fill="#e2c9a4" stroke="#c9ad87" stroke-width="4"/>
+  <rect x="0" y="750" width="1920" height="330" fill="#d7a875"/>
+  <path d="M0 800 L1920 800 M0 860 L1920 860 M0 930 L1920 930 M0 1010 L1920 1010" stroke="#c4935f" stroke-width="4"/>
+  <path d="M240 750 L200 800 M720 800 L690 860 M1160 860 L1130 930 M1560 750 L1530 800 M420 930 L380 1010 M1700 930 L1660 1010 M960 1010 L930 1080" stroke="#c4935f" stroke-width="4"/>
+
+  <rect x="1380" y="150" width="380" height="330" rx="8" fill="url(#gok)" stroke="#b58a62" stroke-width="10"/>
+  <path d="M1570 150 L1570 480 M1380 315 L1760 315" stroke="#b58a62" stroke-width="8"/>
+  <path d="M1430 250 Q1450 226 1476 240 Q1494 222 1516 238 Q1536 240 1532 258 Z" fill="#ffffff" opacity="0.9"/>
+  <circle cx="1690" cy="220" r="34" fill="#ffd77a"/>
+  <path d="M1350 130 L1790 130" stroke="#8b6b52" stroke-width="10" stroke-linecap="round"/>
+  <path d="M1356 136 Q1340 300 1372 520 L1420 520 Q1400 330 1420 136 Z" fill="#e88f80" stroke="#c96f62" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M1784 136 Q1800 300 1768 520 L1720 520 Q1740 330 1720 136 Z" fill="#e88f80" stroke="#c96f62" stroke-width="5" stroke-linejoin="round"/>
+  <rect x="1366" y="480" width="408" height="18" rx="6" fill="#e2c9a4" stroke="#b58a62" stroke-width="5"/>
+
+  <rect x="90" y="250" width="300" height="476" rx="6" fill="#b98a5e" stroke="#946a45" stroke-width="6"/>
+  <path d="M90 365 L390 365 M90 485 L390 485 M90 605 L390 605" stroke="#946a45" stroke-width="8"/>
+  <rect x="112" y="290" width="28" height="70" rx="4" fill="#5bb5a2" stroke="#3f8a79" stroke-width="4"/>
+  <rect x="142" y="300" width="24" height="60" rx="4" fill="#f2a541" stroke="#c98a2c" stroke-width="4"/>
+  <rect x="168" y="284" width="30" height="76" rx="4" fill="#7d8fc9" stroke="#5c6ea6" stroke-width="4"/>
+  <path d="M206 360 L232 300 L258 306 L232 362 Z" fill="#e88f80" stroke="#c96f62" stroke-width="4" stroke-linejoin="round"/>
+  <circle cx="330" cy="330" r="26" fill="#f6d27a" stroke="#c9a24f" stroke-width="4"/>
+  <path d="M320 326 L328 334 L342 318" fill="none" stroke="#c9a24f" stroke-width="4" stroke-linecap="round"/>
+  <rect x="112" y="420" width="30" height="60" rx="4" fill="#e88f80" stroke="#c96f62" stroke-width="4"/>
+  <rect x="144" y="410" width="26" height="70" rx="4" fill="#5bb5a2" stroke="#3f8a79" stroke-width="4"/>
+  <rect x="290" y="430" width="70" height="50" rx="8" fill="#f2a541" stroke="#c98a2c" stroke-width="4"/>
+  <path d="M120 600 Q140 548 180 552 Q214 556 214 600 Z" fill="#a9d6ef" stroke="#7aa9c4" stroke-width="4"/>
+  <rect x="250" y="540" width="40" height="60" rx="6" fill="#7d8fc9" stroke="#5c6ea6" stroke-width="4"/>
+  <rect x="296" y="556" width="56" height="44" rx="6" fill="#e2c9a4" stroke="#b58a62" stroke-width="4"/>
+  <rect x="120" y="640" width="90" height="60" rx="8" fill="#5bb5a2" stroke="#3f8a79" stroke-width="4"/>
+  <rect x="240" y="626" width="110" height="74" rx="8" fill="#e88f80" stroke="#c96f62" stroke-width="4"/>
+
+  <rect x="760" y="210" width="190" height="150" rx="6" fill="#fdfbf5" stroke="#b58a62" stroke-width="8"/>
+  <path d="M790 330 L830 260 L866 310 L890 284 L924 330 Z" fill="#8cc48c" stroke="#5f9a63" stroke-width="4" stroke-linejoin="round"/>
+  <circle cx="900" cy="248" r="16" fill="#f2a541"/>
+  <rect x="1010" y="240" width="130" height="100" rx="6" fill="#fdfbf5" stroke="#b58a62" stroke-width="8"/>
+  <path d="M1040 316 Q1075 260 1110 316" fill="none" stroke="#e88f80" stroke-width="10" stroke-linecap="round"/>
+  <path d="M1052 316 Q1075 280 1098 316" fill="none" stroke="#5bb5a2" stroke-width="10" stroke-linecap="round"/>
+
+  <path d="M1500 726 L1500 600 Q1500 560 1540 560 L1880 560 Q1920 560 1920 600 L1920 760 Z" fill="#7d8fc9" stroke="#5c6ea6" stroke-width="6" stroke-linejoin="round"/>
+  <rect x="1480" y="660" width="440" height="110" rx="20" fill="#a9b8e6" stroke="#5c6ea6" stroke-width="6"/>
+  <rect x="1530" y="610" width="140" height="70" rx="30" fill="#fdfbf5" stroke="#b5b5c9" stroke-width="5"/>
+  <path d="M1700 680 Q1760 650 1920 660 L1920 770 L1700 770 Z" fill="#f2a541" stroke="#c98a2c" stroke-width="5" stroke-linejoin="round"/>
+  <rect x="1486" y="770" width="24" height="60" rx="6" fill="#5c6ea6"/>
+
+  <ellipse cx="960" cy="905" rx="560" ry="80" fill="#5bb5a2" stroke="#3f8a79" stroke-width="6"/>
+  <ellipse cx="960" cy="905" rx="470" ry="58" fill="none" stroke="#8ccfc0" stroke-width="8"/>
+  <ellipse cx="960" cy="905" rx="360" ry="38" fill="none" stroke="#3f8a79" stroke-width="5" opacity="0.6"/>
+
+  <rect x="420" y="660" width="90" height="80" rx="8" fill="#e88f80" stroke="#c96f62" stroke-width="5"/>
+  <path d="M440 700 L490 700 M465 676 L465 724" stroke="#fdfbf5" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="1790" cy="840" r="26" fill="#f2a541" stroke="#c98a2c" stroke-width="5"/>
+  <path d="M1768 830 Q1790 852 1812 830" fill="none" stroke="#c98a2c" stroke-width="4"/>
+</svg>

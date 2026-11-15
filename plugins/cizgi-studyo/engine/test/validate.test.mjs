@@ -17,7 +17,7 @@ function episode(overrides = {}) {
   return {
     episode: "deneme",
     language: "tr",
-    characters: [{ id: "pamuk", rig: "test-ayi" }],
+    characters: [{ id: "pamuk", rig: "pamuk" }],
     scenes: [{ scene_id: "s1", bg: "cayir", shots: [shot] }],
     ...overrides.episode,
   };
@@ -74,9 +74,9 @@ test("duplicate ids, shared marks and reserved narrator id are rejected", () => 
     },
     episode: {
       characters: [
-        { id: "pamuk", rig: "test-ayi" },
-        { id: "pamuk", rig: "test-ayi" },
-        { id: "anlatici", rig: "test-ayi" },
+        { id: "pamuk", rig: "pamuk" },
+        { id: "pamuk", rig: "pamuk" },
+        { id: "anlatici", rig: "pamuk" },
       ],
     },
   });

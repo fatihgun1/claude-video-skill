@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { checkRig, parseGroups, prefixIds, svgInner } from "../src/rigspec.mjs";
 
-const rig = readFileSync(new URL("../../library/characters/test-ayi/rig.svg", import.meta.url), "utf8");
+const rig = readFileSync(new URL("../../library/characters/pamuk/rig.svg", import.meta.url), "utf8");
 
 test("the bundled test rig satisfies the specification", () => {
   assert.deepEqual(checkRig(rig), []);
@@ -13,9 +13,9 @@ test("missing part, missing pivot and wrong viewBox are reported", () => {
   const broken = rig
     .replace('viewBox="0 0 1000 1000"', 'viewBox="0 0 800 800"')
     .replace('<g id="mouth_O" display="none">', '<g id="mouth_X" display="none">')
-    .replace(' data-pivot="500,565"', "")
-    .replace('data-hose="408,640 392,715 388,785"', 'data-hose="408,640"')
-    .replace('<path class="hose-fill" d="M592 640', '<path class="kol" d="M592 640');
+    .replace(/(<g id="head") data-pivot="[^"]*"/, "$1")
+    .replace(/(<g id="arm_R") data-hose="[^"]*"/, '$1 data-hose="408,640"')
+    .replace(/(id="arm_L"[\s\S]*?)class="hose-fill"/, '$1class="kol"');
   const errors = checkRig(broken);
   assert.ok(errors.some((e) => e.includes("viewBox")));
   assert.ok(errors.some((e) => e.includes("#mouth_O")));

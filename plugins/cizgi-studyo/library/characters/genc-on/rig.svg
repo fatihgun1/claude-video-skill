@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
-  <!-- TEMPORARY test rig: the same young man as "genc", front three-quarter view turned to the right.
+  <!-- The same young man as "genc", front three-quarter view turned to the right.
        Near side (arm_L, leg_L, the bottle hand) is on the viewer's left, as in the profile rig.
-       Colours: --skin --skin-dark --hair --top --top-dark --pants --pants-dark --shoe --bag --line -->
+       Colour variables: skin, skin-dark, hair, top, top-dark, pants, pants-dark, shoe, bag, line. CC0-1.0. -->
   <g id="root">
     <g id="leg_R" data-hose="548,540 556,735 556,902">
       <path class="hose-line" d="M548 540 Q556 735 556 902" fill="none" stroke="var(--line, #3f3530)" stroke-width="62" stroke-linecap="round"/>

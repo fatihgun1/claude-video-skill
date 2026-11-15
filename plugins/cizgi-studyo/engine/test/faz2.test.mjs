@@ -30,7 +30,7 @@ function makeEpisode(overrides = {}) {
     episode: "deneme",
     language: "tr",
     profile: "pedagoji-0-3",
-    characters: [{ id: "pamuk", rig: "test-ayi", voice: { exaggeration: 0.6 } }],
+    characters: [{ id: "pamuk", rig: "pamuk", voice: { exaggeration: 0.6 } }],
     scenes: [
       {
         scene_id: "s1",

@@ -274,6 +274,20 @@
           "minimum": 0,
           "maximum": 10
         },
+        "sfx": {
+          "type": "array",
+          "description": "Library sound effects played in this shot: at = seconds from the start of the shot.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["sfx", "at"],
+            "properties": {
+              "sfx": { "$ref": "#/definitions/id" },
+              "at": { "type": "number", "minimum": 0 },
+              "volume": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        },
         "notes": {
           "type": "string"
         },
