@@ -8,13 +8,45 @@ import { spawn as nodeSpawn } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join, relative, sep, dirname } from "node:path";
 
-// sahne: stills of one scene for review (its scene id follows --sahne)
-export const JOB_KINDS = Object.freeze({ storyboard: ["storyboard"], taslak: ["render", "--taslak"], sahne: ["storyboard", "--sahne"] });
+// sahne: stills of one scene for review (its scene id follows --sahne); ses: speak the lines
+// (no format: the audio is the same for both)
+export const JOB_KINDS = Object.freeze({ storyboard: ["storyboard"], taslak: ["render", "--taslak"], sahne: ["storyboard", "--sahne"], ses: ["ses"] });
+const NO_FORMAT = new Set(["ses"]);
+// `cizgi ses` exits 3 when some lines failed the listening check: still a finished job
+const DONE_CODES = { ses: [0, 3] };
+// "ilerleme {json}" lines on stderr: how far a step is (see ses.mjs)
+const PROGRESS = /^ilerleme (\{.*\})\s*$/;
+const PROGRESS_STEPS = new Set(["seslendirme", "kontrol", "agiz"]);
+
+/** A progress line's {adim, bitti, toplam}, or null when it is not a well-formed one. */
+function progressOf(line) {
+  const m = PROGRESS.exec(line);
+  if (!m) return null;
+  try {
+    const p = JSON.parse(m[1]);
+    const count = (n) => Number.isInteger(n) && n >= 0 && n <= 100000;
+    if (!PROGRESS_STEPS.has(p.adim) || !count(p.bitti) || !count(p.toplam) || p.bitti > p.toplam) return null;
+    return { adim: p.adim, bitti: p.bitti, toplam: p.toplam };
+  } catch {
+    return null;
+  }
+}
 const SCENE_ID = /^[a-z0-9]+([_-][a-z0-9]+)*$/;
 export const JOB_FORMATS = new Set(["16:9", "9:16"]);
 const LOG_TAIL = 4000; // characters of output kept for the panel
 const MAX_OUT = 1_000_000; // the CLI's JSON answer is small; more than this is not an answer
 const TIMEOUT_MS = 30 * 60 * 1000; // a job still running after this is stuck
+// speech may first download its models (several GB) and retries bad takes
+const TIMEOUTS_MS = { ses: 90 * 60 * 1000 };
+
+/** End a process and every process it started (on Windows kill() would leave the children running). */
+function defaultKillTree(pid) {
+  if (process.platform === "win32") {
+    nodeSpawn("taskkill", ["/T", "/F", "/PID", String(pid)], { windowsHide: true, stdio: "ignore" }).on("error", () => {});
+  } else {
+    process.kill(pid, "SIGTERM");
+  }
+}
 
 /**
  * @param {{cli:string, library?:string, spawn?:typeof nodeSpawn, now?:() => number, timeoutMs?:number}} opts
@@ -22,7 +54,7 @@ const TIMEOUT_MS = 30 * 60 * 1000; // a job still running after this is stuck
 export function createJobs(opts) {
   const spawn = opts.spawn || nodeSpawn;
   const now = opts.now || Date.now;
-  const timeoutMs = opts.timeoutMs ?? TIMEOUT_MS;
+  const killTree = opts.killTree || defaultKillTree;
   const jobs = new Map(); // episode path → job
 
   /** End a running job: kill its process and record why. */
@@ -33,7 +65,9 @@ export function createJobs(opts) {
     job.ended = now();
     clearTimeout(job.timer);
     try {
-      job.child.kill();
+      // the CLI runs Python, Rhubarb, HyperFrames as its own children: they must stop too
+      if (job.child.pid) killTree(job.child.pid);
+      else job.child.kill();
     } catch {
       /* already gone */
     }
@@ -42,7 +76,7 @@ export function createJobs(opts) {
 
   const view = (j) => j && {
     kind: j.kind, format: j.format, scene: j.scene ?? null, status: j.status, started: j.started, ended: j.ended ?? null,
-    error: j.error ?? null, result: j.result ?? null, log: j.log.slice(-LOG_TAIL),
+    error: j.error ?? null, result: j.result ?? null, log: j.log.slice(-LOG_TAIL), progress: j.progress,
   };
 
   return {
@@ -53,18 +87,26 @@ export function createJobs(opts) {
       if (kind === "sahne" && !SCENE_ID.test(scene || "")) throw Object.assign(new Error("a scene id is needed"), { code: 400 });
       if (jobs.get(episodePath)?.status === "running") throw Object.assign(new Error("a job is already running for this episode"), { code: 409 });
       // the panel's own project library, so a job sees exactly the drawings the panel validated against
-      const args = [opts.cli, ...JOB_KINDS[kind], ...(kind === "sahne" ? [scene] : []), episodePath, "--format", format,
+      const args = [opts.cli, ...JOB_KINDS[kind], ...(kind === "sahne" ? [scene] : []), episodePath,
+        ...(NO_FORMAT.has(kind) ? [] : ["--format", format]),
         ...(opts.library ? ["--kutuphane", opts.library] : []), ...(opts.project ? ["--proje-kutuphane", opts.project] : [])];
-      const job = { kind, format, ...(kind === "sahne" ? { scene } : {}), status: "running", started: now(), log: "", out: "" };
+      const job = { kind, format, ...(kind === "sahne" ? { scene } : {}), status: "running", started: now(), log: "", out: "", partial: "", progress: null };
       jobs.set(episodePath, job);
       const child = spawn(process.execPath, args, { cwd: dirname(episodePath), windowsHide: true });
       job.child = child;
+      const timeoutMs = opts.timeoutMs ?? (TIMEOUTS_MS[kind] || TIMEOUT_MS);
       job.timer = setTimeout(() => stop(job, `zaman aşımı: ${Math.round(timeoutMs / 60000)} dakikadan uzun sürdü, durduruldu`), timeoutMs);
       job.timer.unref?.(); // the watch alone never keeps the panel's process running
       child.stdout.on("data", (d) => {
         if (job.out.length < MAX_OUT) job.out += d;
       });
-      child.stderr.on("data", (d) => { job.log = (job.log + d).slice(-LOG_TAIL * 2); });
+      child.stderr.on("data", (d) => {
+        job.log = (job.log + d).slice(-LOG_TAIL * 2);
+        // whole lines only: a progress line may arrive in two pieces
+        const lines = (job.partial + d).split(/\r?\n|\r/); // progress bars redraw with a bare \r
+        job.partial = lines.pop().slice(-LOG_TAIL);
+        for (const line of lines) job.progress = progressOf(line) || job.progress;
+      });
       child.on("error", (err) => {
         clearTimeout(job.timer);
         if (job.status !== "running") return;
@@ -81,7 +123,7 @@ export function createJobs(opts) {
         } catch {
           job.result = null;
         }
-        if (code === 0 && job.result) job.status = "done";
+        if ((DONE_CODES[kind] || [0]).includes(code) && job.result) job.status = "done";
         else {
           job.status = "failed";
           job.error = lastError(job.log) || `exit code ${code}`;

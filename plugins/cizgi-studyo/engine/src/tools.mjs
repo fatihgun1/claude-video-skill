@@ -57,15 +57,19 @@ function quote(arg) {
  * npm/npx are .cmd shims on Windows and need a shell.
  * @param {string} cmd
  * @param {string[]} args
- * @param {{cwd?: string}} [opts]
+ * liveStderr: the command's stderr goes straight to ours as it comes (progress lines a panel
+ * job reads while the step runs); its tail is then not in the error, it is already above.
+ * @param {{cwd?: string, liveStderr?: boolean}} [opts]
  * @returns {string}
  */
 export function run(cmd, args, opts = {}) {
   const shell = process.platform === "win32" && /^(npx|npm)$/.test(cmd);
+  const stdio = opts.liveStderr ? ["ignore", "pipe", "inherit"] : undefined;
   const res = shell
-    ? spawnSync([cmd, ...args].map(quote).join(" "), { cwd: opts.cwd, shell: true, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })
-    : spawnSync(cmd, args, { cwd: opts.cwd, encoding: "utf8", maxBuffer: 64 * 1024 * 1024, env: { ...process.env, PYTHONIOENCODING: "utf-8" } });
+    ? spawnSync([cmd, ...args].map(quote).join(" "), { cwd: opts.cwd, shell: true, encoding: "utf8", maxBuffer: 64 * 1024 * 1024, stdio })
+    : spawnSync(cmd, args, { cwd: opts.cwd, encoding: "utf8", maxBuffer: 64 * 1024 * 1024, stdio, env: { ...process.env, PYTHONIOENCODING: "utf-8" } });
   if (res.error) throw new Error(`${cmd}: ${res.error.message}`);
+  if (res.status !== 0 && opts.liveStderr) throw new Error(`${cmd} exited with ${res.status} (its messages are above)`);
   if (res.status !== 0) {
     const lines = `${res.stderr || ""}${res.stdout || ""}`.trim().split("\n");
     // Lines flagged as errors (HyperFrames marks them with ✗) first, then the tail.

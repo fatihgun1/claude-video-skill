@@ -57,6 +57,46 @@ test("a scene stills job passes its scene id; a bad or missing id is refused", (
   assert.deepEqual(calls[0].args, ["/x/cli.mjs", "storyboard", "--sahne", "s1", "/e/bolum.json", "--format", "16:9"]);
 });
 
+test("an audio job runs `cizgi ses` (no format) and reports its progress line by line", () => {
+  const calls = [];
+  const jobs = createJobs({ cli: "/x/cli.mjs", library: "/x/lib", spawn: fakeSpawn(calls) });
+  const j = jobs.start("/e/bolum.json", "ses", "16:9");
+  assert.equal(j.progress, null);
+  assert.deepEqual(calls[0].args, ["/x/cli.mjs", "ses", "/e/bolum.json", "--kutuphane", "/x/lib"]);
+  const err = calls[0].child.stderr;
+  err.emit("data", 'loading model\nilerleme {"adim":"seslendirme","bitti":1,"top');
+  assert.equal(jobs.get("/e/bolum.json").progress, null, "half a line is not read yet");
+  err.emit("data", 'lam":3}\n');
+  assert.deepEqual(jobs.get("/e/bolum.json").progress, { adim: "seslendirme", bitti: 1, toplam: 3 });
+  err.emit("data", 'ilerleme {"adim":"kotu","bitti":1,"toplam":3}\nilerleme {"adim":"agiz","bitti":-1,"toplam":3}\nilerleme nope\n');
+  assert.deepEqual(jobs.get("/e/bolum.json").progress, { adim: "seslendirme", bitti: 1, toplam: 3 }, "only well-formed progress counts");
+  err.emit("data", 'ilerleme {"adim":"kontrol","bitti":3,"toplam":3}\n');
+  assert.equal(jobs.get("/e/bolum.json").progress.adim, "kontrol");
+  calls[0].child.stdout.emit("data", '{"generated":["a"],"kept":[],"failed":[]}');
+  calls[0].child.emit("close", 0);
+  assert.equal(jobs.get("/e/bolum.json").status, "done");
+  // lines that failed the listening check still make a finished job (exit 3 with an answer)
+  jobs.start("/e/bolum.json", "ses", "16:9");
+  calls[1].child.stdout.emit("data", '{"generated":["a"],"kept":[],"failed":[{"key":"a","cer":0.4,"heard":"x"}]}');
+  calls[1].child.emit("close", 3);
+  assert.equal(jobs.get("/e/bolum.json").status, "done");
+  assert.equal(jobs.get("/e/bolum.json").result.failed.length, 1);
+});
+
+test("stopping a job ends its whole process tree (the CLI's own children too)", () => {
+  const calls = [];
+  const killed = [];
+  const spawn = (cmd, args, opts) => Object.assign(fakeSpawn(calls)(cmd, args, opts), { pid: 4242, kill: () => killed.push("kill") });
+  const jobs = createJobs({ cli: "/x/cli.mjs", spawn, killTree: (pid) => killed.push(pid) });
+  jobs.start("/e/bolum.json", "ses", "16:9");
+  // a progress line right after a bar redrawn with \r (no newline) still counts
+  calls[0].child.stderr.emit("data", 'Sampling: 5%\rilerleme {"adim":"seslendirme","bitti":2,"toplam":3}\r\n');
+  assert.equal(jobs.get("/e/bolum.json").progress.bitti, 2);
+  assert.equal(jobs.cancel("/e/bolum.json"), true);
+  assert.deepEqual(killed, [4242]);
+  assert.equal(jobs.get("/e/bolum.json").status, "failed");
+});
+
 test("only known jobs and formats start", () => {
   const jobs = createJobs({ cli: "/x/cli.mjs", spawn: fakeSpawn([]) });
   assert.throws(() => jobs.start("/e/bolum.json", "onayla", "16:9"), /unknown job/);

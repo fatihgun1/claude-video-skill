@@ -93,6 +93,8 @@ function seedFor(key, attempt) {
  */
 export function runAudio(episodePath, lib, tools, deps) {
   const log = deps.log || (() => {});
+  // "ilerleme {json}": how far a step is, read by the panel's audio job (panel-is.mjs)
+  const progress = (adim, bitti, toplam) => log(`ilerleme ${JSON.stringify({ adim, bitti, toplam })}`);
   const episode = readJson(episodePath);
   const { ok, errors } = validateEpisode(episode, lib);
   if (!ok) throw new Error(`episode is invalid:\n- ${errors.join("\n- ")}`);
@@ -127,7 +129,8 @@ export function runAudio(episodePath, lib, tools, deps) {
       voice: { ...line.voice, ...(line.voice.ref ? { ref: abs(line.voice.ref) } : {}) },
     }));
     writeFileSync(join(work, "tts.json"), JSON.stringify(jobs, null, 2));
-    deps.run(tools.pythonTts, [join(PYTHON_DIR, "tts_batch.py"), join(work, "tts.json")]);
+    progress("seslendirme", 0, pending.length); // the model loads first: the step has begun
+    deps.run(tools.pythonTts, [join(PYTHON_DIR, "tts_batch.py"), join(work, "tts.json")], { liveStderr: true });
 
     for (const line of pending) {
       if (speech.tempo === 1) copyFileSync(raw(line), abs(line.path));
@@ -142,16 +145,19 @@ export function runAudio(episodePath, lib, tools, deps) {
       words_out: abs(line.path).replace(/\.wav$/i, ".words.json"),
     }));
     writeFileSync(join(work, "check.json"), JSON.stringify(checks, null, 2));
-    deps.run(tools.pythonAlign, [join(PYTHON_DIR, "check_align.py"), join(work, "check.json"), join(work, "check-results.json")]);
+    progress("kontrol", 0, pending.length);
+    deps.run(tools.pythonAlign, [join(PYTHON_DIR, "check_align.py"), join(work, "check.json"), join(work, "check-results.json")], { liveStderr: true });
     for (const r of readJson(join(work, "check-results.json"))) results[r.id] = { ...r, attempts: attempt + 1 };
 
     pending = pending.filter((line) => !(results[line.key]?.cer <= speech.max_cer));
   }
 
-  for (const line of todo) {
+  progress("agiz", 0, todo.length);
+  todo.forEach((line, i) => {
     const wav = abs(line.path);
     deps.run(tools.rhubarb, ["-r", "phonetic", "-f", "json", "--extendedShapes", "GHX", "-q", "-o", wav.replace(/\.wav$/i, ".rhubarb.json"), wav]);
-  }
+    progress("agiz", i + 1, todo.length);
+  });
 
   const nextLines = { ...manifest.lines };
   for (const line of todo) {

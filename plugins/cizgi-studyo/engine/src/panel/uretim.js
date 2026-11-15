@@ -17,6 +17,7 @@ export function createProduction(els, ctx) {
   let base = "";
   let timer = 0;
   let error = "";
+  let note = ""; // what the last action did (a request left for Claude)
 
   /** Why a step cannot start now, or "" when it can. */
   function blocker() {
@@ -44,17 +45,43 @@ export function createProduction(els, ctx) {
     const next = steps.findIndex(([, cls]) => cls !== "ok");
     els.steps.replaceChildren(...steps.map(([text, cls, tip], i) => el("li", {},
       el("button", {
-        type: "button", class: `${cls}${i === next && !cls ? " next" : ""}${job?.status === "running" && i >= 2 ? " busy" : ""}`,
+        type: "button", class: `${cls}${i === next && !cls ? " next" : ""}${job?.status === "running" && (job.kind === "ses" ? i === 1 : i >= 2) ? " busy" : ""}`,
         title: `${tip} · tıkla: üretim`, on: { click: show },
       }, text))));
   }
 
+  /** Why the lines cannot be spoken from here now ("" when they can); approval is not asked here. */
+  function audioBlocker() {
+    if (ctx.dirty()) return "Önce kaydet: sesler kayıtlı dosyadan üretilir.";
+    if (!ctx.status()) return "Bölümde hata var: önce düzelt.";
+    if (job?.status === "running") return "Bir iş sürüyor.";
+    return "";
+  }
+
   async function startJob(kind) {
     error = "";
+    note = "";
     try {
       const res = await ctx.api("/api/is", { b: ctx.path(), kind, format: ctx.format() });
       job = res.job;
       poll();
+    } catch (err) {
+      error = err.message;
+    }
+    render();
+    renderSteps();
+  }
+
+  /** No approval yet: leave Claude a request to show the script, ask, then speak the lines. */
+  async function askClaudeForAudio() {
+    error = "";
+    try {
+      await ctx.api("/api/istek", {
+        b: ctx.path(),
+        hedef: { tur: "bolum", etiket: "sesler" },
+        metin: "Sesleri üret: senaryo onaylı değil. Replikleri bana göster, onayımı al, sonra cizgi ses ile seslendir.",
+      });
+      note = "İstek Claude'a gitti: senaryoyu gösterip onayını soracak, sonra seslendirecek.";
     } catch (err) {
       error = err.message;
     }
@@ -76,6 +103,9 @@ export function createProduction(els, ctx) {
     if (!ctx.path()) return;
     try {
       const res = await ctx.api(`/api/is?${new URLSearchParams({ b: ctx.path() })}`);
+      // new audio on disk: the preview should play it (and its mouth shapes) instead of guessing
+      // (a failed one may have written some lines before it stopped)
+      if (job?.kind === "ses" && job.status === "running" && res.job && res.job.status !== "running") ctx.audioReady?.();
       job = res.job;
       outputs = res.outputs;
       if (res.status) ctx.setStatus(res.status);
@@ -99,6 +129,34 @@ export function createProduction(els, ctx) {
       action);
   }
 
+  /** Speak the lines here when the script is approved; else ask Claude, who asks for the approval. */
+  function audioAction(approved) {
+    const why = audioBlocker();
+    if (approved) {
+      return el("button", { class: "btn primary", type: "button", disabled: !!why, title: why || "", on: { click: () => startJob("ses") } }, "Sesleri üret");
+    }
+    return el("div", {},
+      el("button", { class: "btn", type: "button", disabled: !!why, title: why || "", on: { click: askClaudeForAudio } }, "Claude'dan iste"),
+      el("p", { class: "muted small", text: "Senaryo onaylı değil: Claude replikleri gösterip onayını sorar, sonra seslendirir." }));
+  }
+
+  /** The last lines of a job's output that are not progress (bars, "ilerleme" lines). */
+  function lastWords(log) {
+    return log.split(/\r?\n|\r/).filter((l) => l.trim() && !l.startsWith("ilerleme ") && !/^[^|]*\d+%\|/.test(l)).slice(-8).join("\n");
+  }
+
+  const PROGRESS_TEXT = { seslendirme: "Seslendiriliyor", kontrol: "Dinleme kontrolü", agiz: "Ağız şekilleri" };
+  const JOB_TEXT = { taslak: "Taslak video", storyboard: "Storyboard", sahne: "Sahne kareleri", ses: "Sesler" };
+
+  /** A running audio job's step and count as a bar ("Seslendiriliyor 2/5"). */
+  function progressBar(p) {
+    if (!p) return el("p", { class: "muted small", text: "Hazırlanıyor (ses modeli yükleniyor)…" });
+    const label = p.bitti === 0 ? `${PROGRESS_TEXT[p.adim]}: başlıyor…` : `${PROGRESS_TEXT[p.adim]} ${p.bitti}/${p.toplam}`;
+    return el("div", { class: "pprog" },
+      el("progress", { max: String(p.toplam || 1), value: String(p.bitti), "aria-label": label }),
+      el("span", { class: "small", text: label }));
+  }
+
   function render() {
     const s = ctx.status();
     const g = s?.gates || {};
@@ -109,12 +167,19 @@ export function createProduction(els, ctx) {
     }, `${text} (${ctx.format()})`);
     const jobBox = job
       ? el("div", { class: `pjob ${job.status}` },
-        el("b", { text: `${job.kind === "taslak" ? "Taslak video" : "Storyboard"} ${job.format}: ${job.status === "running" ? "sürüyor…" : job.status === "done" ? "bitti" : "olmadı"}` }),
+        el("b", { text: `${JOB_TEXT[job.kind] || job.kind}${job.kind === "ses" ? "" : ` ${job.format}`}: ${job.status === "running" ? "sürüyor…" : job.status === "done" ? "bitti" : "olmadı"}` }),
         job.error ? el("p", { class: "err small", text: job.error }) : null,
+        job.kind === "ses" && job.status === "running" ? progressBar(job.progress) : null,
+        // the speech tools' own last words say why it stopped (a missing model, out of memory…)
+        job.kind === "ses" && job.status === "failed" && job.log ? el("pre", { class: "plog", text: lastWords(job.log) }) : null,
+        job.kind === "ses" && job.status === "done" && job.result?.failed?.length
+          ? el("p", { class: "warn small", text: `${job.result.failed.length} replik dinleme kontrolünden geçmedi: replik satırlarında görebilirsin.` })
+          : null,
         job.status === "running"
           ? el("button", { class: "btn small danger", type: "button", on: { click: stopJob } }, "Durdur")
           : null,
-        job.status === "running" && job.log ? el("pre", { class: "plog", text: job.log.split("\n").slice(-6).join("\n") }) : null)
+        // an audio job has its bar instead (the speech model's own output is noise for a person)
+        job.status === "running" && job.log && job.kind !== "ses" ? el("pre", { class: "plog", text: job.log.split("\n").slice(-6).join("\n") }) : null)
       : null;
     // el() drops empty parts; replaceChildren alone would print them as "null"
     els.dialog.replaceChildren(el("div", {},
@@ -122,11 +187,13 @@ export function createProduction(els, ctx) {
         el("button", { class: "btn icon", type: "button", "aria-label": "Kapat", text: "✕", on: { click: () => els.dialog.close() } })),
       el("p", { class: "muted small", text: "Onaylar senin: panel hiçbir şeyi onaylamaz. Bir adımı onaylamak için Claude'a söyle." }),
       error ? el("p", { class: "err", text: error }) : null,
+      note ? el("p", { class: "ok-line small", text: note }) : null,
       jobBox,
       step("1. Senaryo", { cls: g.senaryo === "onayli" ? "ok" : "stale", text: GATE_TEXT[g.senaryo] || "?" },
         g.senaryo === "onayli" ? "" : "Replikleri okuduktan sonra Claude'a “senaryoyu onaylıyorum” de."),
       step("2. Ses", { cls: a && !a.todo.length ? "ok" : "stale", text: a ? `${a.lines - a.todo.length}/${a.lines} hazır` : "?" },
-        a?.todo.length ? `Seslendirilecek: ${a.todo.join(", ")}. Claude'a “sesleri üret” de (cizgi ses).` : a?.failed?.length ? `${a.failed.length} replik dinleme kontrolünden geçmedi: replik satırlarında görebilirsin.` : ""),
+        a?.todo.length ? `Seslendirilecek: ${a.todo.join(", ")}.` : a?.failed?.length ? `${a.failed.length} replik dinleme kontrolünden geçmedi: replik satırlarında görebilirsin.` : "",
+        a?.todo.length ? audioAction(g.senaryo === "onayli") : null),
       step("3. Storyboard", { cls: g.storyboard === "onayli" ? "ok" : "stale", text: GATE_TEXT[g.storyboard] || "?" },
         "Her shot'tan iki kare. İnceledikten sonra Claude'a “storyboard'u onaylıyorum” de.",
         [runBtn("storyboard", "Storyboard karelerini al"),

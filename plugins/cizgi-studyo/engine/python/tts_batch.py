@@ -2,7 +2,7 @@
 
 Usage: python tts_batch.py jobs.json
 jobs.json: [{"id", "text", "lang", "out", "seed", "voice": {"ref"?, "exaggeration"?, "cfg"?}}]
-Writes each "out" WAV. Prints one JSON line per finished job.
+Writes each "out" WAV. Prints one JSON line per finished job, and a progress line on stderr.
 Needs: chatterbox-tts (MIT), torch with CUDA if available.
 """
 import json
@@ -24,7 +24,7 @@ def main(jobs_path: str) -> None:
     with open(jobs_path, encoding="utf-8") as f:
         jobs = json.load(f)
     model = ChatterboxMultilingualTTS.from_pretrained(device=device())
-    for job in jobs:
+    for done, job in enumerate(jobs, 1):
         voice = job.get("voice") or {}
         torch.manual_seed(int(job["seed"]))
         wav = model.generate(
@@ -36,6 +36,12 @@ def main(jobs_path: str) -> None:
         )
         ta.save(job["out"], wav, model.sr)
         print(json.dumps({"id": job["id"], "seconds": round(wav.shape[-1] / model.sr, 3)}), flush=True)
+        progress("seslendirme", done, len(jobs))
+
+
+def progress(step: str, done: int, total: int) -> None:
+    """A progress line on stderr for the panel (see panel-is.mjs)."""
+    print("ilerleme " + json.dumps({"adim": step, "bitti": done, "toplam": total}), file=sys.stderr, flush=True)
 
 
 if __name__ == "__main__":

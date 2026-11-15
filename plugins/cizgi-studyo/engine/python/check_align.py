@@ -57,6 +57,9 @@ def main(jobs_path: str, results_path: str) -> None:
             json.dump(words, f, ensure_ascii=False, indent=2)
         results.append({"id": job["id"], "heard": heard, "cer": cer(job["text"], heard)})
         print(json.dumps(results[-1], ensure_ascii=False), flush=True)
+        # a progress line on stderr for the panel (see panel-is.mjs)
+        step = {"adim": "kontrol", "bitti": len(results), "toplam": len(jobs)}
+        print("ilerleme " + json.dumps(step), file=sys.stderr, flush=True)
 
     with open(results_path, "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)

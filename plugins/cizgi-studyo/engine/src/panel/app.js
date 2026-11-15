@@ -406,6 +406,7 @@ const production = createProduction({ dialog: $("uretim"), steps: $("steps") }, 
   status: () => state.status,
   setStatus: (s) => { state.status = s; },
   api: (path, body) => api(path, body),
+  audioReady: () => { if (state.draft) refreshPreview(); },
 });
 const renderSteps = () => production.renderSteps();
 function renderHeader() {

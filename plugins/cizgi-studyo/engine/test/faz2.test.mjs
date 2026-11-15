@@ -180,9 +180,17 @@ test("runAudio speaks, slows to profile tempo, retries bad takes and is incremen
   const { path, ep, dir } = makeEpisode();
   approve(path, "senaryo", scriptFingerprint(ep));
   const fake = fakeRunner((id, attempt) => (id === "b-0" && attempt === 1 ? 0.4 : 0.01));
-  const res = runAudio(path, lib, TOOLS, fake);
+  const logged = [];
+  const res = runAudio(path, lib, TOOLS, { ...fake, log: (m) => logged.push(m) });
   assert.deepEqual(res.generated, ["a-0", "b-0", "b-1"]);
   assert.deepEqual(res.failed, []);
+  // progress for the panel: each step starts at 0, mouth shapes count line by line
+  const progress = logged.filter((m) => m.startsWith("ilerleme ")).map((m) => JSON.parse(m.slice(9)));
+  assert.deepEqual(progress[0], { adim: "seslendirme", bitti: 0, toplam: 3 });
+  assert.ok(progress.some((p) => p.adim === "kontrol" && p.bitti === 0));
+  assert.deepEqual(progress.at(-1), { adim: "agiz", bitti: 3, toplam: 3 });
+  // the Python steps write their own progress straight through
+  assert.ok(fake.calls.filter((c) => c.cmd === "py-tts" || c.cmd === "py-align").every((c) => c.opts?.liveStderr === true));
   const ffmpeg = fake.calls.filter((c) => c.cmd === "ffmpeg");
   assert.ok(ffmpeg.length >= 3 && ffmpeg[0].args.includes("atempo=0.85"));
   const ttsJobs = JSON.parse(readFileSync(join(dir, ".cizgi", "ses", "tts.json"), "utf8"));
