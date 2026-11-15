@@ -1,0 +1,39 @@
+{
+  "episode": "pamuk-ilk-sahne",
+  "title": "Pamuk: ilk sahne (Faz 1 dikey dilim)",
+  "language": "tr",
+  "revision": 1,
+  "content_locked": true,
+  "characters": [
+    { "id": "pamuk", "name": "Pamuk", "rig": "test-ayi", "palette": { "accent": "#7fb3e6" } }
+  ],
+  "scenes": [
+    {
+      "scene_id": "s1",
+      "bg": "cayir",
+      "shots": [
+        {
+          "shot_id": "s1_sh1",
+          "utterances": [{ "speaker": "pamuk", "text": "Merhaba! Ben Pamuk.", "audio": "ses/s1_sh1.wav" }],
+          "cast": [{ "id": "pamuk", "action": "selam", "mark": "orta" }],
+          "camera": { "framing": "wide", "move": "push_in", "target": "pamuk" },
+          "hold": 0.8
+        },
+        {
+          "shot_id": "s1_sh2",
+          "utterances": [{ "speaker": "pamuk", "text": "Bak! Pamuk alkış yapıyor. Sen de alkışla!", "audio": "ses/s1_sh2.wav" }],
+          "cast": [{ "id": "pamuk", "action": "alkis", "mark": "orta" }],
+          "camera": { "framing": "medium", "move": "static", "target": "pamuk" },
+          "hold": 2.5
+        },
+        {
+          "shot_id": "s1_sh3",
+          "utterances": [{ "speaker": "pamuk", "text": "Hop hop! Bir, iki, üç. Haydi zıpla!", "audio": "ses/s1_sh3.wav" }],
+          "cast": [{ "id": "pamuk", "action": "zipla", "mark": "orta" }],
+          "camera": { "framing": "wide", "move": "pull_out", "target": "pamuk" },
+          "hold": 3
+        }
+      ]
+    }
+  ]
+}

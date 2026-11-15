@@ -1,0 +1,6 @@
+{
+  "name": { "tr": "Test ayısı", "en": "Test bear" },
+  "temporary": true,
+  "license": "CC0-1.0",
+  "palette_vars": ["fur", "fur-dark", "belly", "accent", "line"]
+}

@@ -1,0 +1,14 @@
+{
+  "framings": {
+    "wide":   { "zoom": 1.0,  "focus_y": 0.5,  "label": { "tr": "Geniş", "en": "Wide" } },
+    "medium": { "zoom": 1.45, "focus_y": 0.6,  "label": { "tr": "Orta", "en": "Medium" } },
+    "close":  { "zoom": 2.2,  "focus_y": 0.47, "label": { "tr": "Yakın", "en": "Close-up" } }
+  },
+  "moves": {
+    "static":    { "label": { "tr": "Sabit", "en": "Static" } },
+    "push_in":   { "zoom_to": 1.15, "ease": "inOutSine", "label": { "tr": "Yaklaş", "en": "Push in" } },
+    "pull_out":  { "zoom_from": 1.15, "ease": "inOutSine", "label": { "tr": "Uzaklaş", "en": "Pull out" } },
+    "pan_left":  { "pan_from": 0.04, "pan_to": -0.04, "label": { "tr": "Sola kaydır", "en": "Pan left" } },
+    "pan_right": { "pan_from": -0.04, "pan_to": 0.04, "label": { "tr": "Sağa kaydır", "en": "Pan right" } }
+  }
+}

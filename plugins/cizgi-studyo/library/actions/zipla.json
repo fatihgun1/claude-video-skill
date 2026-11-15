@@ -1,0 +1,13 @@
+{
+  "label": { "tr": "Zıpla", "en": "Jump" },
+  "duration": 1.0,
+  "loop": true,
+  "beats": [0.15, 0.82],
+  "keys": [
+    { "t": 0,    "pose": { "root_y": 0, "root_sx": 1, "root_sy": 1 } },
+    { "t": 0.15, "pose": { "root_y": 0, "root_sx": 1.08, "root_sy": 0.88, "arm_L_upper": 25, "arm_R_upper": -25, "head": 4 }, "ease": "outSine" },
+    { "t": 0.48, "pose": { "root_y": -170, "root_sx": 0.96, "root_sy": 1.06, "arm_L_upper": -150, "arm_R_upper": 150, "arm_L_lower": -20, "arm_R_lower": 20, "leg_L": -12, "leg_R": 12, "head": -4 }, "ease": "outCubic" },
+    { "t": 0.82, "pose": { "root_y": 0, "root_sx": 1.08, "root_sy": 0.9, "arm_L_upper": 20, "arm_R_upper": -20 }, "ease": "inCubic" },
+    { "t": 1.0,  "pose": { "root_y": 0, "root_sx": 1, "root_sy": 1 }, "ease": "outSine" }
+  ]
+}

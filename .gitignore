@@ -1,0 +1,7 @@
+node_modules/
+.hyperframes/
+ornekler/**/proje-*/
+ornekler/**/snap*/
+ornekler/**/*.mp4
+renders/
+ornekler/**/*.png

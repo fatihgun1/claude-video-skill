@@ -1,0 +1,37 @@
+[
+  {
+    "word": "Hop",
+    "start": 0.02,
+    "end": 0.181
+  },
+  {
+    "word": "hop!",
+    "start": 0.202,
+    "end": 0.363
+  },
+  {
+    "word": "Bir,",
+    "start": 0.443,
+    "end": 0.584
+  },
+  {
+    "word": "iki,",
+    "start": 0.665,
+    "end": 0.887
+  },
+  {
+    "word": "üç.",
+    "start": 0.947,
+    "end": 1.088
+  },
+  {
+    "word": "Haydi",
+    "start": 1.169,
+    "end": 1.431
+  },
+  {
+    "word": "zıpla!",
+    "start": 1.451,
+    "end": 1.773
+  }
+]

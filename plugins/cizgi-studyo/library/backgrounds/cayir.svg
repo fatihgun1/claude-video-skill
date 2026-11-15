@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="gok" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#bfe3f5"/>
+      <stop offset="1" stop-color="#eaf6fb"/>
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#gok)"/>
+  <circle cx="1580" cy="190" r="90" fill="#fde9a6"/>
+  <g fill="#ffffff" opacity="0.9">
+    <ellipse cx="380" cy="200" rx="120" ry="48"/><ellipse cx="450" cy="175" rx="80" ry="52"/>
+    <ellipse cx="1120" cy="140" rx="100" ry="40"/><ellipse cx="1180" cy="120" rx="64" ry="42"/>
+  </g>
+  <path d="M0 760 Q300 600 640 720 T1300 700 T1920 680 L1920 1080 L0 1080 Z" fill="#cfe8b9"/>
+  <path d="M0 860 Q480 760 960 840 T1920 820 L1920 1080 L0 1080 Z" fill="#b5dc9a"/>
+  <rect y="930" width="1920" height="150" fill="#a3d088"/>
+  <g fill="#f7c6d9">
+    <circle cx="220" cy="990" r="12"/><circle cx="1640" cy="1010" r="12"/><circle cx="820" cy="1040" r="10"/>
+  </g>
+  <g fill="#fff3a6">
+    <circle cx="300" cy="1030" r="10"/><circle cx="1500" cy="980" r="10"/><circle cx="1100" cy="1010" r="9"/>
+  </g>
+</svg>
