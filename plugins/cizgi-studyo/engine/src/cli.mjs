@@ -26,10 +26,7 @@ import { GATES, approve, readApprovals, gateStatus, scriptFingerprint, storyboar
 import { runAudio, readManifest, linesOf, planAudio, lineFingerprint, failedLines, acceptLine } from "./ses.mjs";
 import { storyboard, render, qaPages } from "./uretim.mjs";
 import { loadTools, run } from "./tools.mjs";
-import { startPanel } from "./panel.mjs";
-import { workspaceOf } from "./panel-proje.mjs";
-import { cachedLibrary } from "./panel-kutuphane.mjs";
-import { createJobs } from "./panel-is.mjs";
+import { openPanel } from "./panel-baslat.mjs";
 
 const DEFAULT_LIBRARY = fileURLToPath(new URL("../../library", import.meta.url));
 const FLAGS = new Set(["--hepsi", "--taslak"]);
@@ -143,17 +140,16 @@ function main(argv) {
       print(qaPages(a1, { run, ffmpeg: loadTools().ffmpeg }));
       return 0;
     case "panel":
-      // The library is reloaded when one of its files changes, so an edited rig or action shows up without a restart.
       // A folder lists every bolum.json under it; a bolum.json opens its own folder with that episode first.
-      const space = workspaceOf(resolve(a1));
-      // Storyboard and draft render jobs run this same CLI in a child process.
-      const jobs = createJobs({ cli: fileURLToPath(import.meta.url), library: resolve(library) });
-      process.once("SIGINT", () => {
-        jobs.stopAll(); // Ctrl+C stops a storyboard or render started from the panel too
-        process.exit(130);
-      });
-      startPanel({ ...space, loadLib: cachedLibrary(library, loadLibrary), status, port, jobs }).then(
-        ({ url }) => print({ panel: url, folder: space.root, stop: "Ctrl+C" }),
+      openPanel({ target: a1, library, status, port }).then(
+        (panel) => {
+          process.once("SIGINT", () => {
+            // Ctrl+C stops a storyboard or render started from the panel too
+            panel.close(); // stops the jobs at once; open connections need not drain
+            process.exit(130);
+          });
+          print({ panel: panel.url, folder: panel.root, stop: "Ctrl+C" });
+        },
         (err) => {
           process.stderr.write(`error: ${err.message}\n`);
           process.exitCode = 1;

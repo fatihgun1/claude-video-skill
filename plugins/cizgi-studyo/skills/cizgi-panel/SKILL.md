@@ -5,6 +5,8 @@ description: Open the Çizgi Stüdyo editor panel — a local web page laid out 
 
 # Editor panel
 
+In a Claude session, open it with the `panel_ac` tool of the plugin's `cizgi-studyo` MCP server (see the `cizgi-studyo` skill): that panel lives as long as the session. The CLI below starts one that lives until it is stopped.
+
 ```bash
 CLI="node ${CLAUDE_PLUGIN_ROOT}/engine/src/cli.mjs"
 $CLI panel <klasör>                  # every bolum.json under the folder; http://127.0.0.1:4810/

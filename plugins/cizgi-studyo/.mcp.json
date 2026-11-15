@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "cizgi-studyo": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/engine/src/mcp.mjs"]
+    }
+  }
+}
