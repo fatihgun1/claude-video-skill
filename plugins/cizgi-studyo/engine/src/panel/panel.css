@@ -347,6 +347,10 @@ textarea { min-height: 70px; resize: vertical; }
 .clip { position: absolute; height: 22px; border-radius: 5px; padding: 0 6px; display: flex; align-items: center; font-size: 11px; white-space: nowrap; overflow: hidden; user-select: none; }
 .clip span { overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
 .line-clip { top: 4px; background: color-mix(in srgb, var(--c) 28%, var(--pane-2)); border-left: 3px solid var(--c); color: var(--text); cursor: pointer; }
+.caption-clip { top: 2px; height: 20px; font: inherit; font-size: 11px; text-align: left; background: color-mix(in srgb, var(--c) 14%, var(--pane-2)); border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); color: var(--text); cursor: pointer; }
+.caption-clip.off { background: transparent; border-style: dashed; color: var(--muted); }
+.caption-clip:disabled { cursor: default; opacity: .55; }
+.caption-clip:focus-visible { outline: 2px solid var(--select); outline-offset: 1px; }
 .fx-clip { background: color-mix(in srgb, var(--accent) 22%, var(--pane-2)); border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent); cursor: grab; touch-action: none; }
 .fx-clip .dur { position: absolute; left: 0; top: 0; bottom: 0; max-width: 100%; background: color-mix(in srgb, var(--accent) 45%, transparent); pointer-events: none; }
 .fx-clip span { position: relative; }

@@ -72,6 +72,20 @@ test("a long line warns that its caption will not fit; the limit is tighter in 9
   const tall = review(ep, "s1", "9:16");
   assert.ok(!wide.sorunlar.some((s) => s.tur === "altyazi"));
   assert.ok(tall.sorunlar.some((s) => s.tur === "altyazi" && s.shot === shot.shot_id));
+  // big captions fit fewer letters, small ones more; a caption turned off is not checked
+  ep.scenes[1].altyazi = { boyut: "buyuk" };
+  assert.ok(review(ep, "s1", "16:9").sorunlar.some((s) => s.tur === "altyazi"));
+  shot.utterances[0].text = "kelime ".repeat(9).trim(); // 62 letters: too many for 9:16 at the usual size
+  delete ep.scenes[1].altyazi;
+  assert.ok(review(ep, "s1", "9:16").sorunlar.some((s) => s.tur === "altyazi"));
+  ep.scenes[1].altyazi = { boyut: "kucuk" };
+  assert.ok(!review(ep, "s1", "9:16").sorunlar.some((s) => s.tur === "altyazi"));
+  delete ep.scenes[1].altyazi;
+  shot.utterances[0].altyazi = false;
+  assert.ok(!review(ep, "s1", "9:16").sorunlar.some((s) => s.tur === "altyazi"));
+  delete shot.utterances[0].altyazi;
+  ep.altyazi = { kapali: true };
+  assert.ok(!review(ep, "s1", "9:16").sorunlar.some((s) => s.tur === "altyazi"));
 });
 
 test("validation messages, unspoken lines and failed listening checks of the scene are listed; other scenes' are not", () => {

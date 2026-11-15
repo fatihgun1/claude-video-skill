@@ -14,9 +14,12 @@
  */
 import { VIEWPORTS } from "./compile.mjs";
 import "./runtime/core.js";
+import { captionPlace, captionShown } from "./altyazi.mjs";
 
 /** Characters that fit in two caption lines (54/58 px bold on 88% of the width, roughly). */
 export const CAPTION_MAX = Object.freeze({ "16:9": 110, "9:16": 56 });
+/** How many more (or fewer) letters fit at each caption size (the usual font size over its own). */
+const CAPTION_FIT = Object.freeze({ kucuk: 54 / 42, orta: 1, buyuk: 54 / 68 });
 const SAMPLES = [0, 0.5, 1];
 const SAME_DEPTH = 0.25; // closer in cast.back than this: drawn in one row
 const OVERLAP = 0.5; // share of the narrower figure hidden behind the other
@@ -60,12 +63,14 @@ export function reviewScene({ episode, sceneId, lib, timing, anchors, format, va
     }
   });
 
+  // bigger captions fit fewer letters in two lines (font sizes as compile.mjs sets them)
+  const captionMax = Math.round(CAPTION_MAX[format] * CAPTION_FIT[captionPlace(scene, format).boyut]);
   for (const shot of scene.shots) {
     (Array.isArray(shot.utterances) ? shot.utterances : []).forEach((u, n) => {
       if (typeof u?.text !== "string") return; // an invalid draft: the validator already says so
       const key = `${shot.shot_id}-${n}`;
-      if (u.text.length > CAPTION_MAX[format]) {
-        add("uyari", "altyazi", shot.shot_id, `“${u.text.slice(0, 40)}…” ${u.text.length} harf: ${format} altyazıda iki satıra sığmaz; repliği böl.`);
+      if (captionShown(episode, u) && u.text.length > captionMax) {
+        add("uyari", "altyazi", shot.shot_id, `“${u.text.slice(0, 40)}…” ${u.text.length} harf: ${format} altyazıda iki satıra sığmaz; repliği böl ya da altyazıyı küçült.`);
       }
       if (unspoken.includes(key)) add("bilgi", "ses", shot.shot_id, `${name(u.speaker)} repliği henüz seslendirilmedi: süresi tahmini.`);
       if (failed.some((f) => f.key === key)) add("uyari", "dinleme", shot.shot_id, `${name(u.speaker)} repliği dinleme kontrolünden geçmedi: dinleyip kabul et ya da yeniden seslendir.`);

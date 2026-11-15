@@ -279,6 +279,20 @@ export function createStageEditor(els, ctx) {
     return [art, handle];
   }
 
+  /** Where a hidden caption of a shot would sit: shown for a moment without being seen, then put back. */
+  function measureUnseen(captions, shotId, k) {
+    // its own caption only (shot ids may hold "-"; a shot with none shows no zone, not another scene's)
+    const node = captions.find((n) => n.id.startsWith(`altyazi-${shotId}-`) && /^\d+$/.test(n.id.slice(`altyazi-${shotId}-`.length)));
+    if (!node) return null;
+    const { display, visibility } = node.style;
+    node.style.visibility = "hidden";
+    node.style.display = "block";
+    const box = boxOf(node, k);
+    node.style.display = display;
+    node.style.visibility = visibility;
+    return box;
+  }
+
   function safeAreas(doc, k) {
     const vp = ctx.viewport();
     const rect = (inset, cls, text) => el("div", {
@@ -286,11 +300,10 @@ export function createStageEditor(els, ctx) {
       style: { left: `${vp.width * inset * k}px`, top: `${vp.height * inset * k}px`, width: `${vp.width * (1 - 2 * inset) * k}px`, height: `${vp.height * (1 - 2 * inset) * k}px` },
     }, el("span", { text }));
     const out = [rect(ACTION_SAFE, "action", "hareket güvenli alanı"), rect(TITLE_SAFE, "title", "yazı güvenli alanı")];
-    // The caption zone as the preview draws it: the caption on screen now, else where they sit.
-    const shown = [...doc.querySelectorAll("#altyazilar .altyazi")].map((n) => boxOf(n, k)).find(Boolean);
-    // With no caption on screen the container is a flat line: show where it sits.
-    const line = doc.getElementById("altyazilar")?.getBoundingClientRect();
-    const zone = shown || (line?.width ? { left: line.left * k, top: line.top * k - 2, width: line.width * k, height: 4 } : null);
+    // The caption zone as the preview draws it: the caption on screen now, else the selected shot's
+    // first caption measured unseen (each scene sets its own place and size: scene.altyazi).
+    const all = [...doc.querySelectorAll("#altyazilar .altyazi")];
+    const zone = all.map((n) => boxOf(n, k)).find(Boolean) || measureUnseen(all, ctx.current()?.shot.shot_id, k);
     if (zone) out.push(el("div", { class: "safe caption", style: { left: `${zone.left}px`, top: `${zone.top}px`, width: `${zone.width}px`, height: `${Math.max(zone.height, 4)}px` } }, el("span", { text: "altyazı" })));
     return out;
   }

@@ -9,6 +9,7 @@ import { MUSIC_DEFAULTS } from "./muzik.mjs";
 import { sceneLayers } from "./katman.js";
 import { sceneDecor } from "./dekor.js";
 import { sceneLight } from "./isik.js";
+import { captionSettings, lineCaption } from "./altyazi-ayar.js";
 
 /** Short state of a line's listening check (ses/manifest.json). */
 function listenText(check) {
@@ -284,6 +285,7 @@ export function createInspector(box, ctx) {
       note ? el("p", { class: "small warn", text: note }) : null,
       field("Önce bekle (s)", number(u.delay, (val) => { setKey(u, "delay", val || undefined); ctx.changed(true); }, { min: 0, max: 5, step: 0.05 })),
       field("Ses düzeyi", vol),
+      lineCaption(ctx.episode(), u, () => ctx.changed(true)),
       el("p", { class: `small ${check && !check.ok && !check.accepted ? "err" : "muted"}`, text: listenDetail(check) }),
       el("div", { class: "row-inline" },
         el("button", { class: "btn small", type: "button", disabled: !url, title: url ? "" : "Bu repliğin kaydı yok", on: { click: () => url && listen(url) } }, "▶ Dinle"),
@@ -421,6 +423,8 @@ export function createInspector(box, ctx) {
       sceneLayers(scene, v.backgrounds.find((b) => b.id === scene.bg)?.layers, () => ctx.changed(true)),
       el("h3", {}, "Işık", el("span", { class: "muted small", text: `sahne ${scene.scene_id}: bütün shot'ları` })),
       sceneLight(scene, () => ctx.changed(true)),
+      el("h3", {}, "Altyazı", el("span", { class: "muted small", text: `sahne ${scene.scene_id}: bütün shot'ları` })),
+      captionSettings(ctx.episode(), scene, ctx.format(), ctx.labelOf, () => ctx.changed(true)),
       el("h3", {}, "Dekor", el("span", { class: "muted small", text: `sahne ${scene.scene_id}: bütün shot'ları` })),
       sceneDecor(scene, {
         selected: sel.kind === "dekor" ? sel.index : -1,

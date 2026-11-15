@@ -2,17 +2,18 @@
 //   Shot:   one block per shot, as wide as it lasts. Drag the right edge to change hold
 //           (never shorter than its lines); drag the block to reorder it within its scene.
 //   Replik: the lines where they are spoken (read-only: they come from the script).
+//   Altyazı: each line's caption; a click turns it on or off.
 //   Efekt:  the sound effects; drag one sideways to change its time in the shot.
 // The draft's order lays the blocks out; the last compiled preview gives the lengths.
 import { el, svg } from "./dom.js";
 import { musicGain } from "./muzik.mjs";
+import { speakerColor, captionShown } from "./altyazi.mjs";
 import { MAX_HOLD, shotLength, minShotLength, holdForLength, sfxAtAfterDrag, reorderIndex, segmentSpans } from "./kurgu.js";
 
 const PX = 80; // pixels per second
 const DRAG_START_PX = 5;
 const FX_MIN_PX = 64;
-const SPEAKER_COLORS = ["#4fb8a0", "#e88f80", "#7d8fc9", "#c9a14f"];
-const ROW = { ruler: 30, shots: 64, actor: 26, lines: 30, fx: 50, music: 34 }; // track heights (px)
+const ROW = { ruler: 30, shots: 64, actor: 26, lines: 30, captions: 26, fx: 50, music: 34 }; // track heights (px)
 const MAX_DELAY = 5; // schema limit of utterance.delay
 const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
 
@@ -35,11 +36,8 @@ export function createTimeline(els, ctx) {
   let playhead = null;
   let dragging = false;
   let redrawLater = false;
-  const speakers = new Map();
-  const colorOf = (id) => {
-    if (!speakers.has(id)) speakers.set(id, SPEAKER_COLORS[speakers.size % SPEAKER_COLORS.length]);
-    return speakers.get(id);
-  };
+  // the same colour the captions use (characters[].renk, else by place in the cast)
+  const colorOf = (id) => speakerColor(ctx.episode(), id);
 
   /**
    * Lay the draft's shots end to end. A compiled shot's length follows its current hold at
@@ -177,6 +175,30 @@ export function createTimeline(els, ctx) {
       : pr?.warnings ? el("span", { class: "warnb", title: `${pr.warnings} uyarı`, text: `${pr.warnings}` }) : null);
     block.append(holdGrip(p, block, sub));
     return block;
+  }
+
+  /**
+   * Each line's caption under it: its text is the line itself. A click turns that caption on or
+   * off (utterance.altyazi); with the episode's captions off every block is off and says so.
+   */
+  function captionBlocks(p) {
+    if (!p.t) return [];
+    const ep = ctx.episode();
+    const allOff = !!ep.altyazi?.kapali;
+    return p.t.utterances.map((u, i) => {
+      const line = p.shot.utterances?.[i];
+      const shown = captionShown(ep, line);
+      const left = (p.start + u.start - p.t.start) * PX;
+      return el("button", {
+        type: "button",
+        class: `clip caption-clip${shown ? "" : " off"}`,
+        style: { left: `${left}px`, width: `${Math.max(6, (u.end - u.start) * PX - 2)}px`, "--c": colorOf(u.speaker) },
+        title: allOff ? "Bölümün altyazıları kapalı (denetleyicide Altyazı)" : `Altyazı ${shown ? "açık" : "kapalı"}: “${u.text}” · tıkla: ${shown ? "kapat" : "aç"}`,
+        "aria-pressed": String(shown),
+        disabled: allOff,
+        on: { click: () => ctx.setCaption(p.shot, i, !shown) },
+      }, el("span", { text: shown ? u.text : "altyazı yok" }));
+    });
   }
 
   /**
@@ -374,18 +396,19 @@ export function createTimeline(els, ctx) {
     playhead = el("div", { class: "playhead" });
     // One track per character who acts anywhere in the episode.
     const actors = ctx.characters().filter((c) => places.some((p) => p.shot.cast.some((m) => m.id === c.id)));
-    const rows = [ROW.shots, ...actors.map(() => ROW.actor), ROW.lines, ROW.fx, ROW.music];
+    const rows = [ROW.shots, ...actors.map(() => ROW.actor), ROW.lines, ROW.captions, ROW.fx, ROW.music];
     els.tracks.style.gridTemplateRows = rows.map((h) => `${h}px`).join(" ");
     els.labels.style.gridTemplateRows = [ROW.ruler, ...rows].map((h) => `${h}px`).join(" ");
     els.labels.replaceChildren(
       el("span"), el("span", { text: "Shot" }),
       ...actors.map((c) => el("span", { class: "actor-lab", title: c.label, text: c.label })),
-      trackLabel("Replik", "lines"), trackLabel("Efekt", "sfx"), trackLabel("Müzik", "music"),
+      trackLabel("Replik", "lines"), el("span", { text: "Altyazı" }), trackLabel("Efekt", "sfx"), trackLabel("Müzik", "music"),
     );
     els.tracks.replaceChildren(
       row("t-shots", places.map((p) => shotBlock(p, problems))),
       ...actors.map((c) => row("t-actor", places.flatMap((p) => actionClips(p, c.id)))),
       row("t-lines", places.flatMap(lineBlocks)),
+      row("t-captions", places.flatMap(captionBlocks)),
       row("t-fx", places.flatMap(sfxBlocks)),
       row("t-music", musicRow(total)),
       playhead,

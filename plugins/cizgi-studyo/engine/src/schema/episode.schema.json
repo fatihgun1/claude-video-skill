@@ -39,6 +39,15 @@
         "9:16"
       ]
     },
+    "altyazi": {
+      "description": "Captions of the whole episode: kapali turns them all off; konusan_rengi edges each caption with its speaker's colour (characters[].renk).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kapali": { "type": "boolean" },
+        "konusan_rengi": { "type": "boolean" }
+      }
+    },
     "characters": {
       "type": "array",
       "minItems": 1,
@@ -70,6 +79,10 @@
           },
           "static_features": {
             "type": "string"
+          },
+          "renk": {
+            "description": "The character's colour in the timeline and on its captions (default: by its place in the cast).",
+            "$ref": "#/definitions/color"
           },
           "voice": {
             "$ref": "#/definitions/voice"
@@ -132,6 +145,15 @@
                 "olcek": { "type": "number", "minimum": 0.5, "maximum": 2 },
                 "ton": { "$ref": "#/definitions/color" }
               }
+            }
+          },
+          "altyazi": {
+            "description": "Where (alt, ust, orta) and how big (kucuk, orta, buyuk) the scene's captions are. Default: alt in 16:9, ust in 9:16; orta.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "konum": { "enum": ["alt", "ust", "orta"] },
+              "boyut": { "enum": ["kucuk", "orta", "buyuk"] }
             }
           },
           "isik": {
@@ -272,6 +294,10 @@
                 "minimum": 0,
                 "maximum": 1,
                 "description": "Loudness of this line (1 = as recorded)."
+              },
+              "altyazi": {
+                "type": "boolean",
+                "description": "false: this line has no caption (default: shown)."
               }
             }
           }

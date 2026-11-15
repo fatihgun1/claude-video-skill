@@ -14,6 +14,7 @@ import { validateEpisode, profileOf } from "./validate.mjs";
 import { buildTimeline, wavDuration } from "./timing.mjs";
 import { readJson, has } from "./util.mjs";
 import { readWav, writeWav, mixMusic } from "./muzik.mjs";
+import { captionPlace, captionShown, speakerColor } from "./altyazi.mjs";
 
 const RUNTIME_DIR = join(dirname(fileURLToPath(import.meta.url)), "runtime");
 export const VIEWPORTS = { "16:9": { width: 1920, height: 1080 }, "9:16": { width: 1080, height: 1920 } };
@@ -289,13 +290,24 @@ function characterMarkup(ch, lib, heldProps = []) {
   return `<g id="kar-${ch.id}"${style}>${markup}</g>`;
 }
 
-function captionMarkup(shot) {
+/**
+ * A shot's captions (see altyazi.mjs): none for a line or an episode that turns them off; the
+ * scene's place and size as classes; the speaker's colour as a CSS variable when the episode asks.
+ */
+function captionMarkup(shot, episode, format) {
+  const scene = episode.scenes.find((sc) => sc.scene_id === shot.scene_id);
+  const lines = scene?.shots.find((s) => s.shot_id === shot.shot_id)?.utterances || [];
+  const { konum, boyut } = captionPlace(scene, format);
+  const coloured = !!episode.altyazi?.konusan_rengi;
   return shot.utterances
     .map((u, i) => {
+      if (!captionShown(episode, lines[i])) return "";
       const words = u.words.length ? u.words.map((w) => w.word) : u.text.trim().split(/\s+/);
       const spans = words.map((w) => `<span class="kelime">${escapeHtml(w)}</span>`).join(" ");
-      return `<div class="altyazi" id="altyazi-${shot.shot_id}-${i}">${spans}</div>`;
+      const colour = coloured ? ` style="--konusan: ${escapeHtml(speakerColor(episode, u.speaker))}"` : "";
+      return `<div class="altyazi konum-${konum} boyut-${boyut}${coloured ? " konusan" : ""}" id="altyazi-${shot.shot_id}-${i}"${colour}>${spans}</div>`;
     })
+    .filter(Boolean)
     .join("\n      ");
 }
 
@@ -337,9 +349,16 @@ function pageHtml({ episode, timeline, viewport, lib, audioTags, data, props, de
       body { margin: 0; background: #eaf6fb; }
       #root { position: relative; width: 100%; height: 100%; overflow: hidden; }
       #sahne { position: absolute; inset: 0; width: 100%; height: 100%; }
-      #altyazilar { position: absolute; left: 6%; right: 6%; ${portrait ? "top: 9%" : "bottom: 3%"}; display: flex; justify-content: center; }
-      .altyazi { display: none; padding: 14px 28px; border-radius: 28px; background: rgba(255, 255, 255, 0.88);
+      #altyazilar { position: absolute; inset: 0; pointer-events: none; }
+      .altyazi { display: none; position: absolute; left: 50%; transform: translateX(-50%); box-sizing: border-box;
+        width: max-content; max-width: 88%; padding: 0.26em 0.52em; border-radius: 0.52em; background: rgba(255, 255, 255, 0.88);
         color: #3a2a20; font-family: sans-serif; font-weight: 700; font-size: ${portrait ? 58 : 54}px; line-height: 1.25; text-align: center; }
+      .altyazi.konum-alt { bottom: ${portrait ? "22%" : "3%"}; }
+      .altyazi.konum-ust { top: ${portrait ? "9%" : "4%"}; }
+      .altyazi.konum-orta { top: 50%; transform: translate(-50%, -50%); }
+      .altyazi.boyut-kucuk { font-size: ${portrait ? 46 : 42}px; }
+      .altyazi.boyut-buyuk { font-size: ${portrait ? 72 : 68}px; }
+      .altyazi.konusan { border: 0.11em solid var(--konusan); }
       .kelime.soylenen { color: #c2453d; }
     </style>
   </head>
@@ -357,7 +376,7 @@ function pageHtml({ episode, timeline, viewport, lib, audioTags, data, props, de
         </g>
       </svg>
       <div id="altyazilar">
-      ${timeline.shots.map(captionMarkup).join("\n      ")}
+      ${timeline.shots.map((s) => captionMarkup(s, episode, portrait ? "9:16" : "16:9")).join("\n      ")}
       </div>
       ${audioTags.join("\n      ")}
     </div>

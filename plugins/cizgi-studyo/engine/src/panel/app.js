@@ -118,6 +118,14 @@ const timeline = createTimeline(
       state.sel = { shot: shotId, kind: "line", index: i };
       renderAll();
     },
+    episode: () => state.draft,
+    setCaption: (shot, i, shown) => {
+      const u = shot.utterances?.[i];
+      if (!u) return;
+      setKey(u, "altyazi", shown ? undefined : false); // shown is the default: no key
+      state.sel = { shot: shot.shot_id, kind: "line", index: i };
+      changed(true);
+    },
     setDelay: (shot, i, delay) => {
       const u = shot.utterances?.[i];
       if (!u) return;
@@ -188,6 +196,7 @@ const drafts = createDrafts({
 });
 const inspector = createInspector($("inspector"), {
   episode: () => state.draft,
+  format: () => state.format,
   vocab: () => state.vocab,
   find,
   sel: () => state.sel,
