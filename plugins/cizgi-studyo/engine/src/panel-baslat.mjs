@@ -14,16 +14,17 @@ export const DEFAULT_PORT = 4810;
 const CLI = fileURLToPath(new URL("./cli.mjs", import.meta.url));
 
 /**
- * @param {{target:string, library:string, status:Function, port?:number, fallbackPort?:boolean}} opts
+ * @param {{target:string, library:string, status:Function, port?:number, fallbackPort?:boolean, requests?:string}} opts
  *   fallbackPort: when the port is taken (another panel is open), take any free port instead of failing.
+ *   requests: the session's request queue file (only when a Claude session listens: the MCP server).
  * @returns {Promise<{url:string, root:string, initial:string|null, loadLib:() => object, close:() => Promise<void>}>}
  */
-export async function openPanel({ target, library, status, port = DEFAULT_PORT, fallbackPort = false }) {
+export async function openPanel({ target, library, status, port = DEFAULT_PORT, fallbackPort = false, requests = null }) {
   const space = workspaceOf(resolve(target));
   const jobs = createJobs({ cli: CLI, library: resolve(library) });
   // The library is reloaded when one of its files changes, so an edited rig or action shows up without a restart.
   const loadLib = cachedLibrary(library, loadLibrary);
-  const start = (p) => startPanel({ ...space, loadLib, status, port: p, jobs });
+  const start = (p) => startPanel({ ...space, loadLib, status, port: p, jobs, requests });
   let panel;
   try {
     panel = await start(port);

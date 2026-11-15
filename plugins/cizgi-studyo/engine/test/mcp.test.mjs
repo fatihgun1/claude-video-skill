@@ -3,7 +3,7 @@ import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
-import { mkdtempSync, mkdirSync, copyFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, copyFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 const SERVER = fileURLToPath(new URL("../src/mcp.mjs", import.meta.url));
 const SOKAK = fileURLToPath(new URL("../../../../ornekler/sokak/bolum.json", import.meta.url));
 
-let root, other, child, lines, nextId = 1;
+let root, other, queues, child, lines, nextId = 1;
 const waiting = new Map();
 
 function send(message) {
@@ -40,7 +40,8 @@ before(() => {
   put(root, "bolumler/iki/bolum.json");
   put(other, "tek/bolum.json");
   writeFileSync(join(root, "notlar.txt"), "not an episode");
-  child = spawn(process.execPath, [SERVER], { cwd: root, env: { ...process.env, CIZGI_PANEL_PORT: "0" }, stdio: ["pipe", "pipe", "pipe"] });
+  queues = mkdtempSync(join(tmpdir(), "cizgi-mcp-kuyruk-"));
+  child = spawn(process.execPath, [SERVER], { cwd: root, env: { ...process.env, CIZGI_PANEL_PORT: "0", CIZGI_ISTEK_KOK: queues }, stdio: ["pipe", "pipe", "pipe"] });
   lines = createInterface({ input: child.stdout });
   lines.on("line", (line) => {
     const msg = JSON.parse(line); // anything on stdout that is not JSON-RPC breaks the client
@@ -55,6 +56,7 @@ after(async () => {
   await exited; // Windows keeps a folder locked while a process has it as its working folder
   rmSync(root, { recursive: true, force: true });
   rmSync(other, { recursive: true, force: true });
+  rmSync(queues, { recursive: true, force: true });
 });
 
 test("initialize answers with tools capability and the asked protocol version", async () => {
@@ -65,10 +67,10 @@ test("initialize answers with tools capability and the asked protocol version", 
   send({ jsonrpc: "2.0", method: "notifications/initialized" }); // a notification gets no answer
 });
 
-test("tools/list names panel_ac and panel_kapat with input schemas", async () => {
+test("tools/list names the panel and request tools with input schemas", async () => {
   const res = await rpc("tools/list", {});
   const names = res.result.tools.map((t) => t.name).sort();
-  assert.deepEqual(names, ["panel_ac", "panel_kapat"]);
+  assert.deepEqual(names, ["panel_ac", "panel_istekleri", "panel_kapat", "panel_yanitla"]);
   for (const t of res.result.tools) assert.equal(t.inputSchema.type, "object");
 });
 
@@ -126,6 +128,38 @@ test("calls in flight at once share one panel", async () => {
   const [a, b, c] = (await Promise.all([callTool("panel_ac"), callTool("panel_ac"), callTool("panel_ac", { klasor: root })])).map(textOf);
   assert.equal(a.url, b.url);
   assert.equal(b.url, c.url);
+});
+
+test("a request written in the panel reaches Claude, and the answer reaches the panel", async () => {
+  const open = textOf(await callTool("panel_ac", { klasor: root }));
+  const base = open.url.replace(/\/$/, "");
+  const host = new URL(open.url).host;
+  const b = "bolumler/bir/bolum.json";
+  const post = (body) => fetch(`${base}/api/istek`, { method: "POST", headers: { "content-type": "application/json", origin: `http://${host}` }, body: JSON.stringify(body) });
+  const sent = await post({ b, hedef: { tur: "karakter", shot: "s1_sh1", id: "genc", etiket: "Genç" }, metin: "el sallasın", zaman: 1.5 });
+  assert.equal(sent.status, 200);
+  const { istek } = await sent.json();
+  // another site cannot queue one
+  const forged = await fetch(`${base}/api/istek`, { method: "POST", headers: { "content-type": "application/json", origin: "http://evil.example" }, body: JSON.stringify({ b, hedef: { tur: "bolum" }, metin: "x" }) });
+  assert.equal(forged.status, 403);
+
+  assert.equal(existsSync(join(root, ".cizgi")), false); // the queue is not in the project
+  const taken = textOf(await callTool("panel_istekleri"));
+  assert.deepEqual(taken.istekler.map((r) => r.id), [istek.id]);
+  assert.match(taken.istekler[0].aciklama, /"el sallasın"/);
+  assert.deepEqual(textOf(await callTool("panel_istekleri")).istekler, []); // taken once
+
+  const poll = async () => (await fetch(`${base}/api/istekler?b=${encodeURIComponent(b)}`)).json();
+  assert.equal((await poll()).istekler[0].durum, "alindi");
+  textOf(await callTool("panel_yanitla", { id: istek.id, durum: "yapildi", yanit: "s1_sh1'de Genç el sallıyor." }));
+  const after = await poll();
+  assert.equal(after.oturum, true);
+  assert.equal(after.istekler[0].durum, "yapildi");
+  assert.equal(after.istekler[0].yanit, "s1_sh1'de Genç el sallıyor.");
+  assert.match(after.surum, /^[0-9a-f]{16}$/);
+
+  const wrong = await callTool("panel_yanitla", { id: "pyok", durum: "yapildi", yanit: "x" });
+  assert.equal(wrong.result.isError, true);
 });
 
 test("panel_kapat closes the panel", async () => {

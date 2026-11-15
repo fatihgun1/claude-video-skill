@@ -1,0 +1,19 @@
+{
+  "description": "Hand the requests written in the Çizgi Stüdyo editor panel to Claude: after a turn (Stop) and when the person writes (UserPromptSubmit). Silent when the project has no waiting requests.",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/engine/src/panel-hook.mjs\"", "timeout": 10 }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/engine/src/panel-hook.mjs\"", "timeout": 10 }
+        ]
+      }
+    ]
+  }
+}

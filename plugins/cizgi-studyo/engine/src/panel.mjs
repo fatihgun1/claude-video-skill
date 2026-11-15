@@ -15,6 +15,7 @@
  *   GET  /kutuphane/<kind>/<id>.<ext>   a library drawing or sound (karakter, mekan, nesne, ses)
  *   GET  /api/hareket?rig=&action=&bg=  compile a small preview of one character doing one action
  *   GET  /hareket-onizleme/...           files of those previews
+ *   GET  /api/istekler?b=  ·  POST /api/istek   requests to the Claude session (panel-istek.mjs)
  *
  * Bound to 127.0.0.1 only. Requests whose Host is not the panel's own address are refused
  * (DNS rebinding), and POSTs need a JSON body from the panel's own origin (CSRF).
@@ -32,13 +33,14 @@ import { vocabulary, libraryFile, actionPreview } from "./panel-kutuphane.mjs";
 import { readManifest } from "./ses.mjs";
 import { outputsOf, OUTPUT_DIRS } from "./panel-is.mjs";
 import { HttpError, MAX_EPISODES, findEpisodes, episodePathOf, summarize, createEpisode, workspaceOf, insideReally } from "./panel-proje.mjs";
+import { requestRoutes } from "./panel-istek.mjs";
 
 export { vocabulary };
 
 const PANEL_DIR = fileURLToPath(new URL("./panel/", import.meta.url));
 const PAGE = join(PANEL_DIR, "index.html");
 /** The only files /panel/ serves. */
-const PANEL_FILES = new Set(["panel.css", "app.js", "dom.js", "kutuphane.js", "sahne.js", "denetleyici.js", "projeler.js", "zaman.js", "kurgu.js", "dinle.js", "duzen.js", "uretim.js", "agac.js"]);
+const PANEL_FILES = new Set(["panel.css", "app.js", "dom.js", "kutuphane.js", "sahne.js", "denetleyici.js", "projeler.js", "zaman.js", "kurgu.js", "dinle.js", "duzen.js", "uretim.js", "agac.js", "istek.js"]);
 /** Engine modules the panel uses as they are (pure code): the music envelope, so the timeline draws what the render plays. */
 const SHARED_FILES = { "muzik.mjs": fileURLToPath(new URL("./muzik.mjs", import.meta.url)) };
 const MAX_BODY = 1024 * 1024;
@@ -242,6 +244,8 @@ export function createPanel(opts) {
         preview: compiled,
       };
     },
+    // Requests to the Claude session, and "did the file change on disk?"
+    ...requestRoutes({ requests: opts.requests ?? null, root, episodeOf, versionOf }),
   };
 
   /** Both senders return true: "the request has been answered". */

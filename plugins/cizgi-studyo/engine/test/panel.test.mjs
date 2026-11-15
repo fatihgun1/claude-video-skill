@@ -57,6 +57,18 @@ after(async () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
+test("a panel with no Claude session says so and refuses requests, but still reports the file version", async () => {
+  const poll = await call("GET", "/api/istekler?b=bolum.json");
+  assert.equal(poll.status, 200);
+  assert.equal(poll.json.oturum, false);
+  assert.deepEqual(poll.json.istekler, []);
+  const opened = await call("GET", B);
+  assert.equal(poll.json.surum, opened.json.version); // the same version the editor compares
+  const res = await call("POST", "/api/istek", { body: { b: "bolum.json", hedef: { tur: "bolum" }, metin: "merhaba" } });
+  assert.equal(res.status, 409);
+  assert.match(res.json.error, /oturum/);
+});
+
 test("vocabulary offers only library words, with Turkish labels", () => {
   const v = vocabulary(lib);
   assert.ok(v.actions.some((a) => a.id === "egil-al"));

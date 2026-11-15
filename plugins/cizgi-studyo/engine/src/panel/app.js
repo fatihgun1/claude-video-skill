@@ -9,6 +9,7 @@ import { createInspector, renameMember } from "./denetleyici.js";
 import { createProjects } from "./projeler.js";
 import { createTimeline } from "./zaman.js";
 import { createTree } from "./agac.js";
+import { createRequests } from "./istek.js";
 import {
   addShotAfter, duplicateShot, deleteShot, moveShot, createHistory, rowOfMessage,
   moveSegmentStart, insertSegment, replaceSegmentAction, removeSegment, segmentIndexAt,
@@ -247,6 +248,7 @@ function choose(id) {
 }
 function select(kind, index = -1, seg = undefined) {
   state.sel = { ...state.sel, kind, index, seg };
+  requests.renderTarget();
   inspector.render();
   library.render();
   editor.draw();
@@ -431,6 +433,7 @@ function renderMessages(preview) {
 function renderAll() {
   renderHeader();
   tree.render();
+  requests.renderTarget();
   timeline.render();
   inspector.render();
   library.render();
@@ -475,11 +478,13 @@ async function refreshPreview() {
     if (seq === previewSeq) status(`önizleme hatası: ${err.message}`);
   }
 }
+let saving = false; // a save on its way: the file on disk changes because of us
 async function save() {
   $("save").disabled = true;
   say("kaydediliyor…");
   const sent = structuredClone(state.draft); // edits made while the request runs stay unsaved
   const generation = opened;
+  saving = true;
   try {
     const res = await api("/api/kaydet", { b: state.path, episode: sent, version: state.version, format: state.format });
     if (generation !== opened) return; // an episode was (re)opened meanwhile
@@ -500,6 +505,8 @@ async function save() {
     if (generation !== opened) return;
     say(`kaydedilmedi: ${err.message}`);
     renderHeader();
+  } finally {
+    saving = false;
   }
 }
 /** Open an episode (throws when the server cannot); the address keeps it across reloads. */
@@ -529,6 +536,7 @@ async function open(rel) {
   stage.load(res.preview);
   renderAll();
   tree.refresh();
+  requests.start();
   say("");
 }
 
@@ -554,6 +562,21 @@ const tree = createTree($("proje-pane"), {
   api,
   // another episode: straight there, or through the picker's "discard your edits?" when there are some
   openEpisode: (rel) => (dirty() ? projects.pick(rel) : open(rel).catch((err) => say(`açılamadı: ${err.message}`))),
+});
+/* ---------- Claude'a yaz: requests to the session; reload when Claude changes the file ---------- */
+const requests = createRequests($("claude"), {
+  path: () => state.path,
+  episode: () => state.draft,
+  current: () => (state.draft ? current() : null),
+  sel: () => state.sel,
+  labelOf,
+  now: () => (state.draft ? Math.round(stage.now() * 100) / 100 : null),
+  version: () => state.version,
+  dirty: () => !!state.draft && dirty(),
+  saving: () => saving,
+  reload: () => open(state.path),
+  note,
+  api,
 });
 const LEFT_KEY = "cizgi.sol";
 function showLeft(which) {
