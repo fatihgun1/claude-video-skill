@@ -11,6 +11,7 @@ import { createTimeline } from "./zaman.js";
 import { createTree } from "./agac.js";
 import { createRequests } from "./istek.js";
 import { createReview } from "./inceleme.js";
+import { createStory } from "./hikaye.js";
 import {
   addShotAfter, duplicateShot, deleteShot, moveShot, createHistory, rowOfMessage,
   moveSegmentStart, insertSegment, replaceSegmentAction, removeSegment, segmentIndexAt,
@@ -518,6 +519,7 @@ async function open(rel) {
   if (ticket !== openTicket) return; // a later open won
   opened++;
   const same = rel === state.path;
+  if (!same) story.reset(); // the story cards of the new episode load when the window opens
   clearTimeout(timer);
   previewSeq++; // drop answers still on their way for the previous episode
   stage.toggle(false);
@@ -542,7 +544,8 @@ async function open(rel) {
   say("");
 }
 
-const projects = createProjects($("projects"), { current: () => state.path, dirty: () => !!state.draft && dirty(), open, api });
+// unsaved story cards count too: switching episodes would drop them
+const projects = createProjects($("projects"), { current: () => state.path, dirty: () => (!!state.draft && dirty()) || story.dirty(), open, api });
 
 /* ---------- left pane: project tree | library ---------- */
 const tree = createTree($("proje-pane"), {
@@ -566,6 +569,20 @@ const tree = createTree($("proje-pane"), {
   openEpisode: (rel) => (dirty() ? projects.pick(rel) : open(rel).catch((err) => say(`açılamadı: ${err.message}`))),
   review: (scene) => review.open(scene),
 });
+/* ---------- Hikâye: story cards (hikaye.json, a draft) ---------- */
+const story = createStory($("hikaye"), {
+  path: () => state.path,
+  title: () => state.draft?.title || state.draft?.episode || "",
+  scenes: () => state.draft?.scenes || [],
+  rigs: () => (state.vocab?.rigs || []).map((r) => ({ id: r.id, label: r.label || r.id })),
+  goToScene: (sceneId) => {
+    const scene = state.draft.scenes.find((s) => s.scene_id === sceneId);
+    if (scene) choose(scene.shots[0].shot_id);
+  },
+  note,
+  api,
+});
+$("story").addEventListener("click", () => story.show());
 /* ---------- İncele: scene review ---------- */
 const review = createReview($("inceleme"), {
   path: () => state.path,
@@ -587,6 +604,7 @@ const requests = createRequests($("claude"), {
   version: () => state.version,
   dirty: () => !!state.draft && dirty(),
   saving: () => saving,
+  storyVersion: (v) => story.diskVersion(v),
   reload: () => open(state.path),
   note,
   api,
@@ -728,9 +746,9 @@ $("shot-del").addEventListener("click", () => shotOp("del"));
 $("undo").addEventListener("click", () => travel(-1));
 $("redo").addEventListener("click", () => travel(1));
 
-window.addEventListener("beforeunload", (e) => { if (state.draft && dirty()) e.preventDefault(); });
+window.addEventListener("beforeunload", (e) => { if ((state.draft && dirty()) || story.dirty()) e.preventDefault(); });
 document.addEventListener("keydown", (e) => {
-  if ($("projects").open || $("uretim").open || $("inceleme").open || !state.draft) return; // dialogs handle their own keys
+  if ($("projects").open || $("uretim").open || $("inceleme").open || $("hikaye").open || !state.draft) return; // dialogs handle their own keys
   const a = document.activeElement;
   // Controls keep their own keys: boxes and lists all of them, buttons and checkboxes Space,
   // sliders their arrows. Only the time slider hands its keys to the transport.

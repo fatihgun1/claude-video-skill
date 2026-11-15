@@ -107,6 +107,7 @@ export function createRequests(box, ctx) {
         if (ctx.path() === path) {
           session = res.oturum;
           list = res.istekler;
+          ctx.storyVersion?.(res.hikaye);
           error = "";
           // while a save is on its way the file changes under us: that is not someone else's edit
           if (res.surum && ctx.version() === asked && res.surum !== asked && !ctx.saving()) await onDisk(res.surum);

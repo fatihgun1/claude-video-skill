@@ -11,6 +11,7 @@
 import { readText } from "./util.mjs";
 import { addRequest, readRequests, isStale } from "./istekler.mjs";
 import { HttpError } from "./panel-proje.mjs";
+import { storyVersion } from "./panel-hikaye.mjs";
 
 const SHOWN = 12;
 
@@ -35,6 +36,7 @@ export function requestRoutes({ requests, root, episodeOf, versionOf }) {
         // taken long ago and never answered: shown as such (and no longer counted as open)
         istekler: mine.slice(-SHOWN).reverse().map((r) => (isStale(r) ? { ...r, bayat: true } : r)),
         surum: versionNow(ep),
+        hikaye: storyVersion(ep.path), // the story cards' file, so an open story window can follow Claude's edits
       };
     },
     "POST /api/istek": (body) => {

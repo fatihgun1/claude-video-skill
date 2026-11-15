@@ -187,6 +187,30 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .rans.soru { border-color: var(--select); }
 .rans.olmadi { border-color: var(--err); }
 
+/* Hikâye: story cards */
+.hikaye { width: min(1240px, calc(100vw - 40px)); }
+.stools { display: flex; align-items: center; gap: 8px; margin: 8px 0 4px; }
+.story section { padding: 10px 0; border-top: 1px solid var(--line); }
+.story h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.sidea { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 12px; }
+.sidea .field { grid-template-columns: 50px 1fr; align-items: start; }
+.story input[type=text], .story textarea, .story select, .story input[type=number] { width: 100%; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.schars { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.schar { display: grid; grid-template-columns: 160px 220px minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.scards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.scard { display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: var(--radius); background: var(--pane-2); border: 1px solid var(--line); }
+.scard.drop { border-color: var(--accent); }
+.scard.dragging { opacity: .45; }
+.scard-head { display: flex; align-items: center; gap: 4px; }
+.snum { display: grid; place-items: center; min-width: 26px; height: 26px; border-radius: 50%; background: var(--select); color: #2a1a00; font-weight: 700; cursor: grab; flex: none; }
+.scard textarea { min-height: 70px; resize: vertical; }
+.swho { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; }
+.swho label { display: inline-flex; align-items: center; gap: 4px; }
+.srow { display: grid; grid-template-columns: minmax(0, 1fr) 70px; gap: 6px; }
+@media (max-width: 900px) {
+  .sidea, .schar { grid-template-columns: 1fr; }
+}
+
 /* İncele: scene review */
 .rlist { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
 .rlist li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; padding: 5px 8px; border-radius: 6px; background: var(--pane-2); }

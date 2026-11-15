@@ -87,6 +87,26 @@ test("POST /api/incele reviews one scene of the unsaved draft; an unknown scene 
   assert.equal(bad.status, 400);
 });
 
+test("story cards are read empty, saved next to the episode, refused when invalid or stale, and never touch bolum.json", async () => {
+  const before = readFileSync(episodePath, "utf8");
+  const first = await call("GET", "/api/hikaye?b=bolum.json");
+  assert.equal(first.status, 200);
+  assert.equal(first.json.exists, false);
+  const story = { ...first.json.story, fikir: "Bir şişe sokakta kalmasın.", kartlar: [{ id: "k1", baslik: "Sokak", olay: "Genç şişeyi görür." }] };
+  const saved = await call("POST", "/api/hikaye", { body: { b: "bolum.json", story, version: first.json.version } });
+  assert.equal(saved.status, 200);
+  const back = await call("GET", "/api/hikaye?b=bolum.json");
+  assert.deepEqual(back.json.story, story);
+  assert.equal(back.json.version, saved.json.version);
+  const stale = await call("POST", "/api/hikaye", { body: { b: "bolum.json", story, version: first.json.version } });
+  assert.equal(stale.status, 409);
+  const bad = await call("POST", "/api/hikaye", { body: { b: "bolum.json", story: { ...story, kartlar: [{ id: "K!" }] }, version: saved.json.version } });
+  assert.equal(bad.status, 400);
+  assert.equal(readFileSync(episodePath, "utf8"), before);
+  const poll = await call("GET", "/api/istekler?b=bolum.json");
+  assert.equal(poll.json.hikaye, saved.json.version);
+});
+
 test("vocabulary offers only library words, with Turkish labels", () => {
   const v = vocabulary(lib);
   assert.ok(v.actions.some((a) => a.id === "egil-al"));
