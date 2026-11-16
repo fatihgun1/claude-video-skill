@@ -9,7 +9,7 @@
  *   cizgi kabul      <bolum.json> <line-key>         keep a take that failed the listening check (only after a yes)
  *   cizgi storyboard <bolum.json> [--format 16:9]    stills of every shot for review
  *   cizgi storyboard <bolum.json> --sahne <id>        stills of one scene (panel's scene review; no gate)
- *   cizgi render     <bolum.json> [--taslak] [--format 9:16]
+ *   cizgi render     <bolum.json> [--taslak] [--3b] [--format 9:16]
  *   cizgi qa         <video.mp4>                     review pages (4 fps) of a RENDERED video; look at every page
  *   cizgi derle      <bolum.json> <out-dir> [16:9|9:16]
  *   cizgi panel      <klasör|bolum.json> [--port 4810] local control panel (127.0.0.1): pick an episode, edit shots with a live preview
@@ -33,7 +33,7 @@ import { openPanel } from "./panel-baslat.mjs";
 import { projectLibraryOf, listDrafts } from "./proje-kutuphane.mjs";
 
 const DEFAULT_LIBRARY = fileURLToPath(new URL("../../library", import.meta.url));
-const FLAGS = new Set(["--hepsi", "--taslak"]);
+const FLAGS = new Set(["--hepsi", "--taslak", "--3b"]);
 const NEEDS = { dogrula: 1, durum: 1, ses: 1, storyboard: 1, render: 1, onayla: 2, derle: 2, kabul: 2, qa: 1, panel: 1, taslaklar: 1 };
 const USAGE =
   "usage: cizgi dogrula|durum|ses|storyboard|render <bolum.json> · cizgi panel <klasör|bolum.json> · cizgi onayla senaryo|storyboard <bolum.json> · cizgi kabul <bolum.json> <line> · cizgi derle <bolum.json> <dir> [format]\n";
@@ -146,7 +146,7 @@ function main(argv) {
       print(scene ? sceneStills(a1, lib, scene, deps) : storyboard(a1, lib, deps));
       return 0;
     case "render":
-      print({ videos: render(a1, lib, { ...deps, draft: flags.has("--taslak") }) });
+      print({ videos: render(a1, lib, { ...deps, draft: flags.has("--taslak"), d3: flags.has("--3b") }) });
       return 0;
     case "qa":
       print(qaPages(a1, { run, ffmpeg: loadTools().ffmpeg }));

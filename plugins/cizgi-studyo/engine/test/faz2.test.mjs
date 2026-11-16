@@ -232,6 +232,21 @@ test("a draft render is a preview: no script approval and no recorded lines need
   assert.throws(() => render(path, lib, fakeRunner()), /gate "senaryo"/);
 });
 
+test("a 3D render: the same episode drawn in 3D, its own file name, the same gates", () => {
+  const { path, ep } = makeEpisode();
+  const r = fakeRunner();
+  const draft = render(path, lib, { ...r, draft: true, d3: true, formats: ["16:9"] });
+  assert.ok(draft[0].endsWith(join("cikti", "deneme-16x9-3b-taslak.mp4")));
+  const project = r.calls.find((c) => c.args.includes("render")).opts.cwd;
+  assert.ok(project.endsWith("proje-16x9-3b"));
+  assert.ok(existsSync(join(project, "runtime", "player3d.js")));
+  // the final one is gated like the 2D one (script, then storyboard)
+  assert.throws(() => render(path, lib, { ...fakeRunner(), d3: true }), /gate "senaryo"/);
+  approve(path, "senaryo", scriptFingerprint(ep));
+  runAudio(path, lib, TOOLS, fakeRunner());
+  assert.throws(() => render(path, lib, { ...fakeRunner(), d3: true }), /gate "storyboard"/);
+});
+
 test("stillTimes takes two stills per shot", () => {
   assert.deepEqual(stillTimes([{ start: 0, end: 10 }, { start: 10, end: 15 }]), [4, 8, 12, 14]);
 });
@@ -403,4 +418,10 @@ test("run puts flagged error lines before the tail", () => {
   const script = "for (let i = 0; i < 40; i++) console.log('line ' + i); console.log('  ✗ page_error: boom'); for (let i = 0; i < 20; i++) console.log('x' + i); process.exit(1)";
   const err = (() => { try { run(process.execPath, ["-e", script]); } catch (e) { return e.message; } })();
   assert.match(err, /exited with 1:\n {2}✗ page_error: boom/);
+});
+
+test("the 3D look is not part of the 2D storyboard approval", () => {
+  const { ep } = makeEpisode();
+  const before = storyboardFingerprint(ep, null, "lib");
+  assert.equal(storyboardFingerprint({ ...ep, stil3d: "pastel" }, null, "lib"), before);
 });

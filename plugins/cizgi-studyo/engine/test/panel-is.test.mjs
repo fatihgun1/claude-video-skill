@@ -165,3 +165,10 @@ test("a job can be stopped, and one that runs too long is stopped for the person
   assert.equal(jobs.get("/c/bolum.json").status, "failed");
   jobs.stopAll();
 });
+
+test("a 3D draft job asks the CLI for a 3D draft render", () => {
+  const calls = [];
+  const jobs = createJobs({ cli: "/x/cli.mjs", spawn: fakeSpawn(calls) });
+  jobs.start("/e/bolum.json", "taslak3b", "16:9");
+  assert.deepEqual(calls[0].args, ["/x/cli.mjs", "render", "--taslak", "--3b", "/e/bolum.json", "--format", "16:9"]);
+});

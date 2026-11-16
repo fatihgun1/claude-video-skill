@@ -1,7 +1,7 @@
 /**
  * Storyboard and render steps (they drive the HyperFrames CLI through npx).
  *   storyboard  compile, run `hyperframes check`, take stills of every shot → human review
- *   render      final MP4s; refused until the storyboard of the current content is approved
+ *   render      final MP4s (2D, or 3D with d3: the same episode drawn by compile3d.mjs); refused until the storyboard of the current content is approved
  *               (draft renders are always allowed, for a quick look: no approval needed,
  *               lines not spoken yet play silent with a guessed length)
  */
@@ -9,6 +9,7 @@ import { mkdirSync, existsSync, readdirSync, rmSync } from "node:fs";
 import { join, dirname, resolve, basename } from "node:path";
 import { readJson } from "./util.mjs";
 import { compileEpisode, VIEWPORTS, facesOf, propLayer } from "./compile.mjs";
+import { compileEpisode3d } from "./compile3d.mjs";
 import "./runtime/core.js";
 import { validateEpisode } from "./validate.mjs";
 import { readApprovals, requireGate, scriptFingerprint, storyboardFingerprint, libraryFingerprint } from "./onay.mjs";
@@ -160,10 +161,13 @@ export function render(episodePath, lib, deps) {
   for (const format of deps.formats || Object.keys(FORMATS)) {
     const tag = FORMATS[format];
     if (!tag) throw new Error(`unknown format "${format}"`);
-    const project = join(dir, ".cizgi", `proje-${tag}`);
-    compileEpisode(episodePath, lib, project, deps.draft ? { format, missingAudio: "estimate" } : { format });
+    const look = deps.d3 ? "-3b" : "";
+    const project = join(dir, ".cizgi", `proje-${tag}${look}`);
+    const opts = deps.draft ? { format, missingAudio: "estimate" } : { format };
+    (deps.d3 ? compileEpisode3d : compileEpisode)(episodePath, lib, project, opts);
     mkdirSync(join(dir, "cikti"), { recursive: true });
-    const video = join(dir, "cikti", `${episode.episode}-${tag}${deps.draft ? "-taslak" : ""}.mp4`);
+    // the 3D one sits beside the 2D one; a draft keeps "-taslak" last (the panel tells drafts by it)
+    const video = join(dir, "cikti", `${episode.episode}-${tag}${look}${deps.draft ? "-taslak" : ""}.mp4`);
     deps.run("npx", ["--yes", HYPERFRAMES, "render", "-o", video, "--fps", "30", "-q", deps.draft ? "draft" : "looks"], { cwd: project });
     videos.push(video);
   }

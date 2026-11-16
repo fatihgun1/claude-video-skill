@@ -33,6 +33,7 @@ import { fileURLToPath } from "node:url";
 import { readText } from "./util.mjs";
 import { validateEpisode, profileOf } from "./validate.mjs";
 import { compileEpisode, safeJoin, propLayer, VIEWPORTS } from "./compile.mjs";
+import { compileEpisode3d } from "./compile3d.mjs";
 import { reviewScene } from "./inceleme.mjs";
 import { vocabulary, libraryFile, actionPreview } from "./panel-kutuphane.mjs";
 import { readManifest, failedLines } from "./ses.mjs";
@@ -107,22 +108,23 @@ export function createPanel(opts) {
   /** Episode folders by key (a hash of the relative path), for their production outputs. */
   const episodeDirs = new Map();
 
-  /** An episode by its relative path, with the preview folder for one format. */
-  function episodeOf(rel, format = PREVIEW_FORMAT) {
+  /** An episode by its relative path, with the preview folder for one format, in 2D or 3D (look "3b"). */
+  function episodeOf(rel, format = PREVIEW_FORMAT, look = "") {
     if (!PREVIEW_FORMATS.has(format)) throw new HttpError(400, `format must be ${[...PREVIEW_FORMATS].join(" or ")}`);
+    const d3 = look === "3b";
     const path = episodePathOf(root, rel);
-    const key = versionOf(`${rel}|${format}`);
-    const previewDir = join(dirname(path), ".cizgi", `panel-${format.replace(":", "x")}`);
+    const key = versionOf(`${rel}|${format}${d3 ? "|3b" : ""}`);
+    const previewDir = join(dirname(path), ".cizgi", `panel-${format.replace(":", "x")}${d3 ? "-3b" : ""}`);
     previews.set(key, previewDir);
     episodeDirs.set(versionOf(rel), dirname(path));
-    return { rel, path, key, previewDir, format };
+    return { rel, path, key, previewDir, format, d3 };
   }
 
   function preview(ep, episode, lib) {
     try {
       // A line not spoken yet (new or just written) plays silent with a guessed length, so it
       // can be placed and saved; the audio step comes after saving. Renders stay strict.
-      const out = compile(ep.path, lib, ep.previewDir, { format: ep.format, episode, missingAudio: "estimate", silentTrack: false }); // a silent track is for the video file only
+      const out = (ep.d3 ? compileEpisode3d : compile)(ep.path, lib, ep.previewDir, { format: ep.format, episode, missingAudio: "estimate", silentTrack: false }); // a silent track is for the video file only
       const timing = JSON.parse(readFileSync(join(ep.previewDir, "timing.json"), "utf8"));
       const { lead, tail, min_shot, default_hold } = profileOf(episode, lib).timing;
       return {
@@ -185,7 +187,7 @@ export function createPanel(opts) {
     },
     "POST /api/yeni": (body) => ({ path: createEpisode(root, opts.loadLib(), body, serialize) }),
     "GET /api/bolum": (_, url) => {
-      const ep = episodeOf(url.searchParams.get("b"), url.searchParams.get("f") || undefined);
+      const ep = episodeOf(url.searchParams.get("b"), url.searchParams.get("f") || undefined, url.searchParams.get("g") || "");
       const lib = opts.loadLib();
       const text = readText(ep.path);
       let episode;
@@ -230,7 +232,7 @@ export function createPanel(opts) {
       return { job: jobs?.get(ep.path) || null, outputs: outputsOf(ep.path), status: opts.status ? statusOf(ep) : null };
     },
     "POST /api/onizle": (body) => {
-      const ep = episodeOf(body?.b, body?.format ?? undefined);
+      const ep = episodeOf(body?.b, body?.format ?? undefined, body?.gorunum ?? "");
       const lib = opts.loadLib();
       const validation = check(body, lib);
       return { validation, preview: validation.ok ? preview(ep, body.episode, lib) : { ok: false, error: "fix the errors first" } };

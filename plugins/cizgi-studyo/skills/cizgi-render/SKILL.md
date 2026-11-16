@@ -10,9 +10,12 @@ CLI="node ${CLAUDE_PLUGIN_ROOT}/engine/src/cli.mjs"
 $CLI render <bolum.json>                    # final, both formats (needs storyboard approval)
 $CLI render <bolum.json> --format 9:16      # final, one format
 $CLI render <bolum.json> --taslak           # draft quality, always allowed: no approval needed, lines not spoken yet are silent
+$CLI render <bolum.json> --3b               # the same episode in 3D (with --taslak too); the same gates as 2D
 ```
 
-Output files: `cikti/<episode>-16x9.mp4` and `cikti/<episode>-9x16.mp4`. Drafts get a `-taslak` suffix.
+Output files: `cikti/<episode>-16x9.mp4` and `cikti/<episode>-9x16.mp4`; a 3D one adds `-3b` (`cikti/<episode>-16x9-3b.mp4`). Drafts end in `-taslak`.
+
+**3D** draws the same episode (script, audio, timing, cameras) with simple shapes, from recipes in `library/3d/karakterler/<rig>.json` and `library/3d/mekanlar/<bg>.json`; an episode whose characters or places have no recipe is refused and the message names them. Its look is the episode's choice, `stil3d`: `toon` (default: flat bands of light and an outline), `yumusak` (smooth shading, soft shadows), `pastel` (soft colours, thin outline, light shadow), `golge` (toon bands with a shadow, no outline). Ask the person which look they want; do not pick one for them. A final 3D render is gated by the same approvals as 2D: the storyboard stills are 2D, so its approval does not cover the 3D look or the 3D recipes; before a final 3D render, show the person a 3D draft (`--taslak --3b`) and ask.
 
 A final render is refused when the storyboard is not approved or the episode changed since the approval. In that case go back to **cizgi-storyboard**. Never run `onayla` yourself to get past the gate.
 

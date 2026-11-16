@@ -5,13 +5,18 @@
   "description": "Library-driven, human-controlled 2D cartoon engine for HyperFrames",
   "license": "Apache-2.0",
   "type": "module",
-  "engines": { "node": ">=20" },
-  "bin": { "cizgi": "src/cli.mjs" },
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "cizgi": "src/cli.mjs"
+  },
   "scripts": {
     "test": "node --test \"test/**/*.test.mjs\"",
     "coverage": "node --test --experimental-test-coverage --test-coverage-include=\"src/**\" \"test/**/*.test.mjs\""
   },
   "dependencies": {
-    "ajv": "8.18.0"
+    "ajv": "8.18.0",
+    "three": "0.187.0"
   }
 }

@@ -72,7 +72,8 @@ export function libraryFingerprint(episode, lib) {
  * @returns {string}
  */
 export function storyboardFingerprint(episode, audioManifest, libFingerprint = "") {
-  const { revision, content_locked, ...rest } = episode;
+  // stil3d: only how a 3D render looks; the storyboard is reviewed in 2D, so choosing it changes no approval
+  const { revision, content_locked, stil3d, ...rest } = episode;
   // A scene's title is a working label (like a shot's notes): naming a scene does not change the film.
   const scenes = rest.scenes.map(({ title, ...scene }) => ({
     ...scene,

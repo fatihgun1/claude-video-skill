@@ -35,7 +35,7 @@ function installDividers() {
 
 /**
  * @param {{timeline:{setView:(v:string) => void}, editor:{setSafe:(on:boolean) => void, setLayer:(key:string, on:boolean) => void},
- *          format:() => string, setFormat:(format:string) => void, library:{show:(kind:string) => void}, tree:{render:() => void}}} ctx
+ *          format:() => string, setFormat:(format:string) => void, look:() => string, setLook:(look:string) => void, library:{show:(kind:string) => void}, tree:{render:() => void}}} ctx
  */
 export function installViews(ctx) {
   installDividers();
@@ -60,6 +60,14 @@ export function installViews(ctx) {
     $("fmt-9x16").setAttribute("aria-pressed", String(format === "9:16"));
     ctx.setFormat(format);
   }
+  function setLook(look) {
+    if (look === ctx.look()) return;
+    $("look-2b").setAttribute("aria-pressed", String(look !== "3b"));
+    $("look-3b").setAttribute("aria-pressed", String(look === "3b"));
+    ctx.setLook(look);
+  }
+  $("look-2b").addEventListener("click", () => setLook(""));
+  $("look-3b").addEventListener("click", () => setLook("3b"));
   $("fmt-16x9").addEventListener("click", () => setFormat("16:9"));
   $("fmt-9x16").addEventListener("click", () => setFormat("9:16"));
   $("safe").addEventListener("click", () => {

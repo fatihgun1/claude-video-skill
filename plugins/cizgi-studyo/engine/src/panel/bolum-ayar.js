@@ -7,6 +7,12 @@ import { listen } from "./dinle.js";
 import { MUSIC_DEFAULTS } from "./muzik.mjs";
 import { episodeCaption } from "./altyazi-ayar.js";
 
+/** The looks a 3D render can take (schema: stil3d); the first is the default (no key). */
+const LOOKS_3D = [
+  { id: "toon", label: "Toon + kontur" }, { id: "yumusak", label: "Yumuşak gölgeli" },
+  { id: "pastel", label: "Pastel" }, { id: "golge", label: "Toon + gölge, kontursuz" },
+];
+
 /** A 0..1 slider with its percentage; onSet when let go. */
 function slider(value, label, onSet) {
   const r = el("input", { type: "range", min: 0, max: 1, step: 0.05, value, "aria-label": label });
@@ -59,5 +65,7 @@ export function episodeSettings(ctx) {
     el("h3", { text: "Müzik" }),
     musicPart,
     el("h3", { text: "Altyazı" }),
-    episodeCaption(ep, ctx.labelOf, () => ctx.changed(true)));
+    episodeCaption(ep, ctx.labelOf, () => ctx.changed(true)),
+    el("h3", { text: "3B görünüm", title: "Yalnız 3B render ve 3B önizleme için; 2B'yi etkilemez" }),
+    field("Stil", select(ep.stil3d, LOOKS_3D.slice(1), (val) => { setKey(ep, "stil3d", val === "toon" ? undefined : val); ctx.changed(true); }, { empty: "Toon + kontur (varsayılan)" })));
 }

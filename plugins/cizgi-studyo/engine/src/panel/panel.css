@@ -420,7 +420,9 @@ body[data-drag="hareket"] .t-actor { box-shadow: inset 0 0 0 1px var(--accent); 
 .stage[data-format="9:16"] { aspect-ratio: 9 / 16; width: min(100cqw, 100cqh * 9 / 16); }
 .edit { position: absolute; inset: 0; z-index: 1; }
 .stage .over { z-index: 2; }
-.over[hidden] { display: none; } /* its display: grid would otherwise beat the hidden attribute */
+.over[hidden] { display: none; }
+/* 3D preview: for watching (editing on the stage is 2D's) */
+.stage[data-look="3b"]::after { content: "3B · yalnız izleme"; position: absolute; right: 8px; top: 8px; z-index: 3; padding: 2px 8px; border-radius: 6px; background: rgba(0,0,0,.6); color: #fff; font-size: 11px; pointer-events: none; } /* its display: grid would otherwise beat the hidden attribute */
 .ebox { position: absolute; border: 1.5px dashed rgba(255,255,255,.55); border-radius: 6px; cursor: pointer; touch-action: none; }
 .ebox.movable { cursor: grab; }
 .ebox:hover { border-color: #fff; background: rgba(255,255,255,.06); }

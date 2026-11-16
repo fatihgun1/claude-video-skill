@@ -1,0 +1,21 @@
+{
+  "ad": "Çayır",
+  "not": "2B 'cayir' mekânının 3B karşılığı. Metre; x sağa, y yukarı, z kameraya doğru. Karakterler z=0 çizgisinde durur.",
+  "gok": ["#8fcdef", "#dff3fb"],
+  "zemin": "#8fcf6e",
+  "kontur": "#3f6b35",
+  "tepeler": [
+    { "konum": [-7, -1.2, -14], "boyut": [9, 3.2, 5], "renk": "#cfe9b5" },
+    { "konum": [6, -1.4, -16], "boyut": [11, 3.6, 5], "renk": "#cfe9b5" },
+    { "konum": [0, -1.6, -10], "boyut": [12, 2.6, 4], "renk": "#b4dd96" }
+  ],
+  "agaclar": [
+    { "konum": [-3.4, 0, -4.5], "boy": 1.7 },
+    { "konum": [3.6, 0, -5.5], "boy": 2.0 },
+    { "konum": [5.4, 0, -8], "boy": 1.5 },
+    { "konum": [-5.6, 0, -7], "boy": 1.4 }
+  ],
+  "gunes": { "konum": [6.5, 6, -22], "r": 1.3, "renk": "#ffe27a" },
+  "bulutlar": [[-5, 4.6, -18], [0.5, 5.4, -20], [4, 4.2, -16]],
+  "cicekler": { "sayi": 60, "alan": [-6, 6, -3, 1.6], "renkler": ["#f6a3c1", "#ffffff", "#c9a7ef"] }
+}

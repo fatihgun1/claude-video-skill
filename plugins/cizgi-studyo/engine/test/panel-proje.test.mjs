@@ -367,3 +367,18 @@ test("a running job can be stopped from the panel", async () => {
   assert.equal(res.status, 200, res.text);
   assert.equal(cancelled.at(-1), join(root, "ornekler", "sokak", "bolum.json"));
 });
+
+test("the panel previews an episode in 3D on request; one with no 3D recipe says which is missing", async () => {
+  const d3 = await call("GET", `/api/bolum?b=${encodeURIComponent("ornekler/faz1/bolum.json")}&g=3b`);
+  assert.equal(d3.status, 200);
+  assert.equal(d3.json.preview.ok, true, d3.json.preview.error);
+  assert.match(d3.json.preview.url, /^\/onizleme\/[0-9a-f]+\/index\.html$/);
+  const flat = (await open("ornekler/faz1/bolum.json")).json.preview;
+  assert.notEqual(d3.json.preview.url, flat.url); // its own folder: the 2D preview stays as it was
+  const page = await call("GET", d3.json.preview.url);
+  assert.match(page.text, /runtime\/player3d\.js/);
+  assert.equal((await call("GET", d3.json.preview.url.replace("index.html", "runtime/vendor/three.module.js"))).status, 200);
+  const sokak = await call("GET", `/api/bolum?b=${encodeURIComponent("ornekler/sokak/bolum.json")}&g=3b`);
+  assert.equal(sokak.json.preview.ok, false);
+  assert.match(sokak.json.preview.error, /no 3D recipe for: .*3d\//);
+});

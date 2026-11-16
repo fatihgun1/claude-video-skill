@@ -1,0 +1,12 @@
+{
+  "label": { "tr": "Bekle (yandan)", "en": "Idle (profile)" },
+  "views": ["profile-right"],
+  "notes": "Standing idle for profile knee-leg rigs (genc, nazim): a slow breath (stretch 1%), the head nods a little with it and the arms hang loose. Loops.",
+  "duration": 2.4,
+  "loop": true,
+  "keys": [
+    { "t": 0, "pose": { "arm_L_upper": -4, "arm_R_upper": 5, "head": 0, "body": 0, "root_sy": 1 } },
+    { "t": 1.2, "pose": { "arm_L_upper": -6, "arm_R_upper": 7, "head": -2, "body": -1, "root_sy": 1.01 }, "ease": "inOutSine" },
+    { "t": 2.4, "pose": { "arm_L_upper": -4, "arm_R_upper": 5, "head": 0, "body": 0, "root_sy": 1 }, "ease": "inOutSine" }
+  ]
+}

@@ -19,6 +19,7 @@ const RULES = [
   [/^(\S+) exited with (\d+) \(its messages are above\)$/, (_, cmd, code) => `${cmd} hata verdi (çıkış kodu ${code}); ayrıntı yukarıdaki kayıtta.`],
   [/^(\S+) exited with (\d+):$/, (_, cmd, code) => `${cmd} hata verdi (çıkış kodu ${code}):`],
   [/^(.*)EPERM: operation not permitted, rename .*$/, (_, pre) => `${pre}Dosyanın üzerine yazılamadı: başka bir program onu açık tutuyor (EPERM).`],
+  [/^(.*?)no 3D recipe for: (.*)$/, (_, pre, list) => `${pre}3B tarifi yok: ${list} (3B önizleme ve render bu karakter ve mekânların library/3d tarifini ister).`],
   [/^(.*?)episode is invalid:$/, (_, pre) => `${pre}Bölümde hata var:`],
 ];
 

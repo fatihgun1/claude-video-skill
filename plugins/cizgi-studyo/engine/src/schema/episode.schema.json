@@ -39,6 +39,10 @@
         "9:16"
       ]
     },
+    "stil3d": {
+      "description": "The look of a 3D render (the 2D render ignores it): toon (flat bands of light and an outline, the default), yumusak (smooth shading and soft shadows), pastel (soft colours, a thin outline, a light shadow), golge (toon bands with a shadow, no outline).",
+      "enum": ["toon", "yumusak", "pastel", "golge"]
+    },
     "altyazi": {
       "description": "Captions of the whole episode: kapali turns them all off; konusan_rengi edges each caption with its speaker's colour (characters[].renk).",
       "type": "object",

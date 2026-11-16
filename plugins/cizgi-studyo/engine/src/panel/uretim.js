@@ -29,7 +29,7 @@ export function createProduction(els, ctx) {
     if (ctx.dirty()) return "Önce kaydet: üretim kayıtlı dosyadan yapılır.";
     if (!s) return "Bölümde hata var: önce düzelt.";
     if (job?.status === "running") return "Bir iş sürüyor.";
-    if (kind === "taslak") return "";
+    if (kind === "taslak" || kind === "taslak3b") return "";
     if (s.gates?.senaryo !== "onayli") return "Senaryo onayı gerekli.";
     if (s.audio?.todo?.length) return `${s.audio.todo.length} replik seslendirilmeli.`;
     return "";
@@ -159,7 +159,7 @@ export function createProduction(els, ctx) {
   }
 
   const PROGRESS_TEXT = { seslendirme: "Seslendiriliyor", kontrol: "Dinleme kontrolü", agiz: "Ağız şekilleri" };
-  const JOB_TEXT = { taslak: "Taslak video", storyboard: "Storyboard", sahne: "Sahne kareleri", ses: "Sesler" };
+  const JOB_TEXT = { taslak: "Taslak video", taslak3b: "Taslak 3B video", storyboard: "Storyboard", sahne: "Sahne kareleri", ses: "Sesler" };
 
   /** A running audio job's step and count as a bar ("Seslendiriliyor 2/5"). */
   function progressBar(p) {
@@ -214,7 +214,7 @@ export function createProduction(els, ctx) {
           outputs.sheets.length ? el("div", { class: "psheets" }, outputs.sheets.map((p) => el("a", { href: base + p, target: "_blank", rel: "noopener" }, el("img", { src: base + p, alt: p, loading: "lazy" })))) : null]),
       step("4. Taslak video", { cls: outputs.videos.length ? "ok" : "stale", text: outputs.videos.length ? `${outputs.videos.length} video` : "yok" },
         `Hızlı bakış için düşük kalite; onay gerekmez. Asıl render storyboard onaylanınca Claude'la yapılır.${a?.todo.length ? ` Dikkat: ${a.todo.length} replik seslendirilmedi ya da metni sonradan değişti; taslakta sessiz ya da eski sesiyle geçer.` : ""}`,
-        [runBtn("taslak", "Taslak video çıkar"),
+        [runBtn("taslak", "Taslak video çıkar"), runBtn("taslak3b", "Taslak 3B video"),
           outputs.videos.map((p) => el("figure", { class: "pvideo" }, el("video", { src: base + p, controls: true, preload: "metadata" }), el("figcaption", { text: p })))]),
       why ? el("p", { class: "warn small", text: `Storyboard şu an başlatılamaz: ${why}${blocker("taslak") ? "" : " (taslak video çıkarılabilir)"}` }) : null));
   }

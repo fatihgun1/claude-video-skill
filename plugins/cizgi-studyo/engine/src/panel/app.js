@@ -37,6 +37,7 @@ const state = {
   validation: null,
   sel: { shot: null, kind: null, index: -1 },
   format: "16:9", // how the stage shows it (a view choice, not part of the episode)
+  look: "", // "3b": the preview drawn in 3D (watch only: editing on the stage is 2D's)
   scriptAck: false, // the person ticked that editing lines drops the script approval
   unspoken: new Set(), // line keys with no audio yet (the preview guesses their length)
 };
@@ -534,7 +535,7 @@ function renderMessages(preview) {
   const v = state.validation;
   const items = [
     ...(v?.errors || []).map((m) => ["err", "Hata", m]),
-    ...(preview && !preview.ok && v?.ok ? [["err", "Önizleme", preview.error]] : []),
+    ...(preview && !preview.ok && v?.ok ? [[state.look === "3b" ? "warn" : "err", state.look === "3b" ? "3B önizleme" : "Önizleme", tr(preview.error)]] : []),
     ...(v?.warnings || []).map((m) => ["warn", "Uyarı", m]),
   ];
   if (!items.length) return $("msgs").replaceChildren(); // nothing to say: the line takes no room under the stage
@@ -576,20 +577,22 @@ async function refreshPreview() {
   const seq = ++previewSeq;
   status("önizleme hazırlanıyor…");
   try {
-    const res = await api("/api/onizle", { b: state.path, episode: state.draft, format: state.format });
+    const res = await api("/api/onizle", { b: state.path, episode: state.draft, format: state.format, gorunum: state.look });
     if (seq !== previewSeq) return; // a newer edit, or another episode, is on its way
     state.validation = res.validation;
     // Saving needs a compiled preview too: some limits only show when compiling.
-    state.previewOk = res.validation.ok && res.preview.ok;
+    // a 3D preview that fails (no 3D recipe) does not block saving: saving compiles the 2D one
+    state.previewOk = res.validation.ok && (res.preview.ok || state.look === "3b");
     if (res.preview.ok) state.unspoken = new Set(res.preview.unspoken || []);
     renderMessages(res.preview);
-    if (state.previewOk) stage.load(res.preview);
+    if (res.preview.ok) stage.load(res.preview);
+    else if (res.validation.ok && state.look === "3b") stage.load({ ...res.preview, error: tr(res.preview.error) }); // why, on the stage
     timeline.render();
     tree.render(); // shot lengths and problem badges
     inspector.render(); // messages, badges and line notes follow the new validation
     renderHeader();
     if (!res.validation.ok) say("hatalı: kaydedilemez");
-    else if (!res.preview.ok) say("önizleme derlenemedi: kaydedilemez");
+    else if (!res.preview.ok) say(state.look === "3b" ? "3B önizleme yok (kaydetmek serbest)" : "önizleme derlenemedi: kaydedilemez");
     else status(dirty() ? "kaydedilmemiş değişiklik var" : "");
   } catch (err) {
     if (seq === previewSeq) status(`önizleme hatası: ${err.message}`);
@@ -629,7 +632,7 @@ async function save() {
 async function open(rel) {
   say("yükleniyor…");
   const ticket = ++openTicket;
-  const res = await api(`/api/bolum?${new URLSearchParams({ b: rel, f: state.format })}`);
+  const res = await api(`/api/bolum?${new URLSearchParams({ b: rel, f: state.format, g: state.look })}`);
   if (ticket !== openTicket) return; // a later open won
   opened++;
   const same = rel === state.path;
@@ -639,7 +642,7 @@ async function open(rel) {
   stage.toggle(false);
   Object.assign(state, { path: res.path, saved: res.episode, draft: structuredClone(res.episode), version: res.version, vocab: res.vocab, status: res.status, validation: res.validation, listening: res.listening || {} });
   steps.reset(JSON.stringify(state.draft));
-  state.previewOk = !!res.preview?.ok;
+  state.previewOk = !!res.preview?.ok || (state.look === "3b" && !!res.validation?.ok);
   state.unspoken = new Set(res.preview?.unspoken || []);
   state.scriptAck = false; // asked again for every episode
   production.set({ job: res.job, outputs: res.outputs, outputsUrl: res.outputsUrl });
@@ -651,7 +654,7 @@ async function open(rel) {
   if (!document.body.classList.contains("at-home")) history.replaceState(null, "", `#b=${encodeURIComponent(res.path)}`);
   if (!same) stage.seek(0);
   renderMessages(res.preview);
-  stage.load(res.preview);
+  stage.load(res.preview?.ok ? res.preview : { ...res.preview, error: tr(res.preview?.error) }); // why there is none, in Turkish
   renderAll();
   requests.start();
   say("");
@@ -828,6 +831,16 @@ installViews({
     if (state.draft) {
       clearTimeout(timer);
       refreshPreview(); // compiled again for the new frame
+    }
+  },
+  look: () => state.look,
+  setLook: (look) => {
+    state.look = look;
+    $("stage").dataset.look = look; // 3D: the stage says it is for watching
+    stage.setFormat(state.format); // the next preview replaces this one: no positions read from it meanwhile
+    if (state.draft) {
+      clearTimeout(timer);
+      refreshPreview();
     }
   },
 });
