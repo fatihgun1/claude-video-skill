@@ -226,6 +226,8 @@ export function createProjects(page, ctx) {
       show();
       await refresh();
     },
+    /** Open an episode as a click on its card would (asks first about unsaved edits). */
+    go: (rel) => choose(rel),
     /** Whether the home page is on screen (the editor's keys are off then). */
     shown: () => !page.hidden,
   };

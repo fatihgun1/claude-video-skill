@@ -7,6 +7,8 @@
  *   panel_kapat {}                 stop the panel
  *   panel_istekleri {hepsi?}       take the requests the person wrote in the panel (istekler.mjs)
  *   panel_yanitla {id, durum, yanit}  answer one; the panel shows it
+ *   panel_git   {bolum?, sekme?, shot?, kaydir?, vurgula?}  move the open panel to what the person should look at
+ *   panel_sor   {soru, secenekler, coklu?, serbest?, bolum?, bekle?}  ask in the panel with option cards; waits for the answer
  *
  * stdout carries only protocol messages; anything else goes to stderr.
  * Engine modules load on first use, so a missing `npm install` is a readable tool error, not a dead server.
@@ -16,7 +18,11 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { queueOf, takeRequests, updateRequest, describe, episodeFile, ANSWERS, MAX_TEXT } from "./istekler.mjs";
 
-const SERVER_INFO = { name: "cizgi-studyo", version: "1.4.0" };
+const SERVER_INFO = { name: "cizgi-studyo", version: "1.5.0" };
+// panel-kanal.mjs PANELS (not imported: engine modules load on first use)
+const PANEL_TABS = ["projeler", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"];
+const WAIT_DEFAULT_S = 600;
+const WAIT_MAX_S = 1800;
 const PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 const LIBRARY = fileURLToPath(new URL("../../library", import.meta.url));
 const ENGINE = fileURLToPath(new URL("..", import.meta.url));
@@ -70,6 +76,59 @@ const TOOLS = [
         yanit: { type: "string", description: `What you did, ask or why not (at most ${MAX_TEXT} characters).` },
       },
       required: ["id", "durum", "yanit"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "panel_git",
+    description:
+      "Move the open editor panel to what the person should look at, instead of telling them where to click: open an episode, " +
+      "open a left panel (sekme), select a shot, scroll to the drafts waiting to be taken in, and highlight a button by its text. " +
+      "The panel applies it within a few seconds. Use it whenever you want the person to look at or act on something in the panel.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        bolum: { type: "string", description: "Episode to open: a path relative to the panel's folder, as panel_ac lists it." },
+        sekme: { type: "string", enum: PANEL_TABS, description: "Panel to open: projeler (home page), hikaye (story cards) or a left-rail panel." },
+        shot: { type: "string", description: "Shot id to select (in the open or the given episode)." },
+        kaydir: { type: "string", enum: ["taslaklar"], description: "Scroll the open left panel: taslaklar = the drafts waiting to be taken in." },
+        vurgula: { type: "string", description: "Highlight the buttons with this text for a few seconds (e.g. Kütüphaneye al)." },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "panel_sor",
+    description:
+      "Ask the person a question in the open editor panel, as option cards they click (with an optional picture each: a library " +
+      "drawing /kutuphane/<karakter|mekan|nesne>/<id>.svg, a draft /kutuphane-taslak/<karakter|mekan|nesne>/<id>.svg or a concept " +
+      "sketch /kutuphane-taslak/konsept/<id>.svg from <project>/kutuphane/taslak/konsept). Use it instead of asking in chat for choices " +
+      "about the episode. It waits for the answer (bekle seconds, default 600) and returns {cevap: {secim, metin}}. If no answer " +
+      "comes in time it returns {durum: 'bekliyor'}; the answer then arrives later as a panel request. One question is open at a time: " +
+      "a new one replaces it. Never use it to approve a gate (cizgi onayla): approvals are asked in chat.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        soru: { type: "string", description: "The question, in the person's language (at most 500 characters)." },
+        secenekler: {
+          type: "array", minItems: 1, maxItems: 8,
+          items: {
+            type: "object",
+            properties: {
+              etiket: { type: "string", description: "The option, short (at most 80 characters)." },
+              aciklama: { type: "string", description: "One or two sentences under it (optional)." },
+              gorsel: { type: "string", description: "A drawing the panel serves (see above), shown on the card (optional)." },
+            },
+            required: ["etiket"],
+            additionalProperties: false,
+          },
+        },
+        coklu: { type: "boolean", description: "Several options may be picked (default: one)." },
+        serbest: { type: "boolean", description: "The person may also write their own answer (default: true)." },
+        bolum: { type: "string", description: "The episode the question is about (relative path); the panel opens it." },
+        bekle: { type: "number", minimum: 0, maximum: 1800, description: "Seconds to wait for the answer (default 600)." },
+      },
+      required: ["soru", "secenekler"],
       additionalProperties: false,
     },
   },
@@ -146,14 +205,46 @@ function panelYanitla({ id, durum, yanit } = {}) {
   return { id: r.id, durum: r.durum };
 }
 
+function openPanelOrThrow() {
+  if (!panel) throw new Error("panel açık değil: önce panel_ac");
+  return panel;
+}
+
+async function checkEpisode(p, bolum) {
+  if (bolum === undefined) return;
+  const e = await engine();
+  if (!e.findEpisodes(p.root).includes(bolum)) throw new Error(`no such episode under ${p.root}: ${bolum}`);
+}
+
+async function panelGit(args = {}) {
+  const p = openPanelOrThrow();
+  await checkEpisode(p, args.bolum);
+  return { yon: p.channel.yonlendir(args), not: "Panel birkaç saniye içinde oraya gider." };
+}
+
+async function panelSor({ bekle, ...q } = {}) {
+  const p = openPanelOrThrow();
+  await checkEpisode(p, q.bolum);
+  if (q.bolum) p.channel.yonlendir({ bolum: q.bolum });
+  const { id } = p.channel.sor(q);
+  const seconds = Math.min(Math.max(Number.isFinite(bekle) ? bekle : WAIT_DEFAULT_S, 0), WAIT_MAX_S);
+  const cevap = await p.channel.bekle(id, seconds * 1000);
+  if (cevap) return { cevap: { secim: cevap.secim, metin: cevap.metin } };
+  return { durum: "bekliyor", id, not: "Cevap gelmedi; soru panelde açık. Cevap verilince panel isteği olarak gelir (panel_istekleri)." };
+}
+
 const TOOL_RUN = {
   panel_ac: panelAc,
   panel_kapat: () => closePanel().then((kapandi) => ({ kapandi })),
   panel_istekleri: panelIstekleri,
   panel_yanitla: panelYanitla,
+  panel_git: panelGit,
+  panel_sor: panelSor,
 };
 
 function callTool(name, args) {
+  // A question waits for the person: it must not hold the other tools back (panel_git, panel_kapat…).
+  if (name === "panel_sor") return queue.then(() => TOOL_RUN[name](args));
   const run = () => TOOL_RUN[name](args);
   const result = queue.then(run);
   queue = result.catch(() => {}); // a failed call does not block the next one

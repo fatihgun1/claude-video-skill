@@ -82,4 +82,5 @@ Lines can be edited, added and deleted in the panel (a line's details and the fo
 - You may edit `bolum.json` and `hikaye.json` while the panel is open: it reloads them, and asks the person first when they have unsaved edits there. Tell the person what you changed, so they do not lose edits of their own.
 - New actions, characters, backgrounds and props are drawn as drafts in the project library (`kutuphane/taslak/`, see the `cizgi-studyo` skill); new sounds go to `kutuphane/sfx`. The person takes drafts in from the panel. Never write into the plugin's `library/`. The panel only chooses among what exists.
 - The preview is the composition, not a render. Before showing anyone a video of the result, render a draft and check it with `cizgi qa` (**cizgi-render**).
+- Ask your questions in the panel (`panel_sor`, option cards) and move the panel to what the person should see (`panel_git`) instead of describing where to click; pictures are shown in the panel, never in a separate tab. Gate approvals stay in chat.
 - The server listens on 127.0.0.1 only. Stop it when the person is done.

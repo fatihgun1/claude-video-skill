@@ -5,10 +5,15 @@
  *   POST /api/taslak  {islem, tur, id}   islem "al": take it in · "reddet": put it aside
  *                                        → {taslaklar, vocab} (the library's words, with the new asset)
  *   GET  /kutuphane-taslak/<tur>/<id>.svg   a good draft's drawing (all layers together)
+ *   GET  /kutuphane-taslak/konsept/<id>.svg  a concept sketch (kutuphane/taslak/konsept/<id>.svg): a look to
+ *                                            agree on before a rig is drawn, shown in the panel (panel_sor)
  *
  * Taking a draft in is the person's decision, made in the panel; nothing else does it.
  */
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { listDrafts, draftSvg, approveDraft, rejectDraft } from "./proje-kutuphane.mjs";
+import { checkSvgSafety } from "./rigspec.mjs";
 import { vocabulary } from "./panel-kutuphane.mjs";
 import { HttpError } from "./panel-proje.mjs";
 
@@ -35,8 +40,15 @@ export function draftRoutes({ project, loadLib }) {
 
 /** /kutuphane-taslak/<tur>/<id>.svg → the drawing, or undefined when the path is not one of these. */
 export function draftFile(path, { project, loadLib }) {
-  const m = /^\/kutuphane-taslak\/(mekan|nesne|karakter)\/([a-z0-9_-]+)\.svg$/.exec(path);
+  const m = /^\/kutuphane-taslak\/(mekan|nesne|karakter|konsept)\/([a-z0-9_-]+)\.svg$/.exec(path);
   if (!m) return undefined;
+  if (m[1] === "konsept") {
+    const file = project ? join(project, "taslak", "konsept", `${m[2]}.svg`) : null;
+    if (!file || !existsSync(file)) throw new HttpError(404, "konsept yok");
+    const svg = readFileSync(file, "utf8");
+    if (checkSvgSafety(svg).length) throw new HttpError(404, "konsept çiziminde izin verilmeyen öğeler var");
+    return svg;
+  }
   const svg = draftSvg(project, m[1], m[2], loadLib());
   if (!svg) throw new HttpError(404, "taslak yok ya da hatalı");
   return svg;

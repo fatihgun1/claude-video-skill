@@ -10,6 +10,8 @@ import { startPanel } from "./panel.mjs";
 import { workspaceOf } from "./panel-proje.mjs";
 import { cachedLibrary } from "./panel-kutuphane.mjs";
 import { createJobs } from "./panel-is.mjs";
+import { createChannel } from "./panel-kanal.mjs";
+import { addRequest } from "./istekler.mjs";
 
 export const DEFAULT_PORT = 4810;
 const CLI = fileURLToPath(new URL("./cli.mjs", import.meta.url));
@@ -18,7 +20,7 @@ const CLI = fileURLToPath(new URL("./cli.mjs", import.meta.url));
  * @param {{target:string, library:string, status:Function, port?:number, fallbackPort?:boolean, requests?:string}} opts
  *   fallbackPort: when the port is taken (another panel is open), take any free port instead of failing.
  *   requests: the session's request queue file (only when a Claude session listens: the MCP server).
- * @returns {Promise<{url:string, root:string, initial:string|null, loadLib:() => object, close:() => Promise<void>}>}
+ * @returns {Promise<{url:string, root:string, initial:string|null, loadLib:() => object, channel:object, close:() => Promise<void>}>}
  */
 export async function openPanel({ target, library, status, port = DEFAULT_PORT, fallbackPort = false, requests = null }) {
   const space = workspaceOf(resolve(target));
@@ -27,7 +29,26 @@ export async function openPanel({ target, library, status, port = DEFAULT_PORT, 
   const jobs = createJobs({ cli: CLI, library: resolve(library), project });
   // The libraries are reloaded when one of their files changes, so an edited rig or a new drawing shows up without a restart.
   const loadLib = cachedLibrary([library, project], (dir) => loadLibrary(dir, { project }));
-  const start = (p) => startPanel({ ...space, loadLib, status, port: p, jobs, requests, project });
+  // Claude moves the panel and asks in it (panel_git, panel_sor). An answer that comes after the tool
+  // stopped waiting goes to the request queue, so the hooks hand it to Claude like a panel request.
+  const channel = createChannel({
+    onLateAnswer: (a, bolum) => {
+      if (!requests) return;
+      const picked = a.secim.length ? a.secim.join(", ") : "(seçim yok)";
+      try {
+        addRequest(requests, {
+          root: space.root, b: bolum || "", hedef: { tur: "bolum", etiket: "Panel sorusunun cevabı" },
+          metin: `Panelde sorduğun soruya cevap (#${a.id}): "${a.soru}"
+Seçim: ${picked}${a.metin ? `
+Not: ${a.metin}` : ""}`.slice(0, 2000),
+        });
+      } catch (err) {
+        process.stderr.write(`cizgi panel: cevap kuyruğa yazılamadı: ${err.message}
+`);
+      }
+    },
+  });
+  const start = (p) => startPanel({ ...space, loadLib, status, port: p, jobs, requests, project, channel });
   let panel;
   try {
     panel = await start(port);
@@ -35,5 +56,5 @@ export async function openPanel({ target, library, status, port = DEFAULT_PORT, 
     if (!fallbackPort || err.code !== "EADDRINUSE") throw err;
     panel = await start(0);
   }
-  return { ...panel, root: space.root, initial: space.initial, loadLib };
+  return { ...panel, root: space.root, initial: space.initial, loadLib, channel };
 }

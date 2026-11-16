@@ -70,7 +70,7 @@ test("initialize answers with tools capability and the asked protocol version", 
 test("tools/list names the panel and request tools with input schemas", async () => {
   const res = await rpc("tools/list", {});
   const names = res.result.tools.map((t) => t.name).sort();
-  assert.deepEqual(names, ["panel_ac", "panel_istekleri", "panel_kapat", "panel_yanitla"]);
+  assert.deepEqual(names, ["panel_ac", "panel_git", "panel_istekleri", "panel_kapat", "panel_sor", "panel_yanitla"]);
   for (const t of res.result.tools) assert.equal(t.inputSchema.type, "object");
 });
 
@@ -160,6 +160,55 @@ test("a request written in the panel reaches Claude, and the answer reaches the 
 
   const wrong = await callTool("panel_yanitla", { id: "pyok", durum: "yapildi", yanit: "x" });
   assert.equal(wrong.result.isError, true);
+});
+
+test("panel_git moves the open panel: the page reads the command from /api/kanal", async () => {
+  const open = textOf(await callTool("panel_ac", { klasor: root }));
+  const base = open.url.replace(/\/$/, "");
+  const res = textOf(await callTool("panel_git", { bolum: "bolumler/iki/bolum.json", sekme: "karakter", kaydir: "taslaklar", vurgula: "Kütüphaneye al" }));
+  assert.equal(res.yon.sekme, "karakter");
+  const kanal = await (await fetch(`${base}/api/kanal`)).json();
+  assert.deepEqual(kanal.yon, res.yon);
+  const unknown = await callTool("panel_git", { bolum: "bolumler/yok/bolum.json" });
+  assert.equal(unknown.result.isError, true);
+  const bad = await callTool("panel_git", { sekme: "gizli" });
+  assert.equal(bad.result.isError, true);
+});
+
+test("panel_sor waits for the answer given in the panel and returns it", async () => {
+  const open = textOf(await callTool("panel_ac", { klasor: root }));
+  const base = open.url.replace(/\/$/, "");
+  const host = new URL(open.url).host;
+  const asking = callTool("panel_sor", { soru: "Hangi mekân?", secenekler: [{ etiket: "Sokak" }, { etiket: "Park", gorsel: "/kutuphane/mekan/park.svg" }] });
+  let kanal;
+  for (let i = 0; i < 50 && !kanal?.soru; i++) {
+    kanal = await (await fetch(`${base}/api/kanal`)).json();
+    if (!kanal.soru) await new Promise((r) => setTimeout(r, 20));
+  }
+  assert.equal(kanal.soru.soru, "Hangi mekân?");
+  // other tools still answer while a question waits
+  assert.ok(textOf(await callTool("panel_git", { sekme: "mekan" })).yon);
+  const posted = await fetch(`${base}/api/kanal/cevap`, { method: "POST", headers: { "content-type": "application/json", origin: `http://${host}` }, body: JSON.stringify({ id: kanal.soru.id, secim: ["Park"], metin: "akşam olsun" }) });
+  assert.equal(posted.status, 200);
+  const answer = textOf(await asking);
+  assert.deepEqual(answer.cevap.secim, ["Park"]);
+  assert.equal(answer.cevap.metin, "akşam olsun");
+});
+
+test("an answer after panel_sor stopped waiting reaches Claude as a panel request", async () => {
+  const open = textOf(await callTool("panel_ac", { klasor: root }));
+  const base = open.url.replace(/\/$/, "");
+  const host = new URL(open.url).host;
+  const out = textOf(await callTool("panel_sor", { soru: "Müzik olsun mu?", secenekler: [{ etiket: "Evet" }, { etiket: "Hayır" }], bolum: "bolumler/bir/bolum.json", bekle: 0.05 }));
+  assert.equal(out.durum, "bekliyor");
+  const posted = await fetch(`${base}/api/kanal/cevap`, { method: "POST", headers: { "content-type": "application/json", origin: `http://${host}` }, body: JSON.stringify({ id: out.id, secim: ["Hayır"] }) });
+  assert.equal(posted.status, 200);
+  const taken = textOf(await callTool("panel_istekleri"));
+  const late = taken.istekler.find((r) => /Müzik olsun mu/.test(r.metin));
+  assert.ok(late, JSON.stringify(taken));
+  assert.match(late.metin, /Seçim: Hayır/);
+  assert.match(late.bolum, /bir/);
+  textOf(await callTool("panel_yanitla", { id: late.id, durum: "yapildi", yanit: "Müzik yok." }));
 });
 
 test("panel_kapat closes the panel", async () => {

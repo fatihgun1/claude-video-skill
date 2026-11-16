@@ -14,6 +14,7 @@ import { createTree } from "./agac.js";
 import { createRequests } from "./istek.js";
 import { createReview } from "./inceleme.js";
 import { createStory } from "./hikaye.js";
+import { createChannel as createClaudeChannel } from "./kanal.js";
 import { installKeys } from "./klavye.js";
 import { installViews } from "./gorunum.js";
 import { createDrafts } from "./taslak.js";
@@ -715,6 +716,23 @@ const story = createStory($("hikaye"), {
   api,
 });
 $("story").addEventListener("click", () => story.show());
+/* ---------- Claude moving the panel and asking in it (panel_git, panel_sor) ---------- */
+createClaudeChannel({
+  api,
+  current: () => state.path,
+  home: () => projects.show(),
+  openEpisode: async (rel) => {
+    await projects.show(); // from the home page, so unsaved edits are asked about where the person sees it
+    await projects.go(rel);
+  },
+  story: () => story.show(),
+  selectShot: (id) => {
+    if (!state.draft || !find(id)) return false;
+    choose(id);
+    return true;
+  },
+  note,
+}).start();
 /* ---------- İncele: scene review ---------- */
 const review = createReview($("inceleme"), {
   path: () => state.path,

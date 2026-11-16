@@ -97,6 +97,18 @@ test("character and action drafts are listed, previewed, taken in and put aside"
   assert.deepEqual(listDrafts(kut, lib), []);
 });
 
+test("a concept sketch is served from taslak/konsept only when its SVG is safe", () => {
+  const kut = project();
+  mkdirSync(join(kut, "taslak", "konsept"), { recursive: true });
+  writeFileSync(join(kut, "taslak", "konsept", "ali.svg"), '<svg xmlns="http://www.w3.org/2000/svg"><rect width="5" height="5"/></svg>');
+  writeFileSync(join(kut, "taslak", "konsept", "kotu.svg"), '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
+  const ctx = { project: kut, loadLib: () => loadLibrary(LIB, { project: kut }) };
+  assert.match(draftFile("/kutuphane-taslak/konsept/ali.svg", ctx), /<rect/);
+  assert.throws(() => draftFile("/kutuphane-taslak/konsept/kotu.svg", ctx), (e) => e.code === 404);
+  assert.throws(() => draftFile("/kutuphane-taslak/konsept/yok.svg", ctx), (e) => e.code === 404);
+  assert.equal(draftFile("/kutuphane-taslak/konsept/../x.svg", ctx), undefined);
+});
+
 test("a broken character draft cannot be taken in and says why", () => {
   const kut = project();
   mkdirSync(join(kut, "taslak", "characters", "kotu"), { recursive: true });

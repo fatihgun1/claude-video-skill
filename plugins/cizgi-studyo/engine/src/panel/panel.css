@@ -545,3 +545,21 @@ body.at-home .editor, body.at-home .bar > :not(.brand):not(.state), body.at-home
   .bar .state { max-width: 90px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Claude's questions (panel_sor) and pointers (panel_git): kanal.js */
+.kanal-soru { position: fixed; z-index: 60; left: 50%; bottom: 24px; transform: translateX(-50%); width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 120px); overflow: auto; display: flex; flex-direction: column; gap: var(--gap); padding: 14px 16px; background: var(--pane-2); border: 1px solid var(--accent); border-radius: 12px; box-shadow: 0 12px 40px rgba(0, 0, 0, .5); }
+.kanal-soru h3 { margin: 0; font-size: 15px; font-weight: 600; white-space: pre-wrap; }
+.kanal-ust { display: flex; align-items: center; justify-content: space-between; }
+.kanal-kim { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.kanal-kartlar { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.kanal-kart { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 8px; background: var(--pane); color: var(--text); border: 1px solid var(--line); border-radius: var(--radius); cursor: pointer; font: inherit; }
+.kanal-kart:hover { border-color: var(--muted); }
+.kanal-kart.secili { border-color: var(--select); box-shadow: inset 0 0 0 1px var(--select); }
+.kanal-kart img { width: 100%; height: 110px; object-fit: contain; background: var(--pane-3); border-radius: 6px; }
+.kanal-etiket { font-weight: 600; }
+.kanal-aciklama { color: var(--muted); font-size: 12px; }
+.kanal-soru textarea { width: 100%; resize: vertical; background: var(--pane); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: inherit; }
+.kanal-cip { position: fixed; z-index: 60; right: 16px; bottom: 16px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 600; cursor: pointer; }
+.kanal-vurgu { outline: 3px solid var(--select) !important; outline-offset: 2px; animation: kanal-nabiz 1s ease-in-out 3; }
+@keyframes kanal-nabiz { 50% { outline-color: transparent; } }
+@media (prefers-reduced-motion: reduce) { .kanal-vurgu { animation: none; } }

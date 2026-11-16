@@ -19,6 +19,7 @@
  *   POST /api/incele       {b, episode, format, sahne}   scene review checks on the unsaved draft (inceleme.mjs)
  *   GET  /api/hikaye?b=  ·  POST /api/hikaye   story cards, hikaye.json next to the episode (panel-hikaye.mjs)
  *   GET  /api/taslaklar  ·  POST /api/taslak  ·  GET /kutuphane-taslak/…   project library drafts (panel-taslak.mjs)
+ *   GET  /api/kanal  ·  POST /api/kanal/cevap   Claude moves the panel and asks in it (panel-kanal.mjs)
  *
  * Bound to 127.0.0.1 only. Requests whose Host is not the panel's own address are refused
  * (DNS rebinding), and POSTs need a JSON body from the panel's own origin (CSRF).
@@ -42,13 +43,14 @@ import { HttpError, MAX_EPISODES, findEpisodes, episodePathOf, summarize, create
 import { requestRoutes } from "./panel-istek.mjs";
 import { storyRoutes } from "./panel-hikaye.mjs";
 import { draftRoutes, draftFile } from "./panel-taslak.mjs";
+import { createChannel, channelRoutes } from "./panel-kanal.mjs";
 
 export { vocabulary };
 
 const PANEL_DIR = fileURLToPath(new URL("./panel/", import.meta.url));
 const PAGE = join(PANEL_DIR, "index.html");
 /** The only files /panel/ serves. */
-const PANEL_FILES = new Set(["panel.css", "app.js", "dom.js", "kutuphane.js", "sahne.js", "denetleyici.js", "projeler.js", "zaman.js", "kurgu.js", "dinle.js", "duzen.js", "uretim.js", "agac.js", "istek.js", "inceleme.js", "hikaye.js", "klavye.js", "gorunum.js", "katman.js", "taslak.js", "dekor.js", "isik.js", "altyazi-ayar.js", "serit.js", "bolum-ayar.js", "ayirici.js", "cekmece.js", "birak.js", "tr.js"]);
+const PANEL_FILES = new Set(["panel.css", "app.js", "dom.js", "kutuphane.js", "sahne.js", "denetleyici.js", "projeler.js", "zaman.js", "kurgu.js", "dinle.js", "duzen.js", "uretim.js", "agac.js", "istek.js", "inceleme.js", "hikaye.js", "klavye.js", "gorunum.js", "katman.js", "taslak.js", "dekor.js", "isik.js", "altyazi-ayar.js", "serit.js", "bolum-ayar.js", "ayirici.js", "cekmece.js", "birak.js", "tr.js", "kanal.js"]);
 /** Engine modules the panel uses as they are (pure code): the music envelope, so the timeline draws what the render plays. */
 const SHARED_FILES = {
   "muzik.mjs": fileURLToPath(new URL("./muzik.mjs", import.meta.url)),
@@ -284,6 +286,8 @@ export function createPanel(opts) {
     ...storyRoutes({ episodeOf, loadLib: () => opts.loadLib() }),
     // Drafts in the project library (kutuphane/taslak): look, take in, put aside
     ...draftRoutes({ project: opts.project ?? null, loadLib: (fresh) => opts.loadLib(fresh) }),
+    // Claude moving the panel and asking in it (MCP panel_git, panel_sor); a panel of its own when none is given
+    ...channelRoutes(opts.channel ?? createChannel()),
   };
 
   /** Both senders return true: "the request has been answered". */
