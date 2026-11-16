@@ -1,7 +1,7 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { request } from "node:http";
-import { mkdtempSync, mkdirSync, copyFileSync, readFileSync, writeFileSync, rmSync, existsSync, symlinkSync } from "node:fs";
+import { mkdtempSync, mkdirSync, copyFileSync, readFileSync, writeFileSync, rmSync, existsSync, symlinkSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -294,6 +294,44 @@ test("storyboard sheets and videos of an opened episode are served, nothing else
     assert.notEqual((await call("GET", `${json.outputsUrl}${p}`)).status, 200, p);
   }
   assert.equal((await call("GET", "/uretim/0123456789abcdef/cikti/x.mp4")).status, 404);
+});
+
+test("a video request the browser drops lets go of the file, so the next render can replace it", async () => {
+  const dir = join(root, "ornekler", "sokak");
+  const video = join(dir, "cikti", "birak.mp4");
+  const big = () => writeFileSync(video, Buffer.alloc(32 * 1024 * 1024)); // far more than one read: the stream is mid-file when dropped
+  // what HyperFrames does at the end of a render: rename the new file over the old one (EPERM on Windows while open);
+  // the server closes the file a moment after the drop, so a few tries over a second
+  const replace = async () => {
+    writeFileSync(`${video}.yeni`, "yeni");
+    for (let tries = 0; ; tries++) {
+      try {
+        return renameSync(`${video}.yeni`, video);
+      } catch (err) {
+        if (err.code !== "EPERM" || tries >= 10) throw err;
+        await new Promise((ok) => setTimeout(ok, 100));
+      }
+    }
+  };
+  try {
+    big();
+    const { json } = await open("ornekler/sokak/bolum.json");
+    for (const range of [undefined, "bytes=0-"]) {
+      await new Promise((ok, fail) => {
+        const req = request(`${panel.url.replace(/\/$/, "")}${json.outputsUrl}cikti/birak.mp4`, { headers: range ? { range } : {} }, (res) => {
+          res.once("data", () => { req.destroy(); ok(); }); // the player seeks: it drops this request
+        });
+        req.on("error", (err) => (err.code === "ECONNRESET" ? ok() : fail(err)));
+        req.end();
+      });
+      await replace();
+      assert.equal(readFileSync(video, "utf8"), "yeni");
+      big();
+    }
+  } finally {
+    rmSync(video, { force: true });
+    rmSync(`${video}.yeni`, { force: true });
+  }
 });
 
 test("a draft video can be seeked (byte ranges), and a link out of the outputs is refused", async (t) => {

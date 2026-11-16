@@ -144,10 +144,17 @@ export function createJobs(opts) {
   };
 }
 
-/** The CLI's "error: …" line, which says why (an approval missing, a tool not installed…). */
+/**
+ * The CLI's "error: …" message, which says why (an approval missing, a tool not installed…).
+ * It can run over several lines: "npx exited with 1:" is followed by the lines that say what
+ * failed, so a few lines under it are kept too (the cause comes first).
+ */
+const ERROR_LINES = 8;
 function lastError(log) {
-  const m = /error: ([^\n]+(?:\n- [^\n]+)*)/.exec(log);
-  return m ? m[1] : log.trim().split("\n").at(-1) || "";
+  // the CLI's own line starts with "error: "; a tool's message under it may say "error: " mid-line
+  const at = [...log.matchAll(/^error: /gm)].at(-1)?.index ?? -1;
+  if (at === -1) return log.trim().split("\n").at(-1) || "";
+  return log.slice(at + "error: ".length).split("\n").map((l) => l.trimEnd()).filter(Boolean).slice(0, ERROR_LINES).join("\n");
 }
 
 /**

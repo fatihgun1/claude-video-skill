@@ -46,6 +46,18 @@ test("a draft job asks for a draft render, and a failure says why", () => {
   assert.equal(calls.length, 2);
 });
 
+test("a failed render says the cause under the CLI's error line, not just 'npx exited with 1:'", () => {
+  const calls = [];
+  const jobs = createJobs({ cli: "/x/cli.mjs", spawn: fakeSpawn(calls) });
+  jobs.start("/e/bolum.json", "taslak", "16:9");
+  calls[0].child.stderr.emit("data", "Rendering 120/120\nerror: npx exited with 1:\n✗ Failed: EPERM: operation not permitted, rename 'a.mp4' -> 'b.mp4' (ffmpeg error: none)\n  at renameSync\n");
+  calls[0].child.emit("close", 1);
+  const { error } = jobs.get("/e/bolum.json");
+  assert.match(error, /npx exited with 1/);
+  assert.match(error, /EPERM/);
+  assert.doesNotMatch(error, /Rendering/);
+});
+
 test("a scene stills job passes its scene id; a bad or missing id is refused", () => {
   const calls = [];
   const jobs = createJobs({ cli: "/x/cli.mjs", spawn: fakeSpawn(calls) });

@@ -54,6 +54,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .pjob.failed { border-color: var(--err); }
 .pprog { display: flex; align-items: center; gap: 8px; margin: 6px 0 0; }
 .pprog progress { flex: 1; height: 10px; accent-color: var(--accent); }
+.perr { white-space: pre-wrap; overflow-wrap: anywhere; }
 .plog { margin: 6px 0 0; max-height: 120px; overflow: auto; font-size: 11px; color: var(--muted); white-space: pre-wrap; }
 .psheets { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-top: 8px; }
 .psheets img { width: 100%; border-radius: 6px; border: 1px solid var(--line); display: block; }

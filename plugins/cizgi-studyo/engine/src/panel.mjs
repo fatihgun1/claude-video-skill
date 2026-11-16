@@ -25,6 +25,7 @@
  */
 import { createServer } from "node:http";
 import { createHash } from "node:crypto";
+import { pipeline } from "node:stream";
 import { readFileSync, writeFileSync, renameSync, existsSync, statSync, rmSync, createReadStream } from "node:fs";
 import { dirname, resolve, join, extname } from "node:path";
 import { tmpdir } from "node:os";
@@ -295,6 +296,9 @@ export function createPanel(opts) {
   /**
    * A production output, streamed with byte ranges so a video can be seeked (and is not
    * read whole into memory). It may be cached but is checked again on every use.
+   * pipeline closes the file when the browser drops the request (a video player seeking does
+   * that all the time): a file left open cannot be replaced on Windows, and the next render
+   * would fail renaming its new video over it (EPERM).
    */
   function sendRanged(req, res, file) {
     const size = statSync(file).size;
@@ -303,7 +307,7 @@ export function createPanel(opts) {
     const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || "");
     if (!m || (m[1] === "" && m[2] === "")) {
       res.writeHead(200, { ...head, "content-length": size });
-      createReadStream(file).pipe(res);
+      pipeline(createReadStream(file), res, dropped);
       return true;
     }
     // "bytes=a-b", "bytes=a-" or the last n bytes "bytes=-n"
@@ -315,8 +319,13 @@ export function createPanel(opts) {
       return true;
     }
     res.writeHead(206, { ...head, "content-range": `bytes ${start}-${end}/${size}`, "content-length": end - start + 1 });
-    createReadStream(file, { start, end }).pipe(res);
+    pipeline(createReadStream(file, { start, end }), res, dropped);
     return true;
+  }
+
+  /** A streamed file stopped early: the browser went away (normal), or the file could not be read mid-way (the response is already cut). */
+  function dropped(err) {
+    if (err && !["ERR_STREAM_PREMATURE_CLOSE", "ECONNRESET", "EPIPE"].includes(err.code)) console.error(`panel: dosya gönderilemedi: ${err.message}`);
   }
 
   function sendFile(res, file) {

@@ -168,7 +168,7 @@ export function createProduction(els, ctx) {
     const jobBox = job
       ? el("div", { class: `pjob ${job.status}` },
         el("b", { text: `${JOB_TEXT[job.kind] || job.kind}${job.kind === "ses" ? "" : ` ${job.format}`}: ${job.status === "running" ? "sürüyor…" : job.status === "done" ? "bitti" : "olmadı"}` }),
-        job.error ? el("p", { class: "err small", text: job.error }) : null,
+        job.error ? el("p", { class: "err small perr", text: job.error }) : null, // several lines: what failed, then why
         job.kind === "ses" && job.status === "running" ? progressBar(job.progress) : null,
         // the speech tools' own last words say why it stopped (a missing model, out of memory…)
         job.kind === "ses" && job.status === "failed" && job.log ? el("pre", { class: "plog", text: lastWords(job.log) }) : null,
