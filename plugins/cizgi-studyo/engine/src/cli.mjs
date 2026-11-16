@@ -42,7 +42,7 @@ const DEFAULT_LIBRARY = fileURLToPath(new URL("../../library", import.meta.url))
 const FLAGS = new Set(["--hepsi", "--taslak", "--3b"]);
 const NEEDS = { "ses-ornek": 2, dogrula: 1, durum: 1, senaryo: 1, ses: 1, storyboard: 1, render: 1, onayla: 2, derle: 2, kabul: 2, qa: 1, panel: 1, taslaklar: 1 };
 const USAGE =
-  "usage: cizgi dogrula|durum|senaryo|ses|storyboard|render <bolum.json> · cizgi panel <klasör|bolum.json> · cizgi onayla senaryo|storyboard <bolum.json> · cizgi kabul <bolum.json> <line> · cizgi derle <bolum.json> <dir> [format]\n";
+  "usage: cizgi dogrula|durum|senaryo|ses|storyboard|render <bolum.json> · cizgi panel <klasör|bolum.json> · cizgi onayla senaryo|storyboard <bolum.json> · cizgi kabul <bolum.json> <line> · cizgi ses-ornek <bolum.json> <karakter> · cizgi derle <bolum.json> <dir> [format]\n";
 
 /**
  * @param {string[]} argv

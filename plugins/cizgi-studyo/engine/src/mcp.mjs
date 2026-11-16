@@ -19,7 +19,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { queueOf, takeRequests, updateRequest, describe, episodeFile, ANSWERS, MAX_TEXT } from "./istekler.mjs";
 
-const SERVER_INFO = { name: "cizgi-studyo", version: "2.1.0" };
+const SERVER_INFO = { name: "cizgi-studyo", version: "2.2.0" };
 // panel-kanal.mjs PANELS (not imported: engine modules load on first use)
 const PANEL_TABS = ["projeler", "uretim", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"];
 const WAIT_DEFAULT_S = 600;
@@ -94,6 +94,8 @@ const TOOLS = [
         shot: { type: "string", description: "Shot id to select (in the open or the given episode)." },
         kaydir: { type: "string", enum: ["taslaklar"], description: "Scroll the open left panel: taslaklar = the drafts waiting to be taken in." },
         vurgula: { type: "string", description: "Highlight the buttons with this text for a few seconds (e.g. Kütüphaneye al)." },
+        proje: { type: "string", description: "Open the project wizard on bolumler/<proje>/hikaye.json (write that file first): the person sees the wishes you record there, live." },
+        proje_adim: { type: "string", enum: ["hikaye", "kararlar", "karakterler", "sahneler", "ses", "ozet"], description: "With proje: the wizard step to show." },
       },
       additionalProperties: false,
     },
@@ -218,7 +220,15 @@ async function panelAc({ klasor, bolum } = {}) {
     });
   }
   const lib = panel.loadLib();
+  // The usual port taken (another session's panel, often an older version): this one is elsewhere, and
+  // the person may still be looking at the other one. Say so, so Claude tells them which tab is theirs.
+  const wanted = portOf() ?? e.DEFAULT_PORT;
+  const port = Number(new URL(panel.url).port);
+  const uyari = wanted && port !== wanted
+    ? `Port ${wanted} başka bir panelde (büyük ihtimalle başka bir Claude oturumunun, belki eski sürüm) açık; bu oturumun paneli ${panel.url} adresinde. Kişiye söyle: eski panel sekmesini kapatsın, yalnız bu adresi kullansın (isteklerini ancak bu panel bu oturuma iletir).`
+    : undefined;
   return {
+    ...(uyari ? { uyari } : {}),
     url: first ? `${panel.url}#b=${encodeURIComponent(first)}` : panel.url,
     klasor: panel.root,
     bolumler: paths.map((p) => e.summarize(panel.root, p, lib, e.status)),

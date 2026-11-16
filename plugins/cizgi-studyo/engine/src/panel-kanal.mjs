@@ -17,6 +17,9 @@ import { HttpError } from "./panel-proje.mjs";
 
 export const PANELS = Object.freeze(["projeler", "uretim", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"]);
 const SCROLL = Object.freeze(["taslaklar"]);
+/** The project wizard's steps (panel/proje-sihirbaz.js) and the ids of episodes it makes. */
+export const PROJECT_STEPS = Object.freeze(["hikaye", "kararlar", "karakterler", "sahneler", "ses", "ozet"]);
+const PROJECT_ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const SHOT = /^[a-z0-9_-]{1,40}$/;
 // a library drawing or a draft (incl. concept sketches), as the panel serves them
 const PICTURE = /^\/(kutuphane|kutuphane-taslak)\/(karakter|mekan|nesne|konsept)\/[a-z0-9_-]{1,60}\.svg$/;
@@ -33,7 +36,7 @@ function text(value, name, max, { optional = false, multiline = false } = {}) {
 
 function cleanNav(cmd) {
   if (!cmd || typeof cmd !== "object") throw new Error("yönlendirme bir nesne olmalı");
-  const known = new Set(["bolum", "sekme", "shot", "kaydir", "vurgula"]);
+  const known = new Set(["bolum", "sekme", "shot", "kaydir", "vurgula", "proje", "proje_adim"]);
   const extra = Object.keys(cmd).filter((k) => !known.has(k));
   if (extra.length) throw new Error(`bilinmeyen alan: ${extra.join(", ")}`);
   const out = {};
@@ -51,7 +54,17 @@ function cleanNav(cmd) {
     out.kaydir = cmd.kaydir;
   }
   if (cmd.vurgula !== undefined) out.vurgula = text(cmd.vurgula, "vurgula", 80);
-  if (!Object.keys(out).length) throw new Error("yönlendirme boş: bolum, sekme, shot, kaydir ya da vurgula ver");
+  // the project wizard on an episode being made (bolumler/<proje>/hikaye.json), at one of its steps
+  if (cmd.proje !== undefined) {
+    if (typeof cmd.proje !== "string" || !PROJECT_ID.test(cmd.proje)) throw new Error("proje bir bölüm kimliği olmalı (bolumler/<kimlik>)");
+    out.proje = cmd.proje;
+  }
+  if (cmd.proje_adim !== undefined) {
+    if (out.proje === undefined) throw new Error("proje_adim yalnız proje ile verilir");
+    if (!PROJECT_STEPS.includes(cmd.proje_adim)) throw new Error(`proje_adim şunlardan biri olmalı: ${PROJECT_STEPS.join(", ")}`);
+    out.proje_adim = cmd.proje_adim;
+  }
+  if (!Object.keys(out).length) throw new Error("yönlendirme boş: bolum, sekme, shot, kaydir, vurgula ya da proje ver");
   return out;
 }
 

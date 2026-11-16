@@ -157,3 +157,14 @@ test("wizard commands are checked", () => {
   assert.throws(() => ch.sihirbaz({ adim: "bilgi", gorsel: ["file:///C:/a.svg"] }));
   assert.throws(() => ch.sihirbaz({ adim: "bilgi", aciklama: "x".repeat(501) }));
 });
+
+test("Claude can open the project wizard on an episode being made, at a step", () => {
+  const ch = createChannel();
+  const nav = ch.yonlendir({ proje: "sokaktan-kurtulus", proje_adim: "karakterler" });
+  assert.equal(nav.proje, "sokaktan-kurtulus");
+  assert.equal(nav.proje_adim, "karakterler");
+  assert.doesNotThrow(() => ch.yonlendir({ proje: "sokaktan-kurtulus" }));
+  for (const bad of [{ proje: "../x" }, { proje: "Büyük" }, { proje: "a", proje_adim: "renkler" }, { proje_adim: "hikaye" }]) {
+    assert.throws(() => ch.yonlendir(bad), undefined, JSON.stringify(bad));
+  }
+});

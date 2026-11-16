@@ -627,3 +627,5 @@ body.at-home .editor, body.at-home .bar > :not(.brand):not(.state), body.at-home
 
 /* Bölüm ayarları → Sesler: a voice per speaker, with a sample (bolum-ayar.js) */
 .voice-row { padding: 8px 10px; margin: 6px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--pane-2); }
+/* a question inside a dialog keeps its own look (the dialog's h3 is a small uppercase label) */
+.projects .kanal-soru h3 { font-size: 15px; font-weight: 600; text-transform: none; letter-spacing: normal; color: var(--text); margin: 0; }

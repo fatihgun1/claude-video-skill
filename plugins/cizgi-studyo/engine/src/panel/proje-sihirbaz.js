@@ -30,22 +30,60 @@ export function createProjectWizard(ctx) {
   const choiceList = (key) => s.choices?.[key] || [];
   const w = () => s.story.istekler;
 
-  async function open(id = null) {
-    const res = await ctx.api("/api/bolumler").catch(() => ({}));
-    s = { id: id || "", idFixed: !!id, story: newStory(), version: null, bolum: null, step: 0, choices: res.secenekler || {}, error: "", info: "" };
-    if (id) {
-      try {
-        const r = await ctx.api(`/api/yapim/oku?${new URLSearchParams({ id })}`);
-        s.story = { ...newStory(), ...r.story, istekler: { ...(r.story.istekler || {}) } };
-        s.version = r.version;
-        s.bolum = r.bolum;
-        if (r.errors?.length) s.error = `hikaye.json'da düzeltilecekler: ${r.errors.join("; ")}`;
-      } catch (err) {
-        s.error = err.message;
+  const slot = el("div", { class: "psih-soru" }); // Claude's question (panel_sor) shows here while the wizard is open
+  const stepIndex = (id) => Math.max(0, STEPS.findIndex(([key]) => key === id));
+  const unsaved = () => !!s && s.savedText !== undefined && JSON.stringify(s.story) !== s.savedText;
+
+  /** The story from disk into the wizard (Claude writes it as the person answers in the panel). */
+  function take(r) {
+    s.story = { ...newStory(), ...r.story, istekler: { ...(r.story.istekler || {}) } };
+    s.version = r.version;
+    s.bolum = r.bolum;
+    s.savedText = JSON.stringify(s.story);
+    s.error = r.errors?.length ? `hikaye.json'da düzeltilecekler: ${r.errors.join("; ")}` : "";
+  }
+
+  /** Open the wizard: new (no id), or on bolumler/<id>/hikaye.json, at a step (proje_adim ids). */
+  async function open(id = null, step = null) {
+    const same = s && dialog.open && id && s.id === id && s.idFixed;
+    if (!same) {
+      const res = await ctx.api("/api/bolumler").catch(() => ({}));
+      s = { id: id || "", idFixed: !!id, story: newStory(), version: null, bolum: null, step: 0, choices: res.secenekler || {}, error: "", info: "" };
+      if (id) {
+        try {
+          take(await ctx.api(`/api/yapim/oku?${new URLSearchParams({ id })}`));
+        } catch (err) {
+          s.error = err.message;
+        }
       }
     }
+    if (step) s.step = stepIndex(step);
     render();
     if (!dialog.open) dialog.showModal();
+    follow();
+  }
+
+  /** While open, follow the story on disk: Claude records answers there. The person's unsaved typing is never overwritten. */
+  let followTimer = 0;
+  function follow() {
+    clearTimeout(followTimer);
+    followTimer = setTimeout(async () => {
+      if (!dialog.open || !s?.idFixed) return;
+      try {
+        const r = await ctx.api(`/api/yapim/oku?${new URLSearchParams({ id: s.id })}`);
+        if (r.version !== s.version) {
+          if (unsaved()) s.info = "Claude hikâyeyi güncelledi: kaydedersen seninkiler onun üstüne yazılır (Kapat ve yeniden aç ile onunkini gör).";
+          else {
+            take(r);
+            s.info = "Claude güncelledi.";
+          }
+          render();
+        }
+      } catch {
+        /* the server is busy or the file is being written: look again */
+      }
+      follow();
+    }, 1500);
   }
 
   /** Write the story; the first save of a new episode claims its id. */
@@ -59,7 +97,11 @@ export function createProjectWizard(ctx) {
     }
     const res = await ctx.api("/api/yapim", { id: s.id, story: s.story, version: s.version });
     s.version = res.version;
-    s.idFixed = true;
+    s.savedText = JSON.stringify(s.story);
+    if (!s.idFixed) {
+      s.idFixed = true;
+      follow();
+    }
   }
 
   async function go(step) {
@@ -259,7 +301,7 @@ export function createProjectWizard(ctx) {
       el("div", { class: "phead" },
         el("div", {},
           el("h2", { text: s.bolum ? `Bölümü düzenle: ${s.story.baslik || s.id}` : s.idFixed ? `Yapım aşamasında: ${s.story.baslik || s.id}` : "Yeni bölüm" }),
-          el("p", { class: "muted small", text: "İsteklerini adım adım topla; her adımda kaydedilir, yarıda bırakırsan kaldığın yerden açılır." })),
+          el("p", { class: "muted small", text: "Claude soruları burada adım adım sorar, cevaplarını alanlara yazar; istediğin alanı kendin de değiştirebilirsin. Her adım kaydedilir." })),
         el("button", { class: "btn", type: "button", text: "Kapat", on: { click: () => dialog.close() } })),
       el("ol", { class: "padimlar" }, STEPS.map(([, t], i) => el("li", {}, el("button", {
         class: `btn small${i === s.step ? " primary" : ""}`, type: "button", "aria-current": i === s.step ? "step" : null, text: `${i + 1}. ${t}`,
@@ -267,6 +309,7 @@ export function createProjectWizard(ctx) {
       })))),
       el("h3", { text: title }),
       el("div", { class: "pgovde" }, body),
+      slot, // Claude asks here, step by step; its answers fill the fields above
       s.error ? el("p", { class: "err", text: s.error }) : null,
       el("div", { class: "row pnav" },
         el("button", { class: "btn", type: "button", disabled: s.step === 0, text: "← Geri", on: { click: () => go(s.step - 1) } }),
@@ -278,5 +321,9 @@ export function createProjectWizard(ctx) {
     s.info = "";
   }
 
-  return { open };
+  return {
+    open,
+    /** Where Claude's question goes while the wizard is open (it is a modal: nothing behind it can be clicked). */
+    slot: () => (dialog.open ? slot : null),
+  };
 }

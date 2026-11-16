@@ -14,7 +14,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 /**
  * @param {{api:(path:string, body?:object) => Promise<any>, current:() => string|null,
  *          home:() => Promise<void>, openEpisode:(rel:string) => Promise<void>, story:() => void,
- *          selectShot:(id:string) => boolean, note:(text:string) => void}} ctx
+ *          selectShot:(id:string) => boolean, note:(text:string) => void,
+ *          projectWizard?:(id:string, step?:string) => Promise<void>, projectSlot?:() => HTMLElement|null}} ctx
  */
 export function createChannel(ctx) {
   let seenSeq = -1; // the last command applied
@@ -48,6 +49,11 @@ export function createChannel(ctx) {
 
   /** Apply one navigation command, in order: episode, panel, shot, scroll, highlight. */
   async function go(cmd) {
+    if (cmd.proje) {
+      await ctx.projectWizard?.(cmd.proje, cmd.proje_adim);
+      render();
+      return;
+    }
     if (cmd.shot || cmd.kaydir || cmd.vurgula) {
       wizard.shrink(); // the person must see what Claude points at
       render();
@@ -104,7 +110,7 @@ export function createChannel(ctx) {
     chip.hidden = !(question && later);
     if (!show) return;
     // inside the open wizard when there is one, else floating over the editor
-    const home = wizard.slot();
+    const home = ctx.projectSlot?.() || wizard.slot();
     box.classList.toggle("docked", !!home);
     if (home && box.parentElement !== home) {
       home.append(box);
@@ -152,7 +158,7 @@ export function createChannel(ctx) {
         if (q) wizard.grow(); // a question in a wizard is asked where its steps are
         box.querySelector("textarea")?.remove();
         render();
-      } else if (question && !later && wizard.slot() !== (box.classList.contains("docked") ? box.parentElement : null)) {
+      } else if (question && !later && (ctx.projectSlot?.() || wizard.slot()) !== (box.classList.contains("docked") ? box.parentElement : null)) {
         render(); // the wizard opened, grew or closed: the question follows it
       }
     } catch {
