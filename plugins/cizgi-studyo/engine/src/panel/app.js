@@ -310,6 +310,7 @@ function select(kind, index = -1, seg = undefined) {
 let sticky = ""; // a message about the last edit, kept over the "preparing preview" notes
 function say(text) {
   $("state").textContent = text;
+  $("state").title = text; // cut short on a narrow window: the whole of it on hover
 }
 /** Say something the next preview status must not wipe; cleared by the edit after. */
 function note(text) {

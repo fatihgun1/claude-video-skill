@@ -17,6 +17,7 @@ $CLI panel <klasör> --port 4900
 Open the project root (the folder holding `ornekler/` and `bolumler/`) when the person works on several episodes: the panel then lists them all and switches between them without a restart. Run it in the background (it keeps serving until stopped) and give the person the printed URL. In the Claude desktop app, open it in the built-in browser. The layout needs a window at least 1180 px wide; narrower windows stack the panes.
 
 ## What the person can do there
+- **Narrow window** (below 1180px): the rail, the stage and the timeline stay on screen; the left panel and the properties open over the stage as drawers, one at a time (the properties from **Özellikler** in the top bar). ✕ or Esc closes a drawer. The left panel starts closed there; the wide layout keeps its own choice.
 - **Left rail:** icons for Sahneler, Karakter, Hareket, Mekân, Nesne, Ses, Müzik and Kamera. A click opens that panel in the one left pane; a click on the open icon (or ✕) closes the pane and the stage grows. The choice is remembered in the browser.
   - **Sahneler** lists the open episode's scenes (background thumbnail, name, shot count, length, error count) and their shots.
     - A shot row selects the shot.

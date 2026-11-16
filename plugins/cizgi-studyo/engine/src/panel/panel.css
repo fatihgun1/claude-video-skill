@@ -498,15 +498,34 @@ body.at-home .editor, body.at-home .bar > :not(.brand):not(.state), body.at-home
 .newep .row { display: flex; align-items: center; gap: 12px; }
 .newep .why { color: var(--err); font-size: 12px; }
 
+/* Narrow window: the rail, the stage and the timeline stay; the side panels open over the stage
+   as drawers, one at a time (cekmece.js). The bar's less-used parts give way. */
+.narrow-only { display: none; }
 @media (max-width: 1180px) {
-  body { overflow: auto; }
-  .editor, .editor.left-closed { height: auto; grid-template-columns: 1fr; grid-template-rows: auto; }
-  .rail, .library, .inspector, .stage-wrap { grid-row: auto; max-height: none; }
-  .rail { flex-direction: row; overflow-x: auto; }
-  .rbtn { flex: 0 0 64px; }
-  .timeline { grid-row: auto; height: 244px; }
-  .tl-resize, .vresize { display: none; }
-  .stage-wrap { overflow: visible; }
-  .stage-box { flex: none; height: min(70vh, 56vw); }
+  .editor, .editor.left-closed { grid-template-columns: 64px minmax(0, 1fr); }
+  .library, .inspector { position: fixed; z-index: 20; top: 52px; bottom: calc(min(var(--tl-h, 244px), max(150px, calc(100vh - 52px - 220px))) + 1px); } /* above the timeline: it stays reachable */
+  .library { left: 64px; width: min(340px, calc(100vw - 64px)); box-shadow: 16px 0 40px rgba(0,0,0,.55); }
+  .inspector { right: 0; width: min(380px, 100vw); box-shadow: -16px 0 40px rgba(0,0,0,.55); }
+  body:not(.insp-open) .inspector { display: none; }
+  .vresize { display: none; }
+  .narrow-only { display: inline-grid; }
+  .insp-head.narrow-only { display: flex; align-items: center; gap: 8px; position: sticky; top: -14px; z-index: 3; margin: -14px -14px 10px; padding: 10px 14px; background: var(--pane); border-bottom: 1px solid var(--line); }
+  .insp-head h2 { flex: 1; margin: 0; font-size: 14px; }
+  /* too narrow for all of it: nothing wraps; the step chips scroll, save and undo stay in view */
+  .bar { gap: 8px; padding: 0 10px; }
+  .bar > * { flex: none; }
+  .bar > .steps { flex: 0 1 auto; min-width: 60px; overflow-x: auto; scrollbar-width: thin; }
+  .bar > .spacer { flex: 1 1 0; }
+  .bar .btn, .steps button { white-space: nowrap; }
+  .bar .state, .steps button { font-size: 11px; }
+  .bar .state { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ep-title { max-width: 180px; }
+}
+@media (max-width: 860px) {
+  /* tighter still: smaller buttons and title, so save stays on screen */
+  .bar { gap: 6px; }
+  .bar .btn.small, .bar .btn:not(.icon) { padding: 3px 8px; }
+  .ep-title { max-width: 110px; }
+  .bar .state { max-width: 90px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

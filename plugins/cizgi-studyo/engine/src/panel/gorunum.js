@@ -5,6 +5,7 @@ import { $, el } from "./dom.js";
 import { LAYERS } from "./duzen.js";
 import { installRail } from "./serit.js";
 import { installDivider } from "./ayirici.js";
+import { installDrawers, NARROW } from "./cekmece.js";
 
 const STAGE_MIN_H = 220; // what the timeline always leaves above it for the stage
 const STAGE_MIN_W = 420; // what the side panels always leave between them for the stage
@@ -38,7 +39,13 @@ function installDividers() {
  */
 export function installViews(ctx) {
   installDividers();
-  installRail({ library: ctx.library, tree: ctx.tree });
+  let drawers = null; // made after the rail, which tells it when the left panel opens
+  const rail = installRail({
+    library: ctx.library, tree: ctx.tree,
+    onOpen: () => drawers?.leftOpened(),
+    startClosed: window.matchMedia(NARROW).matches, // on a narrow window the stage comes first
+  });
+  drawers = installDrawers({ rail });
   function setTimelineView(v) {
     $("tl-sahne").setAttribute("aria-pressed", String(v === "sahne"));
     $("tl-bolum").setAttribute("aria-pressed", String(v === "bolum"));

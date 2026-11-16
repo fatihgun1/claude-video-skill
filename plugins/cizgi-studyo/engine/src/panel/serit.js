@@ -3,6 +3,7 @@
 // Which panel is open (or none) is remembered in the browser; it never changes the episode.
 import { $, el, svg } from "./dom.js";
 import { stop as stopSound } from "./dinle.js";
+import { NARROW } from "./cekmece.js";
 
 const KEY = "cizgi.sol";
 /** Stroke paths on a 24×24 grid (round caps), drawn in the button's text colour. */
@@ -31,30 +32,37 @@ export function storedPanel(value) {
 }
 
 /**
- * @param {{library:{show:(kind:string) => void}, tree:{render:() => void}}} ctx
+ * @param {{library:{show:(kind:string) => void}, tree:{render:() => void},
+ *          onOpen?:(id:string) => void, startClosed?:boolean}} ctx
+ *   startClosed: begin with the pane closed without forgetting the stored choice (a narrow window,
+ *   where the pane would cover the stage).
  */
 export function installRail(ctx) {
   let open = null;
+  /** A drawer opened or closed on a narrow window is not remembered as the wide layout's choice. */
+  const remember = () => !window.matchMedia(NARROW).matches;
   const buttons = new Map(PANELS.map(([id, label, paths]) => [id, el("button", {
     class: "rbtn", type: "button", "aria-controls": "left", title: label,
-    on: { click: () => set(open === id ? null : id) },
+    on: { click: () => set(open === id ? null : id, remember()) },
   }, icon(paths), el("span", { text: label }))]));
   $("rail").replaceChildren(...buttons.values());
   $("left-close").addEventListener("click", () => {
     const was = open;
-    set(null);
+    set(null, remember());
     buttons.get(was)?.focus(); // the ✕ is hidden with the pane: the keyboard stays on the rail
   });
 
-  function set(id) {
+  function set(id, remember = true) {
     open = id;
     for (const [key, b] of buttons) b.setAttribute("aria-pressed", String(key === id));
     document.querySelector(".editor").classList.toggle("left-closed", !id);
     $("left").hidden = !id;
-    try {
-      localStorage.setItem(KEY, id || "");
-    } catch {
-      /* storage off: the choice lasts until reload */
+    if (remember) {
+      try {
+        localStorage.setItem(KEY, id || "");
+      } catch {
+        /* storage off: the choice lasts until reload */
+      }
     }
     if (!id || id === "sahneler") stopSound(); // a sound from Ses or Müzik does not play on with no stop button
     if (!id) return;
@@ -63,6 +71,7 @@ export function installRail(ctx) {
     $("lib-pane").hidden = id === "sahneler";
     if (id === "sahneler") ctx.tree.render();
     else ctx.library.show(id);
+    ctx.onOpen?.(id);
   }
 
   let stored = "karakter";
@@ -71,5 +80,17 @@ export function installRail(ctx) {
   } catch {
     /* storage off */
   }
-  set(storedPanel(stored));
+  if (ctx.startClosed) set(null, false);
+  else set(storedPanel(stored));
+  return {
+    /** Close the pane (Esc on a narrow window, or the other drawer opening). */
+    close: () => {
+      if (!open) return;
+      const inside = $("left").contains(document.activeElement);
+      const was = open;
+      set(null, false); // a drawer closing: the wide layout keeps its choice
+      if (inside) buttons.get(was)?.focus({ preventScroll: true }); // the keyboard stays on the rail
+    },
+    isOpen: () => !!open,
+  };
 }

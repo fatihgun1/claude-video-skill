@@ -14,6 +14,7 @@
   </div>
   <button id="story" class="btn small" type="button" title="Hikâye kartları: fikir, karakterler, sahne sahne olaylar (taslak)">Hikâye</button>
   <button id="ep-settings" class="btn small" type="button" title="Bütün bölüm: ses düzeyleri, müzik, altyazı">Bölüm ayarları</button>
+  <button id="insp-toggle" class="btn small narrow-only" type="button" aria-controls="inspector-pane" aria-expanded="false" title="Seçili shot ya da şeyin ayarları">Özellikler</button>
   <ol class="steps" id="steps" aria-label="Üretim adımları"></ol>
   <span class="spacer"></span>
   <span id="state" class="state" role="status"></span>
@@ -64,6 +65,7 @@
     <div class="msgs" id="msgs" aria-live="polite"></div>
   </section>
   <aside class="pane inspector" id="inspector-pane" aria-label="Özellikler">
+    <div class="insp-head narrow-only"><h2>Özellikler</h2><button id="insp-close" class="btn icon" type="button" aria-label="Özellikleri kapat" title="Kapat (Esc)">✕</button></div>
     <details class="claude" id="claude" aria-label="Claude'a yaz"></details>
     <div id="inspector"></div>
   </aside>
