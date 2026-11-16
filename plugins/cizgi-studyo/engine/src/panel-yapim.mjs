@@ -7,7 +7,8 @@
  *   GET  /api/yapim                 {yapimlar: [{id, baslik}]}   folders with a story and no bolum.json yet
  *   GET  /api/yapim/oku?id=         {id, story, version, bolum, errors}   bolum: the episode file when it exists
  *   POST /api/yapim                 {id, story, version}   write the story (valid, over the version read)
- *   POST /api/yapim/olustur         {id}   ask Claude to build the episode from it (needs a Claude session)
+ *   POST /api/yapim/olustur         {id}   ask Claude to build the episode from it (needs a Claude session):
+ *                                   straight to Claude's panel_dinle when it listens, else the request queue
  */
 import { existsSync, mkdirSync, readdirSync, rmdirSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -33,8 +34,8 @@ export function missingForBuild(story) {
   return missing;
 }
 
-/** @param {{root:string, loadLib:() => object, requests:string|null}} opts */
-export function makingRoutes({ root, loadLib, requests }) {
+/** @param {{root:string, loadLib:() => object, requests:string|null, channel?:object}} opts */
+export function makingRoutes({ root, loadLib, requests, channel = null }) {
   const episodePath = (id) => join(root, NEW_EPISODE_DIR, id, EPISODE_FILE);
   const read = (id) => {
     try {
@@ -90,6 +91,9 @@ export function makingRoutes({ root, loadLib, requests }) {
       if (!ok) throw new HttpError(400, errors.join("\n"));
       const missing = missingForBuild(story);
       if (missing.length) throw new HttpError(400, `Oluşturmadan önce eksikler: ${missing.join(", ")}`);
+      // Claude waits in panel_dinle while the person fills the wizard: a request in the queue would
+      // only reach it after that wait (hooks run between turns), so hand it over directly
+      if (channel?.durum().dinliyor) return { kanal: channel.iste({ proje: id, adim: "ozet", tur: "olustur" }) };
       if (!requests) throw new HttpError(409, "Bu panel bir Claude oturumuna bağlı değil: /cizgi-studyo ile aç");
       const update = existsSync(episodePath(id));
       const metin = [

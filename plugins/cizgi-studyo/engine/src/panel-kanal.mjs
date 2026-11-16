@@ -31,6 +31,8 @@ const PICTURE = /^\/(kutuphane|kutuphane-taslak)\/(karakter|mekan|nesne|konsept)
 const MAX_OPTIONS = 8;
 const FIELD = /^[a-z0-9_.-]{1,60}$/; // a wizard field: baslik, istekler.sure, kartlar.k2.mekan…
 const MAX_ASKS = 10;
+/** sor: a field question ("Claude'a sor"); olustur: the person pressed Oluştur (build the episode from the story). */
+const ASK_KINDS = Object.freeze(["sor", "olustur"]);
 const THINKING_MAX_MS = 120_000;
 // eslint-disable-next-line no-control-regex
 const CONTROL = new RegExp("[\\u0000-\\u001f\\u007f\\u2028\\u2029]");
@@ -82,6 +84,10 @@ function cleanAsk(a) {
   if (typeof a.proje !== "string" || !PROJECT_ID.test(a.proje)) throw new Error("proje bir bölüm kimliği olmalı");
   if (!PROJECT_STEPS.includes(a.adim)) throw new Error(`adim şunlardan biri olmalı: ${PROJECT_STEPS.join(", ")}`);
   const out = { proje: a.proje, adim: a.adim };
+  if (a.tur !== undefined) {
+    if (!ASK_KINDS.includes(a.tur)) throw new Error(`tur şunlardan biri olmalı: ${ASK_KINDS.join(", ")}`);
+    if (a.tur !== "sor") out.tur = a.tur;
+  }
   if (a.alan !== undefined) {
     if (typeof a.alan !== "string" || !FIELD.test(a.alan)) throw new Error("alan bir alan adı olmalı");
     out.alan = a.alan;

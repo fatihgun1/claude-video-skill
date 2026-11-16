@@ -20,7 +20,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { queueOf, takeRequests, updateRequest, describe, episodeFile, ANSWERS, MAX_TEXT } from "./istekler.mjs";
 
-const SERVER_INFO = { name: "cizgi-studyo", version: "2.4.2" };
+const SERVER_INFO = { name: "cizgi-studyo", version: "2.4.3" };
 // panel-kanal.mjs PANELS (not imported: engine modules load on first use)
 const PANEL_TABS = ["projeler", "uretim", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"];
 const WAIT_DEFAULT_S = 600;
@@ -141,7 +141,8 @@ const TOOLS = [
     description:
       "Listen for the person's \"Claude'a sor\" clicks in the panel's project wizard. The person fills the wizard fields themselves; " +
       "when they want your help with a field (or a whole step) they click its \"Claude'a sor\" button. This call waits (bekle seconds, default 600) " +
-      "and returns {istekler: [{proje, adim, alan?, etiket?}]}: for each, read bolumler/<proje>/hikaye.json, ask about that field with " +
+      "and returns {istekler: [{proje, adim, alan?, etiket?, tur?}]}. tur 'olustur' means the person pressed Oluştur: build the episode " +
+      "from the story (as for a 'Proje sihirbazından' request in the cizgi-proje skill) and stop listening. Otherwise, read bolumler/<proje>/hikaye.json, ask about that field with " +
       "panel_sor (2-4 suggestion cards), write the answer into hikaye.json, then call panel_dinle again. An empty list means nobody asked: " +
       "call it again while the wizard is open. Do not ask about fields nobody asked about.",
     inputSchema: {

@@ -90,3 +90,21 @@ test("a broken story file is reported, never overwritten silently", () => {
   assert.throws(() => routes["GET /api/yapim/oku"](undefined, new URL("http://p/api/yapim/oku?id=bozuk")), (e) => e.code === 422);
   assert.deepEqual(routes["GET /api/yapim"]().yapimlar, [{ id: "bozuk", baslik: null }]);
 });
+
+test("while Claude listens in panel_dinle, Oluştur goes straight to it instead of the queue", async () => {
+  const { createChannel } = await import("../src/panel-kanal.mjs");
+  const root = mkdtempSync(join(tmpdir(), "cizgi-yapim-"));
+  const queue = join(mkdtempSync(join(tmpdir(), "cizgi-yapim-q-")), "q.jsonl");
+  const channel = createChannel();
+  const routes = makingRoutes({ root, loadLib: () => lib, requests: queue, channel });
+  routes["POST /api/yapim"]({ id: "suluman", story: story(), ...empty });
+  const listening = channel.dinle(5000);
+  assert.deepEqual(routes["POST /api/yapim/olustur"]({ id: "suluman" }), { kanal: { dinliyor: true } });
+  const [ask] = await listening;
+  assert.equal(ask.tur, "olustur");
+  assert.equal(ask.proje, "suluman");
+  assert.equal(readRequests(queue).length, 0, "nothing waits in the queue");
+  // nobody listening: the queue, as before
+  const { istek } = routes["POST /api/yapim/olustur"]({ id: "suluman" });
+  assert.ok(istek.id);
+});

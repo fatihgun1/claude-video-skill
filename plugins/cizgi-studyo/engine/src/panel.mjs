@@ -183,6 +183,7 @@ export function createPanel(opts) {
     renameSync(tmp, path);
   }
 
+  const channel = opts.channel ?? createChannel(); // Claude moves the panel and asks in it; Oluştur reaches its listening call
   const routes = {
     "GET /api/bolumler": () => {
       const lib = opts.loadLib();
@@ -314,9 +315,9 @@ export function createPanel(opts) {
     // Drafts in the project library (kutuphane/taslak): look, take in, put aside
     ...draftRoutes({ project: opts.project ?? null, loadLib: (fresh) => opts.loadLib(fresh) }),
     // Claude moving the panel and asking in it (MCP panel_git, panel_sor); a panel of its own when none is given
-    ...channelRoutes(opts.channel ?? createChannel()),
+    ...channelRoutes(channel),
     // The project wizard: an episode's wishes in its story before (or after) it has a bolum.json
-    ...makingRoutes({ root, loadLib: () => opts.loadLib(), requests: opts.requests ?? null }),
+    ...makingRoutes({ root, loadLib: () => opts.loadLib(), requests: opts.requests ?? null, channel }),
   };
 
   /** Both senders return true: "the request has been answered". */
