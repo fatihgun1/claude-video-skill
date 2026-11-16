@@ -110,7 +110,7 @@ export function createChannel(ctx) {
     box.hidden = !show;
     chip.hidden = !(question && later);
     // a modal dialog (the project wizard) hides everything behind it: the chip goes inside it then
-    const modal = ctx.projectSlot?.();
+    const modal = ctx.projectSlot?.() || document.querySelector("#uretim[open]"); // Üretim is a modal page too
     if (modal && chip.parentElement !== modal) modal.append(chip);
     else if (!modal && chip.parentElement !== document.body) document.body.append(chip);
     if (!show) return;

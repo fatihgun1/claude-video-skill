@@ -1,12 +1,19 @@
-// The wizard Claude moves on (MCP panel_adim, see panel-kanal.mjs): a drawer on the right with the
-// steps of a multi-step job, the current step's note and pictures, and a slot where Claude's open
-// question (panel_sor) shows. It can be made small (a chip stays at the bottom) and closed once done.
+// The wizard Claude moves on (MCP panel_adim, see panel-kanal.mjs): a slide-over on the right edge
+// with the steps of a multi-step job, the current step's note and pictures, and a slot where Claude's
+// open question (panel_sor) shows. It can be made small (a chip stays at the bottom) and closed once done.
+// While the Üretim page is open (a modal: nothing behind it can be seen), the drawer docks into that
+// page's Claude column instead, so it never hides behind it or covers the page.
 // All text comes from Claude's tool call and is drawn as text; pictures are the panel's own drawings.
 import { el } from "./dom.js";
 
-const MARK = { sirada: "○", calisiyor: "◐", bekliyor: "●", bitti: "✓", hata: "!" };
+// a finished or failed step shows its mark; the others their number (the colour says the state)
+const MARK = { bitti: "✓", hata: "!" };
 const STATE_TEXT = { sirada: "sırada", calisiyor: "Claude çalışıyor", bekliyor: "senden bekleniyor", bitti: "bitti", hata: "olmadı" };
+// the Üretim page's Claude column (uretim.js keeps these elements across its redraws)
+const DOCK = "#uretim[open] .uretim-sihirbaz";
+const QUESTION_DOCK = "#uretim[open] .uretim-soru";
 
+/** @returns {{set:(w:object|null) => void, slot:() => HTMLElement|null, shrink:() => void, grow:() => void}} */
 export function createWizard() {
   let current = null; // the wizard as the server sent it
   let small = false;
@@ -16,23 +23,37 @@ export function createWizard() {
   const chip = el("button", { class: "sihirbaz-cip", type: "button", hidden: true, on: { click: () => { small = false; render(); } } });
   document.body.append(box, chip);
 
+  const open = () => (current && current.id !== dismissed ? current : null);
   const position = (w) => {
     const at = w.adimlar.findIndex((a) => a.id === w.aktif);
     return at < 0 ? 0 : at + 1;
   };
 
-  function step(a, active) {
+  /** Drawer over the editor, or docked in the Üretim page while it is open. */
+  function place() {
+    const dock = document.querySelector(DOCK);
+    const home = dock || document.body;
+    if (box.parentElement !== home) home.append(box, chip);
+    box.classList.toggle("docked", !!dock);
+    chip.classList.toggle("docked", !!dock);
+    box.setAttribute("role", dock ? "region" : "dialog");
+  }
+
+  function step(a, active, i) {
     return el("li", { class: `sadim ${a.durum}${active ? " aktif" : ""}`, "aria-current": active ? "step" : null },
-      el("span", { class: "sisaret", "aria-hidden": "true", text: MARK[a.durum] || "○" }),
+      el("span", { class: "sisaret", "aria-hidden": "true", text: MARK[a.durum] || String(i + 1) }),
       el("div", { class: "sgovde" },
         el("span", { class: "sbaslik", text: a.baslik }),
         el("span", { class: "sdurum", text: STATE_TEXT[a.durum] || a.durum }),
         active && a.aciklama ? el("p", { class: "saciklama", text: a.aciklama }) : null,
-        active && a.gorsel.length ? el("div", { class: "sgorseller" }, a.gorsel.map((src) => el("img", { src, alt: "", loading: "lazy" }))) : null));
+        active && a.gorsel.length
+          ? el("div", { class: "sgorseller" }, a.gorsel.map((src, n) => el("img", { src, alt: `${a.baslik}: görsel ${n + 1}`, loading: "lazy" })))
+          : null));
   }
 
   function render() {
-    const w = current && current.id !== dismissed ? current : null;
+    place();
+    const w = open();
     box.hidden = !w || small;
     chip.hidden = !w || !small;
     if (!w) return;
@@ -44,10 +65,12 @@ export function createWizard() {
       el("div", { class: "sust" },
         el("span", { class: "skim", text: "Claude ile birlikte" }),
         w.bitti
-          ? el("button", { class: "btn small", type: "button", text: "Kapat", on: { click: () => { dismissed = w.id; render(); } } })
-          : el("button", { class: "btn small", type: "button", text: "Küçült", title: "Panelde çalışmaya devam et; alttaki düğmeyle geri gelir", on: { click: () => { small = true; render(); } } })),
-      el("h3", { id: "sihirbaz-baslik", text: w.baslik }),
-      el("ol", { class: "sadimlar" }, w.adimlar.map((a) => step(a, a.id === w.aktif))),
+          ? el("button", { class: "btn small ghost", type: "button", text: "Kapat", on: { click: () => { dismissed = w.id; render(); } } })
+          : el("button", { class: "btn small ghost", type: "button", text: "Küçült", title: "Panelde çalışmaya devam et; alttaki düğmeyle geri gelir", on: { click: () => { small = true; render(); } } })),
+      el("div", { class: "sihirbaz-bas" },
+        el("h3", { id: "sihirbaz-baslik", text: w.baslik }),
+        el("p", { class: "sihirbaz-sayac", text: w.bitti ? "Bütün adımlar bitti." : `Adım ${position(w)} / ${w.adimlar.length}` })),
+      el("ol", { class: "sadimlar" }, w.adimlar.map((a, i) => step(a, a.id === w.aktif, i))),
       slot,
     ]);
   }
@@ -55,13 +78,17 @@ export function createWizard() {
   return {
     /** The wizard from the last poll (null: none). A new wizard opens big. */
     set(w) {
+      place(); // the Üretim page may have opened or closed since the last poll
       if ((w?.id ?? null) === (current?.id ?? null) && (w?.seq ?? null) === (current?.seq ?? null)) return; // nothing new: no redraw
       if (w && current?.id !== w.id) small = false;
       current = w;
       render();
     },
-    /** Where a question goes, or null when no open wizard can hold it. */
-    slot: () => (current && current.id !== dismissed && !small ? slot : null),
+    /**
+     * Where a question goes, or null when it floats over the editor: the open wizard's slot, else the
+     * Üretim page's Claude column while that page is open (a floating box would hide behind it).
+     */
+    slot: () => (open() && !small ? slot : document.querySelector(QUESTION_DOCK)),
     /** Make room so the person sees what Claude pointed at. */
     shrink() {
       if (!current || small) return;

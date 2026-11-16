@@ -3,8 +3,9 @@
 // captions off (episode.altyazi.kapali) and edging each caption with its speaker's colour
 // (konusan_rengi, characters[].renk).
 // A line's own on/off is in its details (and a click on its block in the Altyazı track).
-import { el, select } from "./dom.js";
+import { el } from "./dom.js";
 import { captionPlace, speakerColor } from "./altyazi.mjs";
+import { labelled, segment, check } from "./denetleyici-alan.js";
 
 const PLACES = [{ id: "alt", label: "Alt" }, { id: "ust", label: "Üst" }, { id: "orta", label: "Orta" }];
 const SIZES = [{ id: "kucuk", label: "Küçük" }, { id: "orta", label: "Orta" }, { id: "buyuk", label: "Büyük" }];
@@ -24,18 +25,18 @@ function setIn(owner, key, field, value) {
  * @param {object} scene the selected shot's scene (changed in place)
  * @param {string} format "16:9" | "9:16" (the defaults differ)
  * @param {() => void} changed
+ * @returns {HTMLElement}
  */
 export function sceneCaption(scene, format, changed) {
   const def = captionPlace({}, format);
-  const place = select(scene.altyazi?.konum, PLACES, (v) => { setIn(scene, "altyazi", "konum", v); changed(); },
-    { empty: `${labelOf(PLACES, def.konum)} (${format} için)` });
-  place.setAttribute("aria-label", "Altyazının yeri");
-  const size = select(scene.altyazi?.boyut, SIZES, (v) => { setIn(scene, "altyazi", "boyut", v); changed(); },
-    { empty: `${labelOf(SIZES, def.boyut)} (varsayılan)` });
-  size.setAttribute("aria-label", "Altyazının boyutu");
-  return el("div", { class: "kfields" },
-    el("label", {}, el("span", { class: "muted small", text: "Yer" }), place),
-    el("label", {}, el("span", { class: "muted small", text: "Boyut" }), size));
+  // "Varsayılan" follows the format, so it is a choice of its own; the hint says what it gives
+  const place = segment(scene.altyazi?.konum, PLACES, (v) => { setIn(scene, "altyazi", "konum", v); changed(); },
+    { empty: "Varsayılan", label: "Altyazının yeri" });
+  const size = segment(scene.altyazi?.boyut, SIZES, (v) => { setIn(scene, "altyazi", "boyut", v); changed(); },
+    { empty: "Varsayılan", label: "Altyazının boyutu" });
+  return el("div", { class: "ifields" },
+    labelled("Yer", place, `Varsayılan: ${format} için ${labelOf(PLACES, def.konum).toLocaleLowerCase("tr")}.`),
+    labelled("Boyut", size, `Varsayılan: ${labelOf(SIZES, def.boyut).toLocaleLowerCase("tr")}.`));
 }
 
 /**
@@ -43,37 +44,36 @@ export function sceneCaption(scene, format, changed) {
  * @param {object} episode the draft (changed in place)
  * @param {(id:string) => string} labelOfCharacter
  * @param {() => void} changed
+ * @returns {HTMLElement}
  */
 export function episodeCaption(episode, labelOfCharacter, changed) {
   const off = !!episode.altyazi?.kapali;
-  const check = (text, on, set) => {
-    const box = el("input", { type: "checkbox", checked: on });
-    box.addEventListener("change", () => { set(box.checked); changed(); });
-    return el("label", { class: "row-inline small" }, box, el("span", { text }));
-  };
   const coloured = !!episode.altyazi?.konusan_rengi;
   const colours = coloured && !off
-    ? el("div", { class: "kfields" }, episode.characters.map((c) => {
+    ? el("div", { class: "colours" }, episode.characters.map((c) => {
       const pick = el("input", { type: "color", value: speakerColor(episode, c.id), "aria-label": `${labelOfCharacter(c.id)} rengi` });
       pick.addEventListener("change", () => { c.renk = pick.value; changed(); });
-      return el("label", {}, el("span", { class: "muted small", text: labelOfCharacter(c.id) }), pick);
+      return el("label", { class: "colour" }, pick, el("span", { text: labelOfCharacter(c.id) }));
     }))
     : null;
-  return el("div", {},
-    check("Altyazı yok", off, (v) => setIn(episode, "altyazi", "kapali", v)),
-    off ? null : check("Konuşanın rengiyle çerçevele", coloured, (v) => setIn(episode, "altyazi", "konusan_rengi", v)),
+  return el("div", { class: "ifields" },
+    check("Altyazı yok", off, (v) => { setIn(episode, "altyazi", "kapali", v); changed(); }),
+    off ? null : check("Konuşanın rengiyle çerçevele", coloured, (v) => { setIn(episode, "altyazi", "konusan_rengi", v); changed(); }),
     colours);
 }
 
-/** A line's own caption switch (its text is always the line). */
+/**
+ * A line's own caption switch (its text is always the line).
+ * @param {object} episode the draft (read: are captions off for the whole episode?)
+ * @param {object} u the line (changed in place)
+ * @param {() => void} changed
+ * @returns {HTMLLabelElement}
+ */
 export function lineCaption(episode, u, changed) {
   const off = !!episode.altyazi?.kapali;
-  const box = el("input", { type: "checkbox", checked: u.altyazi !== false, disabled: off, "aria-label": "Altyazıda göster" });
-  box.addEventListener("change", () => {
-    if (box.checked) delete u.altyazi;
+  return check(off ? "Altyazı (bölümde kapalı)" : "Altyazıda göster", u.altyazi !== false, (on) => {
+    if (on) delete u.altyazi;
     else u.altyazi = false;
     changed();
-  });
-  return el("label", { class: "row-inline small", title: off ? "Bölümün altyazıları kapalı" : "" }, box,
-    el("span", { text: off ? "Altyazı (bölümde kapalı)" : "Altyazıda göster" }));
+  }, { disabled: off, title: off ? "Bölümün altyazıları kapalı" : undefined });
 }

@@ -245,7 +245,7 @@ test("library files are served by id only", async () => {
 
 test("every module the panel page imports is served", async () => {
   const page = (await call("GET", "/")).text;
-  const queue = [...page.matchAll(/(?:src|href)="\/panel\/([a-z]+\.(?:m?js|css))"/g)].map((m) => m[1]);
+  const queue = [...page.matchAll(/(?:src|href)="\/panel\/([a-z][a-z0-9-]*\.(?:m?js|css))"/g)].map((m) => m[1]);
   const seen = new Set();
   while (queue.length) {
     const name = queue.shift();
@@ -253,9 +253,10 @@ test("every module the panel page imports is served", async () => {
     seen.add(name);
     const res = await call("GET", `/panel/${name}`);
     assert.equal(res.status, 200, name);
-    for (const m of res.text.matchAll(/from "\.\/([a-z]+\.m?js)"/g)) queue.push(m[1]);
+    for (const m of res.text.matchAll(/from "\.\/([a-z][a-z0-9-]*\.m?js)"/g)) queue.push(m[1]);
   }
   assert.ok(seen.has("kurgu.js") && seen.has("zaman.js") && seen.has("muzik.mjs"));
+  assert.ok(seen.has("denetleyici-alan.js") && seen.has("ui-uretim.css"), "names with hyphens are followed too");
 });
 
 test("the engine's music envelope is shared with the panel as a JavaScript module", async () => {

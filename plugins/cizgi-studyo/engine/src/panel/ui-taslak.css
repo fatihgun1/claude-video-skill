@@ -1,0 +1,118 @@
+/* taslak: UX redesign (2.4.0). Loaded after panel.css: rules here override it.
+   Drafts (taslak.js) and "Claude'a yaz" (istek.js), in the project wizard's language: labels above
+   fields (.pfield), dashed empty frames (.pbos), ✦ on what goes to Claude, status lines with a dot or
+   a spinner. Spacing on a 4/8 grid, panel.css tokens only. */
+
+/* ---------- shared ---------- */
+.tsl-durum, .ist-durum { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 12px; color: var(--muted); }
+.tsl-durum .nokta, .ist-durum .nokta { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.tsl-durum .cark, .ist-durum .cark { flex: none; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); animation: tsl-cark .9s linear infinite; }
+@keyframes tsl-cark { to { transform: rotate(360deg); } }
+.tsl-durum.tamam { color: var(--ok); }
+.tsl-durum.tamam .nokta { background: var(--ok); }
+/* a loader appears only after 100 ms, so a quick answer never flashes it (visibility, not motion) */
+.tsl-gecikmeli { animation: tsl-belir 0s linear 100ms both; }
+@keyframes tsl-belir { from { visibility: hidden; } to { visibility: visible; } }
+.tsl textarea, .ist textarea { width: 100%; min-height: 72px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--pane); color: var(--text); font: inherit; line-height: 1.45; resize: vertical; }
+.tsl textarea:focus-visible, .ist textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+.tsl .btn.small, .ist .btn.small, .tsl-dlg .btn.small { min-height: 32px; padding: 4px 12px; }
+.tsl .btn[aria-busy="true"], .ist .btn[aria-busy="true"], .tsl-dlg .btn[aria-busy="true"] { cursor: progress; opacity: .7; }
+.tsl-claude { color: var(--accent); }
+
+/* ---------- drafts in the left panel ---------- */
+.tsl { display: flex; flex-direction: column; gap: 16px; min-width: 0; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--line); }
+.tsl-bas { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.tsl-baslik { margin: 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.tsl-baslik:focus { outline: none; }
+.tsl-baslik:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tsl-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.tsl-oge { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 8px 12px; padding: 8px; border: 1px dashed var(--warn); border-radius: var(--radius); background: var(--pane-2); }
+.tsl-oge.hatali { border-color: var(--err); }
+.tsl-resim { width: 80px; aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: 6px; background: var(--pane-3); }
+.tsl-resim.genis { aspect-ratio: 16 / 9; align-self: start; }
+.tsl-resim img { width: 100%; height: 100%; object-fit: contain; }
+.tsl-resim .why, .tsl-kare .why { padding: 4px; font-size: 11px; text-align: center; color: var(--muted); }
+.tsl-govde { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.tsl-ust { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.tsl-ad { font-weight: 600; overflow-wrap: anywhere; }
+.tsl-rozet { flex: none; padding: 0 8px; border-radius: 999px; background: var(--warn); color: var(--bg); font-size: 11px; font-weight: 600; line-height: 20px; }
+.tsl-rozet.guncelleme { background: var(--select); }
+.tsl-meta { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.tsl-not { margin: 4px 0 0; padding: 4px 8px; border-left: 2px solid var(--line); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.tsl-hatalar { margin: 4px 0 0; padding-left: 16px; font-size: 12px; color: var(--err); }
+.tsl-eylem { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tsl-eylem .tsl-reddet { margin-left: auto; } /* the secondary, reversible action sits apart from the primary */
+.tsl-engel { font-size: 12px; color: var(--err); }
+.tsl-hata { margin: 0; font-size: 12px; color: var(--err); }
+.tsl-sorun { padding: 8px 12px; border: 1px solid var(--warn); border-radius: var(--radius); background: color-mix(in srgb, var(--warn) 8%, var(--pane-2)); color: var(--warn); font-size: 12px; }
+.tsl-sorun ul { margin: 4px 0 0; padding-left: 16px; }
+.tsl-bos { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px; }
+.tsl-bos p { margin: 0; }
+.tsl-bos-bas { color: var(--text); font-weight: 600; }
+/* asking Claude for a new drawing or effect */
+.tsl-iste { padding: 12px; border-radius: var(--radius); background: var(--pane-2); }
+.tsl-iste-alt { display: flex; justify-content: flex-end; }
+
+/* ---------- the comparison / reject dialog ---------- */
+.tsl-dlg { width: min(880px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--pane); color: var(--text); box-shadow: 0 16px 48px var(--bg); }
+.tsl-dlg.dar { width: min(440px, calc(100vw - 32px)); }
+.tsl-dlg::backdrop { background: color-mix(in srgb, var(--bg) 70%, transparent); }
+.tsl-dlg-ic { display: flex; flex-direction: column; gap: 16px; padding: 24px; }
+.tsl-dlg h2 { margin: 0; font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+.tsl-dlg p { margin: 0; }
+.tsl-dlg-bas { display: flex; flex-direction: column; gap: 4px; }
+.tsl-split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.tsl-split figure { margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.tsl-kare { aspect-ratio: 4 / 3; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--pane-2); }
+.tsl-kare img { width: 100%; height: 100%; object-fit: contain; }
+.tsl-split figure.yeni .tsl-kare { border-color: var(--select); }
+.tsl-split figcaption { font-size: 12px; font-weight: 600; color: var(--muted); }
+.tsl-dlg-alt { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; }
+.tsl-dlg-alt .bosluk { flex: 1; }
+.btn.tsl-sil { background: var(--err); border-color: var(--err); color: var(--bg); font-weight: 600; }
+.btn.tsl-sil:hover:not(:disabled) { background: color-mix(in srgb, var(--err) 85%, var(--text)); }
+
+/* ---------- "Claude'a yaz" in the inspector ---------- */
+.ist { display: flex; flex-direction: column; gap: 16px; padding-bottom: 4px; }
+.ist-yuva:empty { display: none; }
+.ist-yuva .confirm { margin: 0; }
+.ist-yuva .confirm span { min-width: 0; }
+.ist-form { display: flex; flex-direction: column; gap: 12px; }
+.ist-konu { display: flex; flex-direction: column; gap: 8px; }
+.ist-hedefler { display: flex; flex-wrap: wrap; gap: 4px; }
+.ist-cip { max-width: 100%; min-height: 28px; padding: 2px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--pane); color: var(--muted); font: inherit; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.ist-cip:hover { border-color: var(--muted); color: var(--text); }
+.ist-cip.secili { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--pane)); color: var(--text); font-weight: 600; }
+.ist-alt { display: flex; justify-content: flex-end; }
+.ist-not { margin: 0; font-size: 12px; color: var(--muted); }
+.ist-istekler { display: flex; flex-direction: column; gap: 8px; }
+.ist-liste-bas { margin: 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.ist-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ist-istek { display: flex; flex-direction: column; gap: 4px; padding: 8px 12px; border-radius: var(--radius); background: var(--pane-2); }
+.ist-durum b { flex: none; font-weight: 600; color: var(--text); }
+.ist-durum.iletildi .nokta { background: var(--accent); }
+.ist-durum.alindi b { color: var(--accent); }
+.ist-durum.yapildi .nokta { background: var(--ok); }
+.ist-durum.soru .nokta { background: var(--select); }
+.ist-durum.soru b { color: var(--select); }
+.ist-durum.olmadi .nokta { background: var(--err); }
+.ist-durum.olmadi b { color: var(--err); }
+.ist-durum.bayat b { color: var(--muted); font-weight: 400; }
+.ist-zaman { min-width: 0; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ist-metin { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ist-yanit { display: flex; flex-direction: column; gap: 4px; padding: 8px 12px; border-left: 2px solid var(--accent); border-radius: 0 6px 6px 0; background: var(--pane); }
+.ist-yanit.soru { border-color: var(--select); }
+.ist-yanit.olmadi { border-color: var(--err); }
+.ist-yanit p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ist-kim { font-size: 11px; font-weight: 600; color: var(--accent); }
+.ist-bos { margin: 0; padding: 16px; border: 1px dashed var(--line); border-radius: var(--radius); color: var(--muted); text-align: center; }
+
+/* ---------- narrow screens and reduced motion ---------- */
+@media (max-width: 600px) {
+  .tsl-split { grid-template-columns: 1fr; }
+  .tsl-dlg-ic { padding: 16px; }
+  .tsl-dlg-alt .bosluk { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tsl-durum .cark, .ist-durum .cark { animation: none; }
+}

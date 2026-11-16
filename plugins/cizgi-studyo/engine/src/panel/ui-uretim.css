@@ -1,0 +1,93 @@
+/* uretim: UX redesign (2.4.0). Loaded after panel.css: rules here override it. */
+
+/* Üretim (uretim.js) as a full-screen work page, in the project wizard's frame (psih-* in panel.css):
+   stages | current stage | Claude. Only #uretim: #inceleme shares the dialog's classes. */
+#uretim.uretim-sayfa { position: fixed; inset: 0; width: 100vw; height: 100vh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: var(--bg); overflow: hidden; }
+#uretim.uretim-sayfa[open] { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+#uretim .psih-baslik > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* stages: number, name and a one-word state under it */
+.uretim-adim { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+.uretim-adim small { font-size: 12px; font-weight: 400; color: var(--muted); }
+#uretim .psih-adimlar .eski .padim-no { border-color: var(--warn); color: var(--warn); }
+#uretim .psih-adimlar .suruyor .padim-no { border-color: var(--accent); }
+#uretim .psih-adimlar .suruyor small { color: var(--accent); }
+
+/* the centre: wider than a form so the script table fits; prose stays readable */
+#uretim .uretim-sutun { max-width: 880px; }
+#uretim .psih-form h3 { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+#uretim .psih-form .pstate { font-size: 12px; padding: 2px 8px; }
+#uretim .pstate.stale { background: color-mix(in srgb, var(--warn) 20%, var(--pane-2)); color: var(--text); }
+#uretim .psih-aciklama, #uretim .uretim-not, #uretim .pgovde > p { max-width: 70ch; }
+.uretim-mesaj { margin: 0 0 16px; }
+#uretim .psih-bilgi { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#uretim .pjob { margin: 0 0 24px; padding: 12px 16px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+#uretim .pjob .pprog { align-self: stretch; margin: 0; }
+#uretim .pjob .plog, #uretim .pjob .perr { align-self: stretch; margin: 0; }
+
+/* a block of the stage: heading, one line, content */
+.uretim-blok { display: flex; flex-direction: column; gap: 12px; }
+#uretim .uretim-blok h4, #uretim .uretim-onay h4 { margin: 0; font-size: 15px; font-weight: 600; }
+.uretim-not { margin: 0; color: var(--muted); font-size: 13px; }
+.uretim-liste { margin: 0; padding-left: 16px; }
+/* the open decisions: a narrow form inside the wide column, set apart as the thing to do first */
+.uretim-kararlar { max-width: 640px; padding: 16px; border: 1px solid var(--select); border-radius: var(--radius); background: var(--pane); gap: 16px; }
+#uretim .ptablo-kap { max-height: 60vh; margin: 0; }
+#uretim .ptablo { font-size: 13px; }
+#uretim .ptablo td { max-width: 40ch; }
+
+/* a main action with its hint or error in the slot under it */
+.uretim-eylem { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.uretim-eylem .btn { min-height: 36px; padding: 8px 16px; }
+.uretim-eylem .btn[aria-busy="true"] { cursor: progress; opacity: .8; }
+.uretim-satir { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+/* the approval: what it records, then the person's button */
+.uretim-onay { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--pane); }
+p.uretim-onay { margin: 0; border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); }
+
+#uretim .psheets { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin: 0; }
+#uretim .pvideo { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+#uretim .pvideo figcaption { font-size: 12px; overflow-wrap: anywhere; }
+.pbos { display: flex; flex-direction: column; gap: 4px; }
+.pbos .uretim-bos-baslik { font-weight: 600; color: var(--text); }
+
+/* Claude's column: the empty line goes once steps or a question are in it */
+.uretim-claude .uretim-sihirbaz:empty, .uretim-claude .uretim-soru:empty { display: none; }
+.uretim-claude .uretim-claude-bos { margin: 0; max-width: 40ch; }
+.uretim-claude:has(.sihirbaz:not([hidden]), .sihirbaz-cip:not([hidden]), .uretim-soru .kanal-soru:not([hidden])) .uretim-claude-bos { display: none; }
+
+/* The Claude step drawer (sihirbaz.js): a slide-over from the right edge over the editor. */
+.sihirbaz { top: 64px; right: 16px; bottom: 16px; width: min(440px, calc(100vw - 32px)); gap: 16px; padding: 16px; background: var(--pane); border: 1px solid var(--line); border-radius: var(--radius); }
+.sihirbaz .sust { gap: 8px; }
+.sihirbaz-bas { display: flex; flex-direction: column; gap: 4px; }
+#uretim .sihirbaz h3, .sihirbaz h3 { margin: 0; font-size: 16px; font-weight: 600; text-transform: none; letter-spacing: normal; color: var(--text); }
+.sihirbaz-sayac { margin: 0; font-size: 12px; color: var(--muted); }
+.sihirbaz .sadimlar { gap: 4px; }
+.sihirbaz .sadim { gap: 12px; padding: 8px 12px; border: 1px solid transparent; }
+.sihirbaz .sadim.aktif { background: var(--pane-2); border-color: var(--line); box-shadow: inset 3px 0 0 var(--accent); }
+.sihirbaz .sadim.bekliyor.aktif { box-shadow: inset 3px 0 0 var(--select); }
+.sihirbaz .sadim.sirada .sbaslik { color: var(--muted); font-weight: 400; }
+.sihirbaz .sisaret { width: 24px; height: 24px; }
+.sihirbaz .sdurum { font-size: 12px; }
+.sihirbaz .saciklama { margin: 8px 0 0; max-width: 70ch; color: var(--text); }
+.sihirbaz .sgorseller { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-top: 8px; }
+.sihirbaz .sgorseller img { height: 120px; border: 1px solid var(--line); border-radius: var(--radius); }
+.sihirbaz-soru:empty { display: none; }
+.sihirbaz-soru .kanal-soru.docked .kanal-kartlar { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+@media (prefers-reduced-motion: no-preference) {
+  .sihirbaz:not(.docked) { animation: sihirbaz-gir .2s ease-out; }
+}
+@keyframes sihirbaz-gir { from { transform: translateX(16px); opacity: 0; } }
+
+/* docked in the Üretim page's Claude column: part of the column, not floating over the page */
+.sihirbaz.docked { position: static; width: auto; max-height: none; overflow: visible; padding: 0; border: 0; background: none; box-shadow: none; }
+.sihirbaz-cip.docked { position: static; transform: none; max-width: 100%; align-self: flex-start; }
+.uretim-claude .kanal-soru.docked .kanal-kartlar { grid-template-columns: 1fr; }
+
+/* narrow: the project wizard's frame already stacks the columns (panel.css); the page scrolls as one */
+@media (max-width: 760px) {
+  #uretim .psih-alt .psih-sutun { flex-wrap: wrap; }
+  #uretim .uretim-kararlar { padding: 12px; }
+  #uretim .psheets { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .sihirbaz { top: auto; right: 8px; left: 8px; bottom: 8px; width: auto; max-height: 70vh; }
+}

@@ -3,7 +3,9 @@
 //   nothing: the shot (camera and its rows, a click opens one), then its scene in a closed section;
 //   the episode (Bölüm ayarları, the timeline's Mikser): bolum-ayar.js.
 // Every control only offers library words and commits through ctx.changed().
-import { el, select, number, field, setKey } from "./dom.js";
+// Look: a header naming the selection, titled sections, labels above controls (denetleyici-alan.js).
+import { el, select, number, setKey } from "./dom.js";
+import { header, section, quietSection, folded, labelled, segment, valueSlider, percent, withUnit, check, dangerButton } from "./denetleyici-alan.js";
 import { rigThumb } from "./kutuphane.js";
 import { listen } from "./dinle.js";
 import { segmentSpans, replaceSegmentAction, moveSegmentStart, removeSegment, addLine, removeLine, rowOfMessage } from "./kurgu.js";
@@ -28,6 +30,10 @@ function listenDetail(check) {
 
 const MARK_TEXT = { sol: "sol", orta: "orta", sag: "sağ" };
 const FACING_TEXT = { sag: "sağa", sol: "sola" };
+/** Words on buttons start with a capital; the same words inside a sentence do not. */
+const cap = (s) => s.charAt(0).toLocaleUpperCase("tr") + s.slice(1);
+const markOptions = (marks) => marks.map((k) => ({ id: k, label: cap(MARK_TEXT[k] || k) }));
+const twoDecimals = (x) => x.toFixed(2);
 
 /**
  * @param {HTMLElement} box
@@ -48,10 +54,9 @@ export function createInspector(box, ctx) {
   const hear = (id) => listen(`/kutuphane/ses/${id}.wav`);
   const labelIn = (list, id) => (list.find((x) => x.id === id) || { label: id }).label;
 
-  function row({ key, img, title, meta, onPick, onDelete, deleteText, badge }) {
-    const del = onDelete
-      ? el("button", { class: "btn small danger", title: deleteText, "aria-label": deleteText, on: { click: (e) => { e.stopPropagation(); onDelete(); } } }, "Sil")
-      : null;
+  function row({ key, img, title, meta, onPick, onDelete, deleteText, deleteQuestion, badge }) {
+    const del = onDelete ? dangerButton("Sil", deleteQuestion, onDelete, { title: deleteText }) : null;
+    if (del) del.setAttribute("aria-label", deleteText);
     return el("div", { class: "item", role: "button", tabindex: "0", "data-row": key,
       on: { click: onPick, keydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPick(); } } } },
     img, el("div", { class: "grow" }, el("div", { text: title }), el("div", { class: "meta", text: meta })), badge || null, del);
@@ -83,11 +88,7 @@ export function createInspector(box, ctx) {
 
   /** 0 = front ground line, 1 = as far back as it goes (higher and smaller). */
   function depth(m) {
-    const range = el("input", { type: "range", min: 0, max: 1, step: 0.05, value: m.back ?? 0, "aria-label": "Derinlik" });
-    const out = el("span", { class: "muted small", text: (m.back ?? 0).toFixed(2) });
-    range.addEventListener("input", () => { out.textContent = Number(range.value).toFixed(2); });
-    range.addEventListener("change", () => { setKey(m, "back", Number(range.value) || undefined); ctx.changed(true); });
-    return el("div", { class: "row-inline" }, el("span", { class: "muted small", text: "ön" }), range, el("span", { class: "muted small", text: "arka" }), out);
+    return valueSlider(m.back ?? 0, { label: "Derinlik", show: twoDecimals, onSet: (x) => { setKey(m, "back", x || undefined); ctx.changed(true); } });
   }
 
   /**
@@ -110,19 +111,21 @@ export function createInspector(box, ctx) {
     },
     el("span", { class: "seg-n", text: `${s.index + 1}.` }),
     el("div", { class: "seg-act" }, select(s.action, v.actions, (val) => { replaceSegmentAction(m, s.index, val, ctx.isLoop, t && len); ctx.changed(true); })),
-    el("label", { class: "seg-num" }, el("span", { text: "başlar" }),
+    el("label", { class: "seg-num", title: "Shot'ın başından kaç saniye sonra başlar" }, el("span", { text: "başlar (s)" }),
       s.index
         ? number(s.start, (val) => { moveSegmentStart(m, s.index, val ?? s.start, len, ctx.isLoop); ctx.changed(true); }, { min: 0.05, step: 0.05 })
         : el("b", { class: "muted small", text: "baştan" })),
-    el("label", { class: "seg-num" }, el("span", { text: "içinden" }),
+    el("label", { class: "seg-num", title: "Hareketin kaçıncı saniyesinden oynar" }, el("span", { text: "içinden (s)" }),
       number(s.from || undefined, (val) => setFrom(s.index, val), { min: 0, step: 0.05 })),
     s.index
-      ? el("button", { class: "btn small danger", type: "button", title: "Bu hareketi diziden çıkar", on: { click: () => { removeSegment(m, s.index, ctx.isLoop, t && len); ctx.select("cast", shot.cast.indexOf(m)); ctx.changed(true); } } }, "Sil")
+      ? dangerButton("Sil", `${s.index + 1}. hareket (“${labelIn(v.actions, s.action)}”) diziden çıkarılsın mı?`,
+        () => { removeSegment(m, s.index, ctx.isLoop, t && len); ctx.select("cast", shot.cast.indexOf(m)); ctx.changed(true); },
+        { title: "Bu hareketi diziden çıkar" })
       : el("span")));
     return el("div", { class: "seq" },
       el("div", { class: "seg-head", text: "Hareketler (sırayla)" }),
       rows,
-      el("p", { class: "muted small", text: "Yeni hareket: soldaki Hareket panelinde + Ekle (oynatma kafasının olduğu anda başlar)." }));
+      el("p", { class: "field-hint", text: "Yeni hareket: soldaki Hareket panelinde + Ekle (oynatma kafasının olduğu anda başlar)." }));
   }
 
   /** Turkish names of the rigs' colour variables (others show as they are). */
@@ -149,7 +152,6 @@ export function createInspector(box, ctx) {
       ctx.changed(true);
     };
     return el("div", { class: "colours" },
-      el("p", { class: "muted small", text: `${ctx.labelOf(m.id)} bütün shot'larda bu renklerle çizilir.` }),
       vars.map(([key, base]) => {
         const own = ch.palette?.[key];
         const pick = el("input", { type: "color", value: own || base || "#000000", "aria-label": `${COLOUR_NAMES[key] || key} rengi` });
@@ -157,7 +159,7 @@ export function createInspector(box, ctx) {
         return el("div", { class: "colour" },
           pick,
           el("span", { text: COLOUR_NAMES[key] || key }),
-          own ? el("button", { class: "btn small", type: "button", title: "Çizimdeki renge dön", on: { click: () => set(key, undefined) } }, "↺") : null);
+          own ? el("button", { class: "btn small ghost", type: "button", title: "Çizimdeki renge dön", "aria-label": `${COLOUR_NAMES[key] || key}: çizimdeki renge dön`, on: { click: () => set(key, undefined) } }, "↺") : null);
       }));
   }
 
@@ -165,71 +167,71 @@ export function createInspector(box, ctx) {
     const v = ctx.vocab();
     const chars = ctx.episode().characters.map((c) => ({ id: c.id, label: c.name || c.id }));
     const walk = m.walk;
-    const arrive = el("input", { type: "checkbox" });
-    arrive.checked = !!walk?.arrive;
-    arrive.addEventListener("change", () => { setKey(m.walk, "arrive", arrive.checked || undefined); ctx.changed(); });
+    // a costume variant of the drawing for this shot (cast[].varyant), when the drawing has any
+    const variants = v.rigs.find((r) => r.id === ctx.episode().characters.find((c) => c.id === m.id)?.rig)?.varyantlar || [];
+    const palette = colours(m);
+    // most used first: who and what they do, then where, then walking, then looks; colours folded
     return el("div", { class: "detail" },
-      field("Karakter", select(m.id, chars, (val) => {
-        if (val !== m.id && shot.cast.some((x) => x.id === val)) {
-          ctx.say(`${ctx.labelOf(val)} bu shot'ta zaten var.`);
-          return render(); // put the dropdown back
-        }
-        renameMember(shot, m, val);
-        ctx.changed(true);
-      })),
-      sequence(shot, m),
-      field("Konum", select(m.mark, v.marks.map((k) => ({ id: k, label: MARK_TEXT[k] || k })), (val) => { m.mark = val; ctx.changed(); })),
-      field("Kaydırma dx", number(m.dx, (val) => { setKey(m, "dx", val || undefined); ctx.changed(true); }, { min: -900, max: 900, step: 10 })),
-      field("Yön", select(m.facing, v.facings.map((k) => ({ id: k, label: FACING_TEXT[k] })), (val) => { setKey(m, "facing", val); ctx.changed(); }, { empty: "çizimdeki yön" })),
-      // a costume variant of the drawing for this shot (cast[].varyant), when the drawing has any
-      (() => {
-        const variants = v.rigs.find((r) => r.id === ctx.episode().characters.find((c) => c.id === m.id)?.rig)?.varyantlar || [];
-        return variants.length
-          ? field("Kıyafet", select(m.varyant, variants, (val) => { setKey(m, "varyant", val || undefined); ctx.changed(); }, { empty: "çizimdeki gibi" }))
-          : null;
-      })(),
-      // the face outside speech (cast[].ifade); moments within the shot are edited in bolum.json
-      field("İfade", Array.isArray(m.ifade)
-        ? el("span", { class: "muted small", text: `shot içinde değişiyor: ${m.ifade.map((f) => `${f.at} sn ${f.ifade === "gulumse" ? "gülümser" : "nötr"}`).join(", ")}` })
-        : select(m.ifade === "gulumse" ? "gulumse" : undefined, [{ id: "gulumse", label: "Gülümsüyor" }], (val) => { setKey(m, "ifade", val || undefined); ctx.changed(); }, { empty: "nötr (çizimdeki gibi)" })),
-      field("Derinlik", depth(m)),
-      field("Yürüme dx", number(walk?.dx, (val) => {
-        if (val === undefined) delete m.walk;
-        else m.walk = { ...(m.walk || {}), dx: val };
-        ctx.changed(true);
-      }, { min: -1500, max: 1500, step: 10 })),
-      walk ? field("Yürüme süresi", number(walk.time, (val) => { setKey(m.walk, "time", val); ctx.changed(); }, { min: 0.1, step: 0.1 })) : null,
-      walk ? field("Gelip dur", arrive) : null,
-      el("h4", { text: "Renkler" }),
-      colours(m));
+      section("Oyuncu", null,
+        labelled("Karakter", select(m.id, chars, (val) => {
+          if (val !== m.id && shot.cast.some((x) => x.id === val)) {
+            ctx.say(`${ctx.labelOf(val)} bu shot'ta zaten var.`);
+            return render(); // put the dropdown back
+          }
+          renameMember(shot, m, val);
+          ctx.changed(true);
+        })),
+        sequence(shot, m)),
+      section("Yer", null,
+        labelled("Konum", segment(m.mark, markOptions(v.marks), (val) => { m.mark = val; ctx.changed(); }, { label: "Konum" })),
+        labelled("Yön", segment(m.facing, v.facings.map((k) => ({ id: k, label: cap(FACING_TEXT[k] || k) })), (val) => { setKey(m, "facing", val); ctx.changed(); }, { empty: "Çizimdeki", label: "Yön" })),
+        labelled("Kaydırma", withUnit(number(m.dx, (val) => { setKey(m, "dx", val || undefined); ctx.changed(true); }, { min: -900, max: 900, step: 10 }), "px", "Kaydırma (piksel)")),
+        labelled("Derinlik", depth(m), "0 önde; 1 en arkada (daha yukarıda ve küçük).")),
+      section("Yürüme", null,
+        labelled("Mesafe", withUnit(number(walk?.dx, (val) => {
+          if (val === undefined) delete m.walk;
+          else m.walk = { ...(m.walk || {}), dx: val };
+          ctx.changed(true);
+        }, { min: -1500, max: 1500, step: 10 }), "px", "Yürüme mesafesi (piksel)"), "Boşsa yürümez."),
+        walk ? labelled("Süre", withUnit(number(walk.time, (val) => { setKey(m.walk, "time", val); ctx.changed(); }, { min: 0.1, step: 0.1 }), "s", "Yürüme süresi (saniye)")) : null,
+        walk ? check("Gelip dursun", !!walk.arrive, (on) => { setKey(m.walk, "arrive", on || undefined); ctx.changed(); }) : null),
+      section("Görünüm", null,
+        // the face outside speech (cast[].ifade); moments within the shot are edited in bolum.json
+        labelled("İfade", Array.isArray(m.ifade)
+          ? el("span", { class: "muted small", text: `shot içinde değişiyor: ${m.ifade.map((f) => `${f.at} s ${f.ifade === "gulumse" ? "gülümser" : "nötr"}`).join(", ")}` })
+          : segment(m.ifade === "gulumse" ? "gulumse" : undefined, [{ id: "gulumse", label: "Gülümsüyor" }], (val) => { setKey(m, "ifade", val || undefined); ctx.changed(); }, { empty: "Nötr", label: "İfade" })),
+        variants.length
+          ? labelled("Kıyafet", select(m.varyant, variants, (val) => { setKey(m, "varyant", val || undefined); ctx.changed(); }, { empty: "çizimdeki gibi" }))
+          : null),
+      palette ? folded("Renkler", `${ctx.labelOf(m.id)} bütün shot'larda bu renklerle çizilir.`, palette) : null);
   }
 
   function propDetail(shot, p) {
     const v = ctx.vocab();
     return el("div", { class: "detail" },
-      field("Nesne", select(p.prop, v.props, (val) => { p.prop = val; ctx.changed(true); })),
-      p.depth
-        ? el("p", { class: "muted small", text: `Derinlikte: x ${p.depth.x}, y ${p.depth.y}, ölçek ${p.depth.scale}` })
-        : [
-            field("Konum", select(p.mark, v.marks.map((k) => ({ id: k, label: MARK_TEXT[k] || k })), (val) => { setKey(p, "mark", val); ctx.changed(); }, { empty: "—" })),
-            field("Kaydırma dx", number(p.dx, (val) => { setKey(p, "dx", val); ctx.changed(); }, { min: -600, max: 600, step: 1 })),
-          ],
-      field("Tutan", select(p.holder, shot.cast.map((c) => ({ id: c.id, label: ctx.labelOf(c.id) })), (val) => { setKey(p, "holder", val); ctx.changed(); }, { empty: "kimse (yerde)" })));
+      section("Nesne", null,
+        labelled("Nesne", select(p.prop, v.props, (val) => { p.prop = val; ctx.changed(true); })),
+        labelled("Tutan", segment(p.holder, shot.cast.map((c) => ({ id: c.id, label: ctx.labelOf(c.id) })), (val) => { setKey(p, "holder", val); ctx.changed(); }, { empty: "Kimse (yerde)", label: "Tutan" }))),
+      section("Yer", null,
+        p.depth
+          ? el("p", { class: "field-hint", text: `Derinlikte: x ${p.depth.x}, y ${p.depth.y}, ölçek ${p.depth.scale}` })
+          : [
+              labelled("Konum", segment(p.mark, markOptions(v.marks), (val) => { setKey(p, "mark", val); ctx.changed(); }, { empty: "Yok", label: "Konum" })),
+              labelled("Kaydırma", withUnit(number(p.dx, (val) => { setKey(p, "dx", val); ctx.changed(); }, { min: -600, max: 600, step: 1 }), "px", "Kaydırma (piksel)")),
+            ]));
   }
 
   function sfxDetail(shot, s) {
     const t = ctx.shotTime(shot.shot_id);
-    const vol = el("input", { type: "range", min: 0, max: 1, step: 0.05, value: s.volume ?? 1, "aria-label": "Ses düzeyi" });
-    vol.addEventListener("change", () => { setKey(s, "volume", Number(vol.value) === 1 ? undefined : Number(vol.value)); ctx.changed(); });
     return el("div", { class: "detail" },
-      field("Efekt", select(s.sfx, ctx.vocab().sfx, (val) => { s.sfx = val; ctx.changed(true); })),
-      field("Zaman (s)", number(s.at, (val) => {
+      labelled("Efekt", select(s.sfx, ctx.vocab().sfx, (val) => { s.sfx = val; ctx.changed(true); })),
+      labelled("Zaman", withUnit(number(s.at, (val) => {
         // A typed value ignores the box's max: keep the effect inside its shot.
         const last = t ? Math.max(0, Math.floor((t.end - t.start - 0.05) * 100) / 100) : Infinity;
         s.at = Math.min(Math.max(0, val ?? 0), last);
         ctx.changed(true);
-      }, { min: 0, max: t ? t.end - t.start : undefined, step: 0.05 })),
-      field("Ses düzeyi", vol),
+      }, { min: 0, max: t ? t.end - t.start : undefined, step: 0.05 }), "s", "Zaman (saniye)"), "Shot'ın başından sonra."),
+      labelled("Ses düzeyi", valueSlider(s.volume ?? 1, { label: "Ses düzeyi", onSet: (x) => { setKey(s, "volume", x === 1 ? undefined : x); ctx.changed(); } })),
       el("button", { class: "btn small", on: { click: () => hear(s.sfx) } }, "▶ Dinle"));
   }
 
@@ -273,9 +275,7 @@ export function createInspector(box, ctx) {
   }
 
   function lineDetail(shot, u, i) {
-    const vol = el("input", { type: "range", min: 0, max: 1, step: 0.05, value: u.volume ?? 1, "aria-label": "Replik ses düzeyi" });
-    vol.addEventListener("change", () => { setKey(u, "volume", Number(vol.value) === 1 ? undefined : Number(vol.value)); ctx.changed(); });
-    const check = ctx.listening(`${shot.shot_id}-${i}`);
+    const heard = ctx.listening(`${shot.shot_id}-${i}`);
     const url = ctx.soundUrl(`ses-${shot.shot_id}-${i}`);
     const locked = ctx.scriptApproved() && !ctx.scriptAck();
     const text = el("textarea", { "aria-label": "Replik", rows: 2, disabled: locked, maxlength: 400 });
@@ -294,16 +294,21 @@ export function createInspector(box, ctx) {
     const note = audioNote(shot, u, i);
     return el("div", { class: "detail" },
       scriptGuard(),
-      field("Konuşan", who),
-      field("Söz", text),
-      note ? el("p", { class: "small warn", text: note }) : null,
-      field("Önce bekle (s)", number(u.delay, (val) => { setKey(u, "delay", val || undefined); ctx.changed(true); }, { min: 0, max: 5, step: 0.05 })),
-      field("Ses düzeyi", vol),
-      lineCaption(ctx.episode(), u, () => ctx.changed(true)),
-      el("p", { class: `small ${check && !check.ok && !check.accepted ? "err" : "muted"}`, text: listenDetail(check) }),
-      el("div", { class: "row-inline" },
-        el("button", { class: "btn small", type: "button", disabled: !url, title: url ? "" : "Bu repliğin kaydı yok", on: { click: () => url && listen(url) } }, "▶ Dinle"),
-        el("button", { class: "btn small danger", type: "button", disabled: locked, title: "Repliği sil (senaryo değişir)", on: { click: () => { removeLine(shot, i); ctx.select(null); ctx.changed(true); } } }, "Repliği sil")));
+      section("Söz", null,
+        labelled("Konuşan", who),
+        labelled("Söz", text),
+        note ? el("p", { class: "small warn", text: note }) : null),
+      section("Zamanlama ve ses", null,
+        labelled("Önce bekle", withUnit(number(u.delay, (val) => { setKey(u, "delay", val || undefined); ctx.changed(true); }, { min: 0, max: 5, step: 0.05 }), "s", "Önce bekle (saniye)")),
+        labelled("Ses düzeyi", valueSlider(u.volume ?? 1, { label: "Replik ses düzeyi", onSet: (x) => { setKey(u, "volume", x === 1 ? undefined : x); ctx.changed(); } })),
+        lineCaption(ctx.episode(), u, () => ctx.changed(true))),
+      section("Dinleme", null,
+        el("p", { class: `small ${heard && !heard.ok && !heard.accepted ? "err" : "muted"}`, text: listenDetail(heard) }),
+        el("button", { class: "btn small", type: "button", disabled: !url, title: url ? "" : "Bu repliğin kaydı yok", on: { click: () => url && listen(url) } }, "▶ Dinle")),
+      el("div", { class: "idanger" },
+        dangerButton("Repliği sil", `${ctx.labelOf(u.speaker)}: “${u.text}” silinsin mi? Senaryo değişir.`,
+          () => { removeLine(shot, i); ctx.select(null); ctx.changed(true); },
+          { disabled: locked, title: "Repliği sil (senaryo değişir)" })));
   }
 
   /** A small form for a new line at the end of the shot. */
@@ -346,14 +351,10 @@ export function createInspector(box, ctx) {
     const v = ctx.vocab();
     const box = el("details", { class: "scene-box", open: sceneOpen() },
       el("summary", {}, el("span", { text: `Sahne: ${scene.title || scene.scene_id}` }), el("span", { class: "muted small", text: "bütün shot'ları" })),
-      el("h3", { text: "Mekân katmanları" }),
-      sceneLayers(scene, v.backgrounds.find((b) => b.id === scene.bg)?.layers, () => ctx.changed(true)),
-      el("h3", { text: "Işık" }),
-      sceneLight(scene, () => ctx.changed(true)),
-      el("h3", { text: "Altyazının yeri" }),
-      sceneCaption(scene, ctx.format(), () => ctx.changed(true)),
-      el("h3", { text: "Dekor" }),
-      decorList(scene, sel));
+      section("Mekân katmanları", null, sceneLayers(scene, v.backgrounds.find((b) => b.id === scene.bg)?.layers, () => ctx.changed(true))),
+      section("Işık", "Bütün shot'lara gün saatinin rengi; altyazılar değişmez.", sceneLight(scene, () => ctx.changed(true))),
+      section("Altyazının yeri", null, sceneCaption(scene, ctx.format(), () => ctx.changed(true))),
+      section("Dekor", null, decorList(scene, sel)));
     box.addEventListener("toggle", () => {
       try {
         localStorage.setItem(SCENE_KEY, box.open ? "1" : "0");
@@ -368,30 +369,33 @@ export function createInspector(box, ctx) {
   function itemView(scene, shot, sel) {
     const v = ctx.vocab();
     const i = sel.index;
-    const back = el("button", { class: "btn small back", type: "button", on: { click: () => ctx.select(null) } }, `← ${shot.shot_id}`);
-    const head = (title, meta) => [back, el("h2", { text: title }), el("p", { class: "muted small", text: meta }),
+    const back = { text: `← ${shot.shot_id}`, onClick: () => ctx.select(null) };
+    const head = (kind, title, meta) => [header({ back, kind, title, meta }),
       problemList((m) => m.row && m.row.kind === sel.kind && m.row.index === i)];
-    const drop = (text, fn) => el("button", { class: "btn small danger", type: "button", on: { click: fn } }, text);
+    // the destructive action sits last, apart from the settings, and asks first
+    const drop = (text, question, fn) => el("div", { class: "idanger" }, dangerButton(text, question, fn));
     if (sel.kind === "cast" && shot.cast[i]) {
       const m = shot.cast[i];
-      return [...head(ctx.labelOf(m.id), `oyuncu · ${shot.shot_id}`), castDetail(shot, m),
-        shot.cast.length > 1 ? drop("Oyuncuyu shot'tan çıkar", () => removeCast(shot, i)) : null];
+      return [...head("Oyuncu", ctx.labelOf(m.id), `shot ${shot.shot_id}`), castDetail(shot, m),
+        shot.cast.length > 1 ? drop("Oyuncuyu shot'tan çıkar", `“${ctx.labelOf(m.id)}” bu shot'tan çıkarılsın mı?`, () => removeCast(shot, i)) : null];
     }
     if (sel.kind === "prop" && shot.props?.[i]) {
       const p = shot.props[i];
-      return [...head(p.id, `nesne · ${p.prop}`), propDetail(shot, p), drop("Nesneyi shot'tan çıkar", () => removeFrom(shot, "props", i))];
+      return [...head("Nesne", p.id, `${p.prop} · shot ${shot.shot_id}`), propDetail(shot, p),
+        drop("Nesneyi shot'tan çıkar", `“${p.id}” nesnesi bu shot'tan çıkarılsın mı?`, () => removeFrom(shot, "props", i))];
     }
     if (sel.kind === "sfx" && shot.sfx?.[i]) {
       const s = shot.sfx[i];
-      return [...head(labelIn(v.sfx, s.sfx), `efekt · ${s.at.toFixed(2)} s`), sfxDetail(shot, s), drop("Efekti sil", () => removeFrom(shot, "sfx", i))];
+      const name = labelIn(v.sfx, s.sfx);
+      return [...head("Efekt", name, `${s.at.toFixed(2)} s · shot ${shot.shot_id}`), sfxDetail(shot, s),
+        drop("Efekti sil", `“${name}” efekti silinsin mi?`, () => removeFrom(shot, "sfx", i))];
     }
     if (sel.kind === "line" && shot.utterances?.[i]) {
       const u = shot.utterances[i];
-      return [...head(`${ctx.labelOf(u.speaker)}: “${u.text}”`, `replik ${i + 1} · ${shot.shot_id}`), lineDetail(shot, u, i)];
+      return [...head("Replik", `${ctx.labelOf(u.speaker)}: “${u.text}”`, `replik ${i + 1} · shot ${shot.shot_id}`), lineDetail(shot, u, i)];
     }
     if (sel.kind === "dekor" && scene.dekor?.[i]) {
-      return [back, el("h2", { text: "Dekor" }), el("p", { class: "muted small", text: `sahne ${scene.scene_id}: bütün shot'larında` }),
-        problemList((m) => m.row && m.row.kind === "dekor" && m.row.index === i), decorList(scene, sel)];
+      return [...head("Dekor", "Dekor", `sahne ${scene.scene_id}: bütün shot'larında`), decorList(scene, sel)];
     }
     return null; // the selection points at nothing any more: show the shot
   }
@@ -408,27 +412,30 @@ export function createInspector(box, ctx) {
         key: `cast:${i}`, img, title: ctx.labelOf(m.id),
         meta: `${labelIn(v.actions, m.action)} · ${MARK_TEXT[m.mark] || m.mark}${m.walk ? " · yürüyor" : ""}`,
         onPick: () => ctx.select("cast", i),
-        onDelete: shot.cast.length > 1 ? () => removeCast(shot, i) : null, deleteText: "Oyuncuyu shot'tan çıkar", badge: badgeFor("cast", i),
+        onDelete: shot.cast.length > 1 ? () => removeCast(shot, i) : null, deleteText: "Oyuncuyu shot'tan çıkar",
+        deleteQuestion: `“${ctx.labelOf(m.id)}” bu shot'tan çıkarılsın mı?`, badge: badgeFor("cast", i),
       });
     });
     const props = (shot.props || []).map((p, i) => row({
       key: `prop:${i}`, img: el("img", { alt: "", src: `/kutuphane/nesne/${p.prop}.svg` }), title: p.id,
       meta: `${p.prop}${p.holder ? ` · ${ctx.labelOf(p.holder)} tutuyor` : ""}`,
       onPick: () => ctx.select("prop", i),
-      onDelete: () => removeFrom(shot, "props", i), deleteText: "Nesneyi shot'tan çıkar", badge: badgeFor("prop", i),
+      onDelete: () => removeFrom(shot, "props", i), deleteText: "Nesneyi shot'tan çıkar",
+      deleteQuestion: `“${p.id}” nesnesi bu shot'tan çıkarılsın mı?`, badge: badgeFor("prop", i),
     }));
     const sounds = (shot.sfx || []).map((s, i) => row({
       key: `sfx:${i}`, img: el("span", { class: "btn icon", "aria-hidden": "true", text: "♪" }), title: labelIn(v.sfx, s.sfx),
-      meta: `${s.at.toFixed(2)} s${s.volume !== undefined ? ` · düzey ${Math.round(s.volume * 100)}%` : ""}`,
+      meta: `${s.at.toFixed(2)} s${s.volume !== undefined ? ` · düzey ${percent(s.volume)}` : ""}`,
       onPick: () => ctx.select("sfx", i),
-      onDelete: () => removeFrom(shot, "sfx", i), deleteText: "Efekti sil", badge: badgeFor("sfx", i),
+      onDelete: () => removeFrom(shot, "sfx", i), deleteText: "Efekti sil",
+      deleteQuestion: `“${labelIn(v.sfx, s.sfx)}” efekti silinsin mi?`, badge: badgeFor("sfx", i),
     }));
     const lines = (shot.utterances || []).map((u, i) => {
       const key = `${shot.shot_id}-${i}`;
       return row({
         key: `line:${i}`, img: el("span", { class: "btn icon", "aria-hidden": "true", text: "❝" }),
         title: `${ctx.labelOf(u.speaker)}: “${u.text}”`,
-        meta: [ctx.unspoken(key) ? "ses yok" : listenText(ctx.listening(key)), u.delay ? `önce ${u.delay.toFixed(2)} s bekler` : "", u.volume !== undefined ? `düzey ${Math.round(u.volume * 100)}%` : ""].filter(Boolean).join(" · "),
+        meta: [ctx.unspoken(key) ? "ses yok" : listenText(ctx.listening(key)), u.delay ? `önce ${u.delay.toFixed(2)} s bekler` : "", u.volume !== undefined ? `düzey ${percent(u.volume)}` : ""].filter(Boolean).join(" · "),
         onPick: () => ctx.select("line", i),
         badge: badgeFor("line", i),
       });
@@ -436,28 +443,22 @@ export function createInspector(box, ctx) {
     const notes = el("textarea", { "aria-label": "Notlar" });
     notes.value = shot.notes || "";
     notes.addEventListener("change", () => { setKey(shot, "notes", notes.value || undefined); ctx.changed(); });
-    // a heading's hint is its tooltip: the panel stays quiet
-    const h3 = (text, hint) => el("h3", { text, title: hint });
+    // a section's hint is its title's tooltip: the list stays quiet (empty ones say how to add)
     return [
-      el("h2", { text: shot.shot_id }),
-      el("p", { class: "muted small", text: `${scene.title || `sahne ${scene.scene_id}`} · ${scene.bg}${t ? ` · ${t.start.toFixed(2)}–${t.end.toFixed(2)} s` : ""}` }),
+      header({ kind: "Shot", title: shot.shot_id, meta: `${scene.title || `sahne ${scene.scene_id}`} · ${scene.bg}${t ? ` · ${t.start.toFixed(2)}–${t.end.toFixed(2)} s` : ""}` }),
       problemList(),
-      h3("Kamera"),
-      field("Plan", select(shot.camera.framing, v.framings, (val) => { shot.camera.framing = val; ctx.changed(true); })),
-      field("Hareket", select(shot.camera.move, v.moves, (val) => { setKey(shot.camera, "move", val); ctx.changed(); }, { empty: "sabit" })),
-      field("Hedef", select(shot.camera.target, targets, (val) => { setKey(shot.camera, "target", val); ctx.changed(); }, { empty: "otomatik" })),
-      field("Bekleme (s)", number(shot.hold, (val) => { setKey(shot, "hold", val); ctx.changed(true); }, { min: 0, max: 10, step: 0.05 })),
-      h3("Oyuncular", "Eklemek: soldaki Karakter paneli"),
-      cast,
-      h3("Nesneler", "Eklemek: soldaki Nesne paneli"),
-      props.length ? props : el("p", { class: "muted small", text: "Bu shot'ta nesne yok." }),
-      h3("Efektler", "Eklemek: soldaki Ses paneli"),
-      sounds.length ? sounds : el("p", { class: "muted small", text: "Bu shot'ta efekt yok." }),
-      h3("Replikler", "Bir replik değişirse senaryo onayı düşer"),
-      lines,
-      newLine(shot),
-      h3("Notlar"),
-      notes,
+      quietSection("Kamera", null,
+        labelled("Plan", segment(shot.camera.framing, v.framings, (val) => { shot.camera.framing = val; ctx.changed(true); }, { label: "Plan" })),
+        labelled("Hareket", segment(shot.camera.move, v.moves, (val) => { setKey(shot.camera, "move", val); ctx.changed(); }, { empty: "Sabit", label: "Kamera hareketi" })),
+        labelled("Hedef", segment(shot.camera.target, targets, (val) => { setKey(shot.camera, "target", val); ctx.changed(); }, { empty: "Otomatik", label: "Kameranın hedefi" })),
+        labelled("Bekleme", withUnit(number(shot.hold, (val) => { setKey(shot, "hold", val); ctx.changed(true); }, { min: 0, max: 10, step: 0.05 }), "s", "Bekleme (saniye)"))),
+      quietSection("Oyuncular", "Eklemek: soldaki Karakter paneli", cast),
+      quietSection("Nesneler", "Eklemek: soldaki Nesne paneli",
+        props.length ? props : el("p", { class: "isec-empty", text: "Bu shot'ta nesne yok. Eklemek için soldaki Nesne paneli." })),
+      quietSection("Efektler", "Eklemek: soldaki Ses paneli",
+        sounds.length ? sounds : el("p", { class: "isec-empty", text: "Bu shot'ta efekt yok. Eklemek için soldaki Ses paneli." })),
+      quietSection("Replikler", "Bir replik değişirse senaryo onayı düşer", lines, newLine(shot)),
+      quietSection("Notlar", null, notes),
       sceneSection(scene, sel),
     ];
   }
