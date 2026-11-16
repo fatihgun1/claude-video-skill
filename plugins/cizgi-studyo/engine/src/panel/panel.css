@@ -369,6 +369,8 @@ body[data-drag="hareket"] .t-actor { box-shadow: inset 0 0 0 1px var(--accent); 
 .drop-line { position: absolute; top: -34px; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); z-index: 5; pointer-events: none; }
 .drop-line span { position: absolute; top: 1px; left: 5px; padding: 0 5px; border-radius: 4px; background: var(--accent); color: var(--accent-ink); font-size: 10.5px; font-weight: 600; white-space: nowrap; }
 .drop-line span[hidden] { display: none; }
+/* the magnet's guide: what a dragged edge stuck to */
+.snap-line { position: absolute; top: -34px; bottom: 0; width: 0; border-left: 2px dashed var(--select); z-index: 5; pointer-events: none; }
 .card[draggable="true"] { cursor: grab; }
 .tl-labels { display: grid; gap: 4px; align-content: start; font-size: 11px; color: var(--muted); padding: 0 0 48px; overflow: hidden; } /* more room than the tracks below their last row (padding + scrollbar), so it always scrolls as far */
 .tl-labels > span:first-child, .tl-labels > span:nth-child(2) { position: sticky; z-index: 1; background: var(--pane); }

@@ -39,6 +39,17 @@ export function sfxAtAfterDrag(at, seconds, shotLen) {
   return clamp(snap(at + seconds), 0, Math.max(0, snapDown(shotLen - STEP)));
 }
 
+/**
+ * The timeline's magnet: a time within `tol` seconds of a target (the playhead, a line's start or
+ * end, the shot's start) takes the nearest one; else it stays. tol 0 = the magnet is off.
+ * @returns {{t:number, hit:number|null}} hit: the target it took, for the guide line
+ */
+export function snapTo(t, targets, tol) {
+  let hit = null;
+  for (const x of targets) if (tol > 0 && Math.abs(x - t) <= tol + EPS && (hit === null || Math.abs(x - t) < Math.abs(hit - t))) hit = x;
+  return hit === null ? { t, hit: null } : { t: hit, hit };
+}
+
 /* ---------- action sequences (cast.action, then cast.actions[] from their `at`) ---------- */
 
 const starts = (m) => [0, ...(m.actions || []).map((a) => a.at)];

@@ -317,3 +317,14 @@ test("a message names a row by its quoted id before a bare word", async () => {
   const shot = { shot_id: "x", cast: [{ id: "on", action: "bekle" }, { id: "ela", action: "bak" }] };
   assert.deepEqual(rowOfMessage('shot x: "ela" stops walking on time', shot), { kind: "cast", index: 1 });
 });
+
+test("the timeline's magnet: a time close to a target takes it, the nearest one wins", async () => {
+  const { snapTo } = await import("../src/panel/kurgu.js");
+  const targets = [0, 1.2, 1.5, 4];
+  assert.deepEqual(snapTo(1.27, targets, 0.1), { t: 1.2, hit: 1.2 });
+  assert.deepEqual(snapTo(1.4, targets, 0.1), { t: 1.5, hit: 1.5 }); // 1.5 is nearer than 1.2
+  assert.deepEqual(snapTo(2.5, targets, 0.1), { t: 2.5, hit: null }); // nothing close: stays
+  assert.deepEqual(snapTo(0.05, targets, 0.1), { t: 0, hit: 0 });
+  assert.deepEqual(snapTo(3, [], 0.1), { t: 3, hit: null });
+  assert.deepEqual(snapTo(1.27, targets, 0), { t: 1.27, hit: null }); // magnet off
+});

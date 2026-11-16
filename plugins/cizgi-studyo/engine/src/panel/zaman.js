@@ -8,12 +8,15 @@
 import { el, svg } from "./dom.js";
 import { musicGain } from "./muzik.mjs";
 import { speakerColor, captionShown } from "./altyazi.mjs";
-import { MAX_HOLD, shotLength, minShotLength, holdForLength, sfxAtAfterDrag, reorderAt, segmentSpans } from "./kurgu.js";
+import { MAX_HOLD, shotLength, minShotLength, holdForLength, sfxAtAfterDrag, reorderAt, segmentSpans, snapTo, snap as gridSnap } from "./kurgu.js";
 
 const PX = 80; // pixels per second
 const DRAG_START_PX = 5;
 const EDGE_PX = 48; // a drag this close to the timeline's left or right edge scrolls it
 const EDGE_STEP_PX = 14; // how far each frame of that scrolls
+const SNAP_PX = 8; // the magnet's reach
+const MAGNET_KEY = "cizgi.miknatis";
+const round2 = (x) => Math.round(x * 100) / 100;
 const FX_MIN_PX = 64;
 const ROW = { ruler: 30, shots: 64, actor: 26, lines: 30, captions: 26, fx: 50, music: 34 }; // track heights (px)
 const MAX_DELAY = 5; // schema limit of utterance.delay
@@ -38,6 +41,59 @@ export function createTimeline(els, ctx) {
   let playhead = null;
   let dragging = false;
   let redrawLater = false;
+  // The magnet (Mıknatıs, on unless switched off; remembered in the browser): a dragged edge sticks to
+  // the playhead, a line's start or end, the shot's start; a guide line shows what it took.
+  let magnet = true;
+  try {
+    magnet = localStorage.getItem(MAGNET_KEY) !== "0";
+  } catch {
+    /* storage off: on */
+  }
+  function setMagnet(on) {
+    magnet = on;
+    els.snap?.setAttribute("aria-pressed", String(on));
+    try {
+      localStorage.setItem(MAGNET_KEY, on ? "1" : "0");
+    } catch {
+      /* storage off: until reload */
+    }
+  }
+  els.snap?.addEventListener("click", () => setMagnet(!magnet));
+  setMagnet(magnet);
+
+  /**
+   * Times in shot p (seconds into it) an edge sticks to. line: the line being dragged; only the
+   * lines before it count (the ones after move with it). noStart: not the shot's start.
+   */
+  function targetsIn(p, { line = -1, noStart = false } = {}) {
+    const out = noStart ? [] : [0];
+    p.t?.utterances.forEach((u, i) => {
+      if (line < 0 || i < line) out.push(u.start - p.t.start, u.end - p.t.start);
+    });
+    const now = ctx.now() - origin - p.start;
+    if (now >= 0 && now <= p.len) out.push(now);
+    return out;
+  }
+  let guide = null;
+  /** The magnet's guide at view time t (seconds from the view's left edge), or none. */
+  function showGuide(t) {
+    if (t === null) return guide?.remove();
+    guide ||= el("div", { class: "snap-line", "aria-hidden": "true" });
+    if (!guide.isConnected) els.tracks.append(guide);
+    guide.style.left = `${t * PX}px`;
+  }
+  /**
+   * A time in shot p after the magnet and after `settle` (the rounding and limits of what is
+   * stored): {t, hit}. The guide shows only when the stored time really is the target.
+   */
+  function snapIn(p, local, { settle = (x) => x, ...which } = {}) {
+    const r = snapTo(local, targetsIn(p, which), magnet ? SNAP_PX / PX : 0);
+    const t = settle(r.t);
+    const on = r.hit !== null && Math.abs(t - r.hit) < 0.006;
+    showGuide(on ? p.start + t : null);
+    return { t, hit: on ? r.hit : null };
+  }
+
   // the same colour the captions use (characters[].renk, else by place in the cast)
   const colorOf = (id) => speakerColor(ctx.episode(), id);
 
@@ -117,6 +173,7 @@ export function createTimeline(els, ctx) {
       cancelAnimationFrame(frame);
       last = null;
       dragging = false;
+      showGuide(null);
       if (moved && e.type === "pointerup") onEnd(dxOf(e.clientX), e);
       else if (moved) onEnd(null, e);
       else if (e.type === "pointerup") onClick?.(e);
@@ -138,12 +195,13 @@ export function createTimeline(els, ctx) {
     const minLen = minShotLength(speech, rules, starts);
     const maxLen = speech + MAX_HOLD + rules.tail;
     const holdFor = (len) => holdForLength(len, speech, rules);
+    const lenOf = (len) => Math.max(speech + holdFor(clamp(len, minLen, maxLen)) + rules.tail, rules.min_shot); // the length its stored hold gives (as timing.mjs)
     grip.addEventListener("pointerdown", (down) => {
       down.stopPropagation();
       down.preventDefault();
       follow(down, {
         onMove: (dx) => {
-          const len = clamp(p.len + dx / PX, minLen, maxLen);
+          const len = snapIn(p, p.len + dx / PX, { settle: lenOf }).t;
           block.style.width = `${len * PX - 2}px`;
           block.classList.add("resizing");
           label.textContent = `bekleme ${holdFor(len).toFixed(2)} s`;
@@ -151,7 +209,7 @@ export function createTimeline(els, ctx) {
         onEnd: (dx) => {
           block.classList.remove("resizing");
           if (dx === null) return render();
-          return ctx.setHold(p.shot, holdFor(clamp(p.len + dx / PX, minLen, maxLen)));
+          return ctx.setHold(p.shot, holdFor(snapIn(p, p.len + dx / PX, { settle: lenOf }).t));
         },
       });
     });
@@ -252,7 +310,12 @@ export function createTimeline(els, ctx) {
         title: `${ctx.labelOf(u.speaker)}: “${u.text}” · sürükle: önündeki bekleme (${delay.toFixed(2)} s) · sözler senaryodan gelir`,
         style: { left: `${left}px`, width: `${Math.max(6, (u.end - u.start) * PX - 2)}px`, "--c": colorOf(u.speaker) },
       }, label);
-      const delayFor = (dx) => Math.min(MAX_DELAY, Math.max(0, Math.round((delay + dx / PX) / 0.05) * 0.05));
+      const bare = u.start - p.t.start - delay; // where it starts with no pause
+      const delayOf = (start) => Math.min(MAX_DELAY, Math.max(0, start - bare));
+      const delayFor = (dx) => {
+        const r = snapIn(p, bare + delay + dx / PX, { line: i, settle: (s) => bare + Math.round(delayOf(s) * 100) / 100 });
+        return r.hit === null ? Math.min(MAX_DELAY, Math.max(0, Math.round((delay + dx / PX) / 0.05) * 0.05)) : delayOf(r.t);
+      };
       clip.addEventListener("pointerdown", (down) => {
         if (down.button !== 0) return;
         follow(down, {
@@ -327,7 +390,11 @@ export function createTimeline(els, ctx) {
       }, el("i", { class: "dur", style: { width: `${len * PX}px` } }), label);
       clip.addEventListener("pointerdown", (down) => {
         if (down.button !== 0) return;
-        const atFor = (dx) => sfxAtAfterDrag(s.at, dx / PX, p.len);
+        const atFor = (dx) => {
+          const cap = Math.max(0, round2(p.len - 0.05)); // compile wants at < length
+          const r = snapIn(p, s.at + dx / PX, { settle: (x) => clamp(round2(x), 0, cap) });
+          return r.hit === null ? sfxAtAfterDrag(s.at, dx / PX, p.len) : r.t;
+        };
         if (!p.t) { // not compiled yet: the shot's real length, and so the limit, is unknown
           ctx.choose(p.shot.shot_id);
           ctx.select("sfx", i);
@@ -381,15 +448,16 @@ export function createTimeline(els, ctx) {
           down.preventDefault();
           follow(down, {
             onMove: (dx) => {
-              const at = Math.max(0, s.start + dx / PX);
+              const at = Math.max(0, snapIn(p, s.start + dx / PX, { noStart: s.index === 0, settle: gridSnap }).t);
               clip.style.left = `${(p.start + at) * PX}px`;
               clip.style.width = `${Math.max(6, (s.end - at) * PX - 2)}px`;
               label.textContent = `${info?.label || s.action} · ${at.toFixed(2)} s`;
             },
             onEnd: (dx) => {
               if (dx === null) return render();
-              if (s.index > 0) return ctx.moveSegment(p.shot, ci, s.index, s.start + dx / PX, p.len);
-              if (!ctx.delayFirst(p.shot, ci, dx / PX, p.len)) render(); // refused: draw it back where it was
+              const at = snapIn(p, s.start + dx / PX, { noStart: s.index === 0, settle: gridSnap }).t;
+              if (s.index > 0) return ctx.moveSegment(p.shot, ci, s.index, at, p.len);
+              if (!ctx.delayFirst(p.shot, ci, at - s.start, p.len)) render(); // refused: draw it back where it was
             },
           });
         });
@@ -504,13 +572,17 @@ export function createTimeline(els, ctx) {
       return clientY >= b.top && clientY < b.bottom;
     });
     const castIndex = p && row?.dataset.actor ? p.shot.cast.findIndex((m) => m.id === row.dataset.actor) : -1;
-    return { shotId: p?.shot.shot_id ?? null, local: p ? Math.max(0, t - p.start) : 0, castIndex: castIndex >= 0 ? castIndex : null };
+    const local = p ? snapIn(p, Math.max(0, t - p.start)).t : 0; // the magnet works for a dropped card too
+    return { shotId: p?.shot.shot_id ?? null, local: Math.max(0, local), castIndex: castIndex >= 0 ? castIndex : null };
   }
 
   /** Where a dragged card would land: a line at page x with its time, or none. */
   let dropLine = null;
   function showDrop(clientX, text = "") {
-    if (clientX === null) return dropLine?.remove();
+    if (clientX === null) {
+      showGuide(null);
+      return dropLine?.remove();
+    }
     dropLine ||= el("div", { class: "drop-line", "aria-hidden": "true" }, el("span"));
     if (!dropLine.isConnected) els.tracks.append(dropLine);
     dropLine.style.left = `${clientX - els.tracks.getBoundingClientRect().left}px`;
