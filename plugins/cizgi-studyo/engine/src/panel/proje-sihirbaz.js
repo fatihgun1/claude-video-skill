@@ -340,8 +340,6 @@ export function createProjectWizard(ctx) {
       })))),
       el("h3", { text: title }),
       el("div", { class: "pgovde" }, body),
-      thinking ? spinner : null,
-      slot, // Claude asks here, step by step; its answers fill the fields above
       s.error ? el("p", { class: "err", text: s.error }) : null,
       el("div", { class: "row pnav" },
         el("button", { class: "btn", type: "button", disabled: s.step === 0 || thinking, text: "← Geri", on: { click: () => go(s.step - 1) } }),
@@ -349,6 +347,8 @@ export function createProjectWizard(ctx) {
           ? el("button", { class: "btn primary", type: "button", disabled: thinking, text: "Kaydet ve ileri →", on: { click: () => go(s.step + 1) } })
           : el("button", { class: "btn primary", type: "button", disabled: thinking, text: s.bolum ? "Değişiklikleri Claude'a gönder" : "Oluştur (Claude'a gönder)", on: { click: build } }),
         s.info && !s.error ? el("span", { class: "muted small", text: s.info }) : null),
+      thinking ? spinner : null,
+      slot, // Claude asks here, step by step; last, so it stays stuck to the bottom edge while the fields scroll
     ].filter(Boolean));
     s.info = "";
   }

@@ -109,6 +109,10 @@ export function createChannel(ctx) {
     const show = !!question && !later;
     box.hidden = !show;
     chip.hidden = !(question && later);
+    // a modal dialog (the project wizard) hides everything behind it: the chip goes inside it then
+    const modal = ctx.projectSlot?.();
+    if (modal && chip.parentElement !== modal) modal.append(chip);
+    else if (!modal && chip.parentElement !== document.body) document.body.append(chip);
     if (!show) return;
     // inside the open wizard when there is one, else floating over the editor
     const home = ctx.projectSlot?.() || wizard.slot();

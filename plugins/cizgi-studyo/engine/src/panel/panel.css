@@ -634,3 +634,14 @@ body.at-home .editor, body.at-home .bar > :not(.brand):not(.state), body.at-home
 .psih-dusunuyor .cark { width: 18px; height: 18px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--accent); animation: psih-cark 0.9s linear infinite; }
 @keyframes psih-cark { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .psih-dusunuyor .cark { animation: none; } }
+
+/* Claude's question in the project wizard stays in view at the dialog's bottom edge while the
+   fields scroll above it; a long question scrolls within itself (proje-sihirbaz.js slot) */
+.psih .psih-soru:not(:empty) { position: sticky; bottom: -22px; z-index: 2; margin: 8px -22px -22px; padding: 10px 22px 22px; background: var(--pane); border-top: 1px solid var(--line); box-shadow: 0 -10px 24px rgba(0, 0, 0, .35); }
+.psih .psih-soru .kanal-soru.docked { max-height: min(46vh, 420px); overflow: auto; }
+.psih > .psih-dusunuyor { position: sticky; bottom: 0; z-index: 2; background: var(--pane); }
+/* docked in a dialog, the question stays compact: cards as tall as their own content, small pictures, a short note box */
+.kanal-soru.docked .kanal-kartlar { align-items: start; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.kanal-soru.docked .kanal-kart img { height: 72px; }
+.kanal-soru.docked textarea { min-height: 38px; }
+.kanal-soru.docked { gap: 8px; }

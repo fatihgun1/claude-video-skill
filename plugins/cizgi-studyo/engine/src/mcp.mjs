@@ -19,7 +19,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { queueOf, takeRequests, updateRequest, describe, episodeFile, ANSWERS, MAX_TEXT } from "./istekler.mjs";
 
-const SERVER_INFO = { name: "cizgi-studyo", version: "2.2.1" };
+const SERVER_INFO = { name: "cizgi-studyo", version: "2.2.2" };
 // panel-kanal.mjs PANELS (not imported: engine modules load on first use)
 const PANEL_TABS = ["projeler", "uretim", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"];
 const WAIT_DEFAULT_S = 600;
