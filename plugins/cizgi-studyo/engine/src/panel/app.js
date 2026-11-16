@@ -780,6 +780,7 @@ installViews({
 });
 
 $("mixer").addEventListener("click", () => { if (state.draft) select("mix"); });
+$("ep-settings").addEventListener("click", () => { if (state.draft) select("mix"); });
 $("shot-add").addEventListener("click", () => shotOp("add"));
 $("shot-dup").addEventListener("click", () => shotOp("dup"));
 $("shot-del").addEventListener("click", () => shotOp("del"));

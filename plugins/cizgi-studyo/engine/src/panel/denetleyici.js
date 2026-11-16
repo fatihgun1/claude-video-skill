@@ -1,15 +1,17 @@
-// Inspector: the selected shot with its camera, cast, props and sound effects. Each cast
-// member, prop and effect is a row with a picture; the selected row opens its details.
+// Inspector (the right panel) shows what is selected, its settings first:
+//   a cast member, prop, effect, line or decor: only that, with "← shot" back;
+//   nothing: the shot (camera and its rows, a click opens one), then its scene in a closed section;
+//   the episode (Bölüm ayarları, the timeline's Mikser): bolum-ayar.js.
 // Every control only offers library words and commits through ctx.changed().
 import { el, select, number, field, setKey } from "./dom.js";
 import { rigThumb } from "./kutuphane.js";
 import { listen } from "./dinle.js";
 import { segmentSpans, replaceSegmentAction, moveSegmentStart, removeSegment, addLine, removeLine, rowOfMessage } from "./kurgu.js";
-import { MUSIC_DEFAULTS } from "./muzik.mjs";
 import { sceneLayers } from "./katman.js";
 import { sceneDecor } from "./dekor.js";
 import { sceneLight } from "./isik.js";
-import { captionSettings, lineCaption } from "./altyazi-ayar.js";
+import { sceneCaption, lineCaption } from "./altyazi-ayar.js";
+import { episodeSettings } from "./bolum-ayar.js";
 
 /** Short state of a line's listening check (ses/manifest.json). */
 function listenText(check) {
@@ -46,11 +48,11 @@ export function createInspector(box, ctx) {
   const hear = (id) => listen(`/kutuphane/ses/${id}.wav`);
   const labelIn = (list, id) => (list.find((x) => x.id === id) || { label: id }).label;
 
-  function row({ selected, img, title, meta, onPick, onDelete, deleteText, badge }) {
+  function row({ key, img, title, meta, onPick, onDelete, deleteText, badge }) {
     const del = onDelete
       ? el("button", { class: "btn small danger", title: deleteText, "aria-label": deleteText, on: { click: (e) => { e.stopPropagation(); onDelete(); } } }, "Sil")
       : null;
-    return el("div", { class: `item${selected ? " sel" : ""}`, role: "button", tabindex: "0", "aria-pressed": String(selected),
+    return el("div", { class: "item", role: "button", tabindex: "0", "data-row": key,
       on: { click: onPick, keydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPick(); } } } },
     img, el("div", { class: "grow" }, el("div", { text: title }), el("div", { class: "meta", text: meta })), badge || null, del);
   }
@@ -70,9 +72,10 @@ export function createInspector(box, ctx) {
   }
 
   /** The list at the top of the shot: click one to open the row it is about. */
-  function problemList() {
-    if (!shotMessages.length) return null;
-    return el("ul", { class: "problems" }, shotMessages.map((m) => el("li", { class: m.level },
+  function problemList(only = () => true) {
+    const list = shotMessages.filter(only); // a selected row shows only its own
+    if (!list.length) return null;
+    return el("ul", { class: "problems" }, list.map((m) => el("li", { class: m.level },
       m.row
         ? el("a", { href: "#", on: { click: (e) => { e.preventDefault(); ctx.select(m.row.kind, m.row.index); } } }, m.text.replace(/^(film: )?shot [^:]+: /, ""))
         : m.text.replace(/^(film: )?shot [^:]+: /, ""))));
@@ -308,151 +311,186 @@ export function createInspector(box, ctx) {
     return form;
   }
 
-  /** Mixer: the loudness of whole tracks and the background music. */
-  function mixer() {
-    const ep = ctx.episode();
-    const v = ctx.vocab();
-    const slider = (value, label, onSet) => {
-      const r = el("input", { type: "range", min: 0, max: 1, step: 0.05, value, "aria-label": label });
-      const out = el("span", { class: "muted small", text: `${Math.round(value * 100)}%` });
-      r.addEventListener("input", () => { out.textContent = `${Math.round(Number(r.value) * 100)}%`; });
-      r.addEventListener("change", () => onSet(Number(r.value)));
-      return el("div", { class: "row-inline" }, r, out);
-    };
-    const setMix = (key, val) => {
-      const mix = { ...(ep.mix || {}), [key]: val };
-      if (val === 1) delete mix[key];
-      setKey(ep, "mix", Object.keys(mix).length ? mix : undefined);
-      ctx.changed(true);
-    };
-    const m = ep.music;
-    const setMusic = (key, val) => { setKey(ep.music, key, val); ctx.changed(true); };
-    const musicPart = m
-      ? [
-        field("Parça", select(m.track, v.music, (val) => setMusic("track", val))),
-        field("Düzey", slider(m.volume ?? MUSIC_DEFAULTS.volume, "Müzik düzeyi", (x) => setMusic("volume", x))),
-        field("Giriş (s)", number(m.fade_in ?? MUSIC_DEFAULTS.fade_in, (x) => setMusic("fade_in", x), { min: 0, max: 10, step: 0.1 })),
-        field("Çıkış (s)", number(m.fade_out ?? MUSIC_DEFAULTS.fade_out, (x) => setMusic("fade_out", x), { min: 0, max: 10, step: 0.1 })),
-        field("Konuşurken", slider(m.duck ?? MUSIC_DEFAULTS.duck, "Konuşma sırasında kalan müzik düzeyi", (x) => setMusic("duck", x))),
-        field("Döngü", (() => {
-          const c = el("input", { type: "checkbox" });
-          c.checked = m.loop ?? MUSIC_DEFAULTS.loop;
-          c.addEventListener("change", () => setMusic("loop", c.checked ? undefined : false));
-          return c;
-        })()),
-        el("div", { class: "row-inline" },
-          el("button", { class: "btn small", type: "button", on: { click: () => listen(`/kutuphane/muzik/${m.track}.wav`) } }, "▶ Parçayı dinle"),
-          el("button", { class: "btn small danger", type: "button", on: { click: () => { delete ep.music; ctx.changed(true); } } }, "Müziği kaldır")),
-      ]
-      : [el("p", { class: "muted small", text: v.music.length ? "Müzik yok. Soldaki Müzik panelinde bir parçanın yanındaki “Kullan” ile ekle." : "Kütüphanede müzik yok (library/muzik)." })];
-    return el("div", {},
-      el("h2", { text: "Mikser" }),
-      el("p", { class: "muted small", text: "Dinlerken sessize almak ya da tek başına dinlemek için zaman çizelgesindeki M / S düğmeleri." }),
-      el("h3", { text: "İz düzeyleri" }),
-      field("Replikler", slider(ep.mix?.lines ?? 1, "Repliklerin düzeyi", (x) => setMix("lines", x))),
-      field("Efektler", slider(ep.mix?.sfx ?? 1, "Efektlerin düzeyi", (x) => setMix("sfx", x))),
-      el("h3", { text: "Müzik" }),
-      musicPart,
-      el("button", { class: "btn small", type: "button", on: { click: () => ctx.select(null) } }, "← Shot'a dön"));
+  /** The Sahne section stays open or closed as the person left it (a view choice, in the browser). */
+  const SCENE_KEY = "cizgi.sahne-acik";
+  function sceneOpen() {
+    try {
+      return localStorage.getItem(SCENE_KEY) === "1";
+    } catch {
+      return false; // storage off: closed, as at first
+    }
   }
 
-  function render() {
-    const sel = ctx.sel();
-    if (sel.kind === "mix") {
-      box.replaceChildren(mixer());
-      return;
+  const decorList = (scene, sel) => sceneDecor(scene, {
+    selected: sel.kind === "dekor" ? sel.index : -1,
+    select: (i) => ctx.select(i < 0 ? null : "dekor", i),
+    changed: () => ctx.changed(true),
+  });
+
+  /**
+   * What belongs to the whole scene (every shot of it): background layers, light, where captions
+   * sit, decor. A closed <details> by default, so the shot's own settings come first.
+   */
+  function sceneSection(scene, sel) {
+    const v = ctx.vocab();
+    const box = el("details", { class: "scene-box", open: sceneOpen() },
+      el("summary", {}, el("span", { text: `Sahne: ${scene.title || scene.scene_id}` }), el("span", { class: "muted small", text: "bütün shot'ları" })),
+      el("h3", { text: "Mekân katmanları" }),
+      sceneLayers(scene, v.backgrounds.find((b) => b.id === scene.bg)?.layers, () => ctx.changed(true)),
+      el("h3", { text: "Işık" }),
+      sceneLight(scene, () => ctx.changed(true)),
+      el("h3", { text: "Altyazının yeri" }),
+      sceneCaption(scene, ctx.format(), () => ctx.changed(true)),
+      el("h3", { text: "Dekor" }),
+      decorList(scene, sel));
+    box.addEventListener("toggle", () => {
+      try {
+        localStorage.setItem(SCENE_KEY, box.open ? "1" : "0");
+      } catch {
+        /* storage off: lasts until the next redraw */
+      }
+    });
+    return box;
+  }
+
+  /** The selected thing alone, its settings first; "← shot" goes back to the whole shot. */
+  function itemView(scene, shot, sel) {
+    const v = ctx.vocab();
+    const i = sel.index;
+    const back = el("button", { class: "btn small back", type: "button", on: { click: () => ctx.select(null) } }, `← ${shot.shot_id}`);
+    const head = (title, meta) => [back, el("h2", { text: title }), el("p", { class: "muted small", text: meta }),
+      problemList((m) => m.row && m.row.kind === sel.kind && m.row.index === i)];
+    const drop = (text, fn) => el("button", { class: "btn small danger", type: "button", on: { click: fn } }, text);
+    if (sel.kind === "cast" && shot.cast[i]) {
+      const m = shot.cast[i];
+      return [...head(ctx.labelOf(m.id), `oyuncu · ${shot.shot_id}`), castDetail(shot, m),
+        shot.cast.length > 1 ? drop("Oyuncuyu shot'tan çıkar", () => removeCast(shot, i)) : null];
     }
-    const found = sel.shot && ctx.find(sel.shot);
-    if (!found) {
-      box.replaceChildren(el("p", { class: "empty", text: "Aşağıdaki şeritten bir shot seç." }));
-      return;
+    if (sel.kind === "prop" && shot.props?.[i]) {
+      const p = shot.props[i];
+      return [...head(p.id, `nesne · ${p.prop}`), propDetail(shot, p), drop("Nesneyi shot'tan çıkar", () => removeFrom(shot, "props", i))];
     }
-    const { scene, shot } = found;
-    shotMessages = messagesOf(shot);
+    if (sel.kind === "sfx" && shot.sfx?.[i]) {
+      const s = shot.sfx[i];
+      return [...head(labelIn(v.sfx, s.sfx), `efekt · ${s.at.toFixed(2)} s`), sfxDetail(shot, s), drop("Efekti sil", () => removeFrom(shot, "sfx", i))];
+    }
+    if (sel.kind === "line" && shot.utterances?.[i]) {
+      const u = shot.utterances[i];
+      return [...head(`${ctx.labelOf(u.speaker)}: “${u.text}”`, `replik ${i + 1} · ${shot.shot_id}`), lineDetail(shot, u, i)];
+    }
+    if (sel.kind === "dekor" && scene.dekor?.[i]) {
+      return [back, el("h2", { text: "Dekor" }), el("p", { class: "muted small", text: `sahne ${scene.scene_id}: bütün shot'larında` }),
+        problemList((m) => m.row && m.row.kind === "dekor" && m.row.index === i), decorList(scene, sel)];
+    }
+    return null; // the selection points at nothing any more: show the shot
+  }
+
+  /** Nothing selected: the shot, its rows (a click opens one), then its scene's section. */
+  function shotView(scene, shot, sel) {
     const v = ctx.vocab();
     const t = ctx.shotTime(shot.shot_id);
     const targets = [...shot.cast.map((c) => ({ id: c.id, label: ctx.labelOf(c.id) })), ...(shot.props || []).map((p) => ({ id: p.id, label: `${p.id} (nesne)` }))];
-
     const cast = shot.cast.map((m, i) => {
-      const on = sel.kind === "cast" && sel.index === i;
       const img = el("img", { alt: "" });
       rigThumb(ctx.rigOf(m.id)).then((src) => { img.src = src; });
-      return [row({
-        selected: on, img, title: ctx.labelOf(m.id),
+      return row({
+        key: `cast:${i}`, img, title: ctx.labelOf(m.id),
         meta: `${labelIn(v.actions, m.action)} · ${MARK_TEXT[m.mark] || m.mark}${m.walk ? " · yürüyor" : ""}`,
-        onPick: () => ctx.select(on ? null : "cast", i),
+        onPick: () => ctx.select("cast", i),
         onDelete: shot.cast.length > 1 ? () => removeCast(shot, i) : null, deleteText: "Oyuncuyu shot'tan çıkar", badge: badgeFor("cast", i),
-      }), on ? castDetail(shot, m) : null];
+      });
     });
-
-    const props = (shot.props || []).map((p, i) => {
-      const on = sel.kind === "prop" && sel.index === i;
-      return [row({
-        selected: on, img: el("img", { alt: "", src: `/kutuphane/nesne/${p.prop}.svg` }), title: p.id,
-        meta: `${p.prop}${p.holder ? ` · ${ctx.labelOf(p.holder)} tutuyor` : ""}`,
-        onPick: () => ctx.select(on ? null : "prop", i),
-        onDelete: () => removeFrom(shot, "props", i), deleteText: "Nesneyi shot'tan çıkar", badge: badgeFor("prop", i),
-      }), on ? propDetail(shot, p) : null];
+    const props = (shot.props || []).map((p, i) => row({
+      key: `prop:${i}`, img: el("img", { alt: "", src: `/kutuphane/nesne/${p.prop}.svg` }), title: p.id,
+      meta: `${p.prop}${p.holder ? ` · ${ctx.labelOf(p.holder)} tutuyor` : ""}`,
+      onPick: () => ctx.select("prop", i),
+      onDelete: () => removeFrom(shot, "props", i), deleteText: "Nesneyi shot'tan çıkar", badge: badgeFor("prop", i),
+    }));
+    const sounds = (shot.sfx || []).map((s, i) => row({
+      key: `sfx:${i}`, img: el("span", { class: "btn icon", "aria-hidden": "true", text: "♪" }), title: labelIn(v.sfx, s.sfx),
+      meta: `${s.at.toFixed(2)} s${s.volume !== undefined ? ` · düzey ${Math.round(s.volume * 100)}%` : ""}`,
+      onPick: () => ctx.select("sfx", i),
+      onDelete: () => removeFrom(shot, "sfx", i), deleteText: "Efekti sil", badge: badgeFor("sfx", i),
+    }));
+    const lines = (shot.utterances || []).map((u, i) => {
+      const key = `${shot.shot_id}-${i}`;
+      return row({
+        key: `line:${i}`, img: el("span", { class: "btn icon", "aria-hidden": "true", text: "❝" }),
+        title: `${ctx.labelOf(u.speaker)}: “${u.text}”`,
+        meta: [ctx.unspoken(key) ? "ses yok" : listenText(ctx.listening(key)), u.delay ? `önce ${u.delay.toFixed(2)} s bekler` : "", u.volume !== undefined ? `düzey ${Math.round(u.volume * 100)}%` : ""].filter(Boolean).join(" · "),
+        onPick: () => ctx.select("line", i),
+        badge: badgeFor("line", i),
+      });
     });
-
-    const sounds = (shot.sfx || []).map((s, i) => {
-      const on = sel.kind === "sfx" && sel.index === i;
-      return [row({
-        selected: on, img: el("span", { class: "btn icon", "aria-hidden": "true", text: "♪" }), title: labelIn(v.sfx, s.sfx),
-        meta: `${s.at.toFixed(2)} s${s.volume !== undefined ? ` · düzey ${Math.round(s.volume * 100)}%` : ""}`,
-        onPick: () => ctx.select(on ? null : "sfx", i),
-        onDelete: () => removeFrom(shot, "sfx", i), deleteText: "Efekti sil", badge: badgeFor("sfx", i),
-      }), on ? sfxDetail(shot, s) : null];
-    });
-
     const notes = el("textarea", { "aria-label": "Notlar" });
     notes.value = shot.notes || "";
     notes.addEventListener("change", () => { setKey(shot, "notes", notes.value || undefined); ctx.changed(); });
-
-    // el() flattens nested arrays and drops nulls; replaceChildren would not.
-    box.replaceChildren(el("div", {},
+    // a heading's hint is its tooltip: the panel stays quiet
+    const h3 = (text, hint) => el("h3", { text, title: hint });
+    return [
       el("h2", { text: shot.shot_id }),
-      el("p", { class: "muted small", text: `sahne ${scene.scene_id} · ${scene.bg}${t ? ` · ${t.start.toFixed(2)}–${t.end.toFixed(2)} s` : ""}` }),
+      el("p", { class: "muted small", text: `${scene.title || `sahne ${scene.scene_id}`} · ${scene.bg}${t ? ` · ${t.start.toFixed(2)}–${t.end.toFixed(2)} s` : ""}` }),
       problemList(),
-      el("h3", { text: "Kamera" }),
+      h3("Kamera"),
       field("Plan", select(shot.camera.framing, v.framings, (val) => { shot.camera.framing = val; ctx.changed(true); })),
       field("Hareket", select(shot.camera.move, v.moves, (val) => { setKey(shot.camera, "move", val); ctx.changed(); }, { empty: "sabit" })),
       field("Hedef", select(shot.camera.target, targets, (val) => { setKey(shot.camera, "target", val); ctx.changed(); }, { empty: "otomatik" })),
       field("Bekleme (s)", number(shot.hold, (val) => { setKey(shot, "hold", val); ctx.changed(true); }, { min: 0, max: 10, step: 0.05 })),
-      el("h3", {}, "Mekân katmanları", el("span", { class: "muted small", text: `sahne ${scene.scene_id}: bütün shot'ları` })),
-      sceneLayers(scene, v.backgrounds.find((b) => b.id === scene.bg)?.layers, () => ctx.changed(true)),
-      el("h3", {}, "Işık", el("span", { class: "muted small", text: `sahne ${scene.scene_id}: bütün shot'ları` })),
-      sceneLight(scene, () => ctx.changed(true)),
-      el("h3", {}, "Altyazı", el("span", { class: "muted small", text: `sahne ${scene.scene_id}: bütün shot'ları` })),
-      captionSettings(ctx.episode(), scene, ctx.format(), ctx.labelOf, () => ctx.changed(true)),
-      el("h3", {}, "Dekor", el("span", { class: "muted small", text: `sahne ${scene.scene_id}: bütün shot'ları` })),
-      sceneDecor(scene, {
-        selected: sel.kind === "dekor" ? sel.index : -1,
-        select: (i) => ctx.select(i < 0 ? null : "dekor", i),
-        changed: () => ctx.changed(true),
-      }),
-      el("h3", {}, "Oyuncular", el("span", { class: "muted small", text: "eklemek: soldaki Karakter" })),
+      h3("Oyuncular", "Eklemek: soldaki Karakter paneli"),
       cast,
-      el("h3", {}, "Nesneler", el("span", { class: "muted small", text: "eklemek: soldaki Nesne" })),
+      h3("Nesneler", "Eklemek: soldaki Nesne paneli"),
       props.length ? props : el("p", { class: "muted small", text: "Bu shot'ta nesne yok." }),
-      el("h3", {}, "Efektler", el("span", { class: "muted small", text: "eklemek: soldaki Ses" })),
+      h3("Efektler", "Eklemek: soldaki Ses paneli"),
       sounds.length ? sounds : el("p", { class: "muted small", text: "Bu shot'ta efekt yok." }),
-      el("h3", {}, "Replikler", el("span", { class: "muted small", text: "değişirse senaryo onayı düşer" })),
-      (shot.utterances || []).map((u, i) => {
-        const on = sel.kind === "line" && sel.index === i;
-        const key = `${shot.shot_id}-${i}`;
-        return [row({
-          selected: on, img: el("span", { class: "btn icon", "aria-hidden": "true", text: "❝" }),
-          title: `${ctx.labelOf(u.speaker)}: “${u.text}”`,
-          meta: [ctx.unspoken(key) ? "ses yok" : listenText(ctx.listening(key)), u.delay ? `önce ${u.delay.toFixed(2)} s bekler` : "", u.volume !== undefined ? `düzey ${Math.round(u.volume * 100)}%` : ""].filter(Boolean).join(" · "),
-          onPick: () => ctx.select(on ? null : "line", i),
-          badge: badgeFor("line", i),
-        }), on ? lineDetail(shot, u, i) : null];
-      }),
+      h3("Replikler", "Bir replik değişirse senaryo onayı düşer"),
+      lines,
       newLine(shot),
-      el("h3", { text: "Notlar" }),
+      h3("Notlar"),
       notes,
-    ));
+      sceneSection(scene, sel),
+    ];
+  }
+
+  /** Which view is on show: "shot", "mix" or the open row ("cast:0"…), to tell a switch from a redraw. */
+  let shown = "";
+  let shotScroll = 0; // where the shot view was scrolled when a row opened
+  const scroller = () => box.closest(".inspector") || box;
+
+  /** After a switch: an item starts at its top, the shot view comes back where it was, the keyboard stays here. */
+  function settle(view, hadFocus) {
+    if (view === shown) return;
+    const was = shown;
+    shown = view;
+    if (view === "shot") {
+      scroller().scrollTop = shotScroll;
+      if (hadFocus) (box.querySelector(`[data-row="${was}"]`) || box.querySelector("h2"))?.focus({ preventScroll: true });
+      return;
+    }
+    scroller().scrollTop = 0;
+    if (hadFocus) box.querySelector(".back")?.focus({ preventScroll: true });
+  }
+
+  function render() {
+    const sel = ctx.sel();
+    const hadFocus = box.contains(document.activeElement);
+    if (shown === "shot") shotScroll = scroller().scrollTop;
+    if (sel.kind === "mix") {
+      box.replaceChildren(episodeSettings({ episode: ctx.episode, vocab: ctx.vocab, labelOf: ctx.labelOf, changed: ctx.changed, select: ctx.select }));
+      return settle("mix", hadFocus);
+    }
+    const found = sel.shot && ctx.find(sel.shot);
+    if (!found) {
+      box.replaceChildren(el("p", { class: "empty", text: "Aşağıdaki şeritten bir shot seç." }));
+      return settle("", hadFocus);
+    }
+    const { scene, shot } = found;
+    shotMessages = messagesOf(shot);
+    const item = sel.kind ? itemView(scene, shot, sel) : null;
+    // the selection points at something gone: clear it, so the stage and Delete agree with the panel
+    if (sel.kind && !item) queueMicrotask(() => ctx.select(null));
+    // el() flattens nested arrays and drops nulls; replaceChildren would not.
+    box.replaceChildren(el("div", {}, item || shotView(scene, shot, sel)));
+    return settle(item ? `${sel.kind}:${sel.index}` : "shot", hadFocus);
   }
 
   /** Remove the selected cast member, prop or effect (Delete key). false when nothing can go. */

@@ -1,6 +1,7 @@
-// "Altyazı" in the inspector: where and how big the selected shot's scene shows its captions
-// (scene.altyazi), and two settings of the whole episode: captions off (episode.altyazi.kapali)
-// and edging each caption with its speaker's colour (konusan_rengi, characters[].renk).
+// Captions in the inspector: where and how big the selected shot's scene shows them
+// (scene.altyazi, in the Sahne section), and two settings of the whole episode (Bölüm ayarları):
+// captions off (episode.altyazi.kapali) and edging each caption with its speaker's colour
+// (konusan_rengi, characters[].renk).
 // A line's own on/off is in its details (and a click on its block in the Altyazı track).
 import { el, select } from "./dom.js";
 import { captionPlace, speakerColor } from "./altyazi.mjs";
@@ -19,21 +20,32 @@ function setIn(owner, key, field, value) {
 }
 
 /**
- * @param {object} episode the draft (changed in place)
- * @param {object} scene the selected shot's scene
+ * Where and how big a scene shows its captions.
+ * @param {object} scene the selected shot's scene (changed in place)
  * @param {string} format "16:9" | "9:16" (the defaults differ)
- * @param {(id:string) => string} labelOfCharacter
  * @param {() => void} changed
  */
-export function captionSettings(episode, scene, format, labelOfCharacter, changed) {
+export function sceneCaption(scene, format, changed) {
   const def = captionPlace({}, format);
-  const off = !!episode.altyazi?.kapali;
   const place = select(scene.altyazi?.konum, PLACES, (v) => { setIn(scene, "altyazi", "konum", v); changed(); },
     { empty: `${labelOf(PLACES, def.konum)} (${format} için)` });
   place.setAttribute("aria-label", "Altyazının yeri");
   const size = select(scene.altyazi?.boyut, SIZES, (v) => { setIn(scene, "altyazi", "boyut", v); changed(); },
     { empty: `${labelOf(SIZES, def.boyut)} (varsayılan)` });
   size.setAttribute("aria-label", "Altyazının boyutu");
+  return el("div", { class: "kfields" },
+    el("label", {}, el("span", { class: "muted small", text: "Yer" }), place),
+    el("label", {}, el("span", { class: "muted small", text: "Boyut" }), size));
+}
+
+/**
+ * The whole episode's captions: off, or edged with the speaker's colour (one per character).
+ * @param {object} episode the draft (changed in place)
+ * @param {(id:string) => string} labelOfCharacter
+ * @param {() => void} changed
+ */
+export function episodeCaption(episode, labelOfCharacter, changed) {
+  const off = !!episode.altyazi?.kapali;
   const check = (text, on, set) => {
     const box = el("input", { type: "checkbox", checked: on });
     box.addEventListener("change", () => { set(box.checked); changed(); });
@@ -48,10 +60,6 @@ export function captionSettings(episode, scene, format, labelOfCharacter, change
     }))
     : null;
   return el("div", {},
-    el("div", { class: "kfields" },
-      el("label", {}, el("span", { class: "muted small", text: "Yer" }), place),
-      el("label", {}, el("span", { class: "muted small", text: "Boyut" }), size)),
-    el("p", { class: "muted small", text: "Bütün bölüm:" }),
     check("Altyazı yok", off, (v) => setIn(episode, "altyazi", "kapali", v)),
     off ? null : check("Konuşanın rengiyle çerçevele", coloured, (v) => setIn(episode, "altyazi", "konusan_rengi", v)),
     colours);
