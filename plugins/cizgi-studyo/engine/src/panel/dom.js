@@ -71,3 +71,37 @@ export function setKey(obj, key, value) {
 }
 
 export const seconds = (t) => `${t.toFixed(2)} s`;
+
+/**
+ * Ask a yes/no question in the page. The browser's own confirm() cannot be used: the panel runs in
+ * an embedded browser that answers it "no" at once without showing it, so every delete or approval
+ * guarded by it silently did nothing. Cancel holds the focus; Escape and the backdrop cancel.
+ * @param {string} question  names the thing ("“Ahmet” karakteri silinsin mi?")
+ * @param {{detail?:string, yes?:string, danger?:boolean}} [opts]  yes: the verb on the button
+ * @returns {Promise<boolean>}
+ */
+export function confirmInPage(question, { detail, yes = "Sil", danger = true } = {}) {
+  return new Promise((done) => {
+    const dialog = el("dialog", { class: "onay-sor", role: "alertdialog", "aria-label": question });
+    const finish = (answer) => {
+      dialog.close();
+      dialog.remove();
+      done(answer);
+    };
+    const cancel = el("button", { class: "btn", type: "button", text: "Vazgeç", on: { click: () => finish(false) } });
+    dialog.append(...[ // append would write "null" for a part left out
+      el("h2", { text: question }),
+      detail ? el("p", { class: "muted", text: detail }) : null,
+      el("div", { class: "onay-sor-dugmeler" }, cancel,
+        el("button", { class: `btn ${danger ? "tehlike" : "primary"}`, type: "button", text: yes, on: { click: () => finish(true) } })),
+    ].filter(Boolean));
+    dialog.addEventListener("cancel", (e) => { e.preventDefault(); finish(false); });
+    dialog.addEventListener("click", (e) => { if (e.target === dialog) finish(false); }); // the backdrop
+    dialog.addEventListener("keydown", (e) => e.stopPropagation()); // the editor's keys stay out
+    // inside the topmost open modal (a wizard page), so it shows above it
+    const modals = [...document.querySelectorAll("dialog[open]")];
+    (modals.at(-1) || document.body).append(dialog);
+    dialog.showModal();
+    cancel.focus();
+  });
+}

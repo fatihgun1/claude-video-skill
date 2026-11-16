@@ -5,7 +5,7 @@
 // Claude's column on the right (sihirbaz.js docks its steps there, kanal.js Claude's question).
 // An approval is recorded only when the person presses its button here (POST /api/onay, the same
 // checks as `cizgi onayla`); Claude never presses it.
-import { el } from "./dom.js";
+import { el, confirmInPage } from "./dom.js";
 import { tr } from "./tr.js";
 
 const POLL_MS = 2000;
@@ -110,7 +110,7 @@ export function createProduction(els, ctx) {
 
   /** The person pressed an approval button: record it (the server runs the same checks as cizgi onayla). */
   async function approve(kapi, what, name) {
-    if (!window.confirm(`${what} onaylıyor musun? Bu onayı sen veriyorsun; içerik sonra değişirse onay düşer.`)) return;
+    if (!(await confirmInPage(`${what} onaylıyor musun?`, { detail: "Bu onayı sen veriyorsun; içerik sonra değişirse onay düşer.", yes: "Onayla", danger: false }))) return;
     await request(kapi, async () => {
       const res = await ctx.api("/api/onay", { b: ctx.path(), kapi });
       if (res.status) ctx.setStatus(res.status);
@@ -165,7 +165,7 @@ export function createProduction(els, ctx) {
   }
 
   async function stopJob() {
-    if (!window.confirm(`${JOB_TEXT[job.kind] || job.kind} işi durdurulsun mu? Sonra yeniden başlatabilirsin.`)) return;
+    if (!(await confirmInPage(`${JOB_TEXT[job.kind] || job.kind} işi durdurulsun mu?`, { detail: "Sonra yeniden başlatabilirsin.", yes: "Durdur" }))) return;
     try {
       const res = await ctx.api("/api/is/durdur", { b: ctx.path() });
       job = res.job;

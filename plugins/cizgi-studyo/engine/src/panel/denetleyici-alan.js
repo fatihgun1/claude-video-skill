@@ -2,7 +2,7 @@
 // isik.js so the right panel reads as one page: a header that says what is selected, titled
 // sections (rare ones folded), labels above controls, small choices as segmented buttons,
 // numbers with their unit, sliders that show their value. Styles: ui-denetleyici.css.
-import { el, select } from "./dom.js";
+import { el, select, confirmInPage } from "./dom.js";
 
 /** More choices than this read better as a dropdown in a ~300px panel. */
 const MAX_SEGMENTS = 4;
@@ -162,6 +162,6 @@ export function check(text, on, onChange, { disabled = false, title } = {}) {
 export function dangerButton(text, question, onYes, { disabled = false, title } = {}) {
   return el("button", {
     class: "btn small danger", type: "button", disabled, title,
-    on: { click: (e) => { e.stopPropagation(); if (window.confirm(question)) onYes(); } },
+    on: { click: async (e) => { e.stopPropagation(); if (await confirmInPage(question, { yes: text })) onYes(); } },
   }, text);
 }

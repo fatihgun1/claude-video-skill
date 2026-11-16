@@ -370,3 +370,12 @@ test("unknown routes are 404", async () => {
   const res = await call("DELETE", "/api/bolum");
   assert.equal(res.status, 404);
 });
+
+test("the panel never uses the browser's own confirm/alert/prompt (the embedded browser answers them at once, unseen)", async () => {
+  const { readdirSync, readFileSync } = await import("node:fs");
+  const dir = fileURLToPath(new URL("../src/panel/", import.meta.url));
+  for (const f of readdirSync(dir).filter((n) => n.endsWith(".js"))) {
+    const code = readFileSync(join(dir, f), "utf8").replace(/^\s*(\/\/|\*).*$/gm, "");
+    assert.doesNotMatch(code, /(?<![\w.])(window\.)?(confirm|alert|prompt)\(/, f);
+  }
+});

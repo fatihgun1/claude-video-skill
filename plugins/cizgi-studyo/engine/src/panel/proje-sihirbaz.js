@@ -7,7 +7,7 @@
 // narrow column in the middle, Claude on the right. The person fills the fields; each field has a
 // "Claude'a sor" button that asks Claude for suggestions about it (POST /api/kanal/iste); Claude's
 // question then shows in the right column, never over the form.
-import { el } from "./dom.js";
+import { el, confirmInPage } from "./dom.js";
 import { mergeStory } from "./hikaye-birlestir.js";
 
 const STEPS = [
@@ -302,8 +302,8 @@ export function createProjectWizard(ctx) {
     const rows = s.story.karakterler.map((c, i) => el("div", { class: "pitem" },
       el("div", { class: "pitem-ust" },
         el("b", { text: c.ad || `Karakter ${i + 1}` }),
-        el("button", { class: "btn small ghost danger", type: "button", text: "Sil", on: { click: () => {
-          if (!confirm(`“${c.ad || `Karakter ${i + 1}`}” karakteri silinsin mi? Sahnelerden de çıkar.`)) return;
+        el("button", { class: "btn small ghost danger", type: "button", text: "Sil", on: { click: async () => {
+          if (!(await confirmInPage(`“${c.ad || `Karakter ${i + 1}`}” karakteri silinsin mi?`, { detail: "Sahnelerden de çıkar.", yes: "Karakteri sil" }))) return;
           removeCharacter(c.ad); s.story.karakterler.splice(i, 1); render();
         } } })),
       el("div", { class: "pikili" },
@@ -380,9 +380,9 @@ export function createProjectWizard(ctx) {
           el("span", { class: "pkart-arac" },
             el("button", { class: "btn small ghost", type: "button", disabled: i === 0, text: "↑", "aria-label": `Sahne ${i + 1} yukarı`, on: { click: (e) => { e.preventDefault(); move(i, -1); } } }),
             el("button", { class: "btn small ghost", type: "button", disabled: i === s.story.kartlar.length - 1, text: "↓", "aria-label": `Sahne ${i + 1} aşağı`, on: { click: (e) => { e.preventDefault(); move(i, 1); } } }),
-            el("button", { class: "btn small ghost danger", type: "button", text: "Sil", on: { click: (e) => {
+            el("button", { class: "btn small ghost danger", type: "button", text: "Sil", on: { click: async (e) => {
               e.preventDefault();
-              if (!confirm(`Sahne ${i + 1} (“${k.baslik || "başlıksız"}”) silinsin mi?`)) return;
+              if (!(await confirmInPage(`Sahne ${i + 1} (“${k.baslik || "başlıksız"}”) silinsin mi?`, { yes: "Sahneyi sil" }))) return;
               s.story.kartlar.splice(i, 1); render();
             } } }))),
         el("div", { class: "pkart-govde" },

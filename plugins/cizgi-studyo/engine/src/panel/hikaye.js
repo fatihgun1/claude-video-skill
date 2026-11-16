@@ -8,7 +8,7 @@
 // (number · title · place · who), reordered with ↑/↓. The project wizard edits the same file, so the
 // data model stays the wizard's: fields this page does not show (mekan, saat, nesneler, istekler…)
 // are kept untouched.
-import { el } from "./dom.js";
+import { el, confirmInPage } from "./dom.js";
 import { mergeStory } from "./hikaye-birlestir.js";
 
 const SHORT = 80;
@@ -266,8 +266,8 @@ export function createStory(dialog, ctx) {
     return el("li", { class: "pitem hk-karakter" },
       el("div", { class: "pitem-ust" },
         el("b", { text: shown }),
-        el("button", { class: "btn small ghost danger", type: "button", text: "Sil", "aria-label": `${shown} karakterini sil`, on: { click: () => {
-          if (confirm(`“${shown}” karakteri silinsin mi? Sahne kartlarından da çıkar.`)) removeCharacter(i);
+        el("button", { class: "btn small ghost danger", type: "button", text: "Sil", "aria-label": `${shown} karakterini sil`, on: { click: async () => {
+          if (await confirmInPage(`“${shown}” karakteri silinsin mi?`, { detail: "Sahne kartlarından da çıkar.", yes: "Karakteri sil" })) removeCharacter(i);
         } } })),
       el("div", { class: "pikili" },
         field("Ad", name, { id: name.id, error: nameErrors.get(c) }),
@@ -337,8 +337,8 @@ export function createStory(dialog, ctx) {
         el("span", { class: "pkart-arac" },
           tool("↑", `Sahne ${n} yukarı`, `yukari-${key}`, i === 0, () => moveCard(i, i - 1, i - 1 === 0 ? `asagi-${key}` : `yukari-${key}`)),
           tool("↓", `Sahne ${n} aşağı`, `asagi-${key}`, last, () => moveCard(i, i + 1, i + 2 === story.kartlar.length ? `yukari-${key}` : `asagi-${key}`)),
-          tool("Sil", `Sahne ${n} sil`, null, false, () => {
-            if (!confirm(`Sahne ${n} (“${k.baslik || "başlıksız"}”) silinsin mi?`)) return;
+          tool("Sil", `Sahne ${n} sil`, null, false, async () => {
+            if (!(await confirmInPage(`Sahne ${n} (“${k.baslik || "başlıksız"}”) silinsin mi?`, { yes: "Sahneyi sil" }))) return;
             story.kartlar.splice(i, 1);
             render();
           }))),
