@@ -629,3 +629,8 @@ body.at-home .editor, body.at-home .bar > :not(.brand):not(.state), body.at-home
 .voice-row { padding: 8px 10px; margin: 6px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--pane-2); }
 /* a question inside a dialog keeps its own look (the dialog's h3 is a small uppercase label) */
 .projects .kanal-soru h3 { font-size: 15px; font-weight: 600; text-transform: none; letter-spacing: normal; color: var(--text); margin: 0; }
+/* Claude is working on the last answer: the project wizard's steps wait (proje-sihirbaz.js) */
+.psih-dusunuyor { display: flex; align-items: center; gap: 10px; padding: 12px 14px; margin: 8px 0; border: 1px dashed var(--accent); border-radius: var(--radius); color: var(--accent); font-weight: 600; }
+.psih-dusunuyor .cark { width: 18px; height: 18px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--accent); animation: psih-cark 0.9s linear infinite; }
+@keyframes psih-cark { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .psih-dusunuyor .cark { animation: none; } }

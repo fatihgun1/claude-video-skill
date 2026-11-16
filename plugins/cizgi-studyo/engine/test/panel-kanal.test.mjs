@@ -168,3 +168,19 @@ test("Claude can open the project wizard on an episode being made, at a step", (
     assert.throws(() => ch.yonlendir(bad), undefined, JSON.stringify(bad));
   }
 });
+
+test("after the person answers, Claude is thinking until its next move in the panel (or it times out)", () => {
+  let now = 1000;
+  const ch = createChannel({ now: () => now });
+  assert.equal(ch.durum().dusunuyor, false);
+  const { id } = ch.sor(Q);
+  assert.equal(ch.durum().dusunuyor, false, "a question waits for the person, not for Claude");
+  ch.cevapla(id, { secim: ["Sokak"] });
+  assert.equal(ch.durum().dusunuyor, true);
+  ch.yonlendir({ sekme: "karakter" });
+  assert.equal(ch.durum().dusunuyor, false, "moving the panel is Claude's move");
+  const q = ch.sor(Q);
+  ch.cevapla(q.id, { secim: ["Park"] });
+  now += 121_000;
+  assert.equal(ch.durum().dusunuyor, false, "the lock lets go when Claude says nothing for two minutes");
+});

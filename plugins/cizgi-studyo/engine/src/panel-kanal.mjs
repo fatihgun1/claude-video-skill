@@ -24,6 +24,7 @@ const SHOT = /^[a-z0-9_-]{1,40}$/;
 // a library drawing or a draft (incl. concept sketches), as the panel serves them
 const PICTURE = /^\/(kutuphane|kutuphane-taslak)\/(karakter|mekan|nesne|konsept)\/[a-z0-9_-]{1,60}\.svg$/;
 const MAX_OPTIONS = 8;
+const THINKING_MAX_MS = 120_000;
 // eslint-disable-next-line no-control-regex
 const CONTROL = new RegExp("[\\u0000-\\u001f\\u007f\\u2028\\u2029]");
 
@@ -93,12 +94,13 @@ function cleanQuestion(q) {
 /**
  * @param {{onLateAnswer?:(answer:{id:string, soru:string, secim:string[], metin:string}) => void}} [opts]
  */
-export function createChannel({ onLateAnswer } = {}) {
+export function createChannel({ onLateAnswer, now = () => Date.now() } = {}) {
   let seq = 0;
   let nav = null;
   let question = null; // {id, soru, secenekler, coklu, serbest, seq}
   let waiter = null; // {id, done}
   let wizard = null; // {id, baslik, adimlar, aktif, bitti, seq}
+  let thinkingSince = 0; // the person answered: Claude works until its next move in the panel
 
   function release(value) {
     if (!waiter) return false;
@@ -112,12 +114,14 @@ export function createChannel({ onLateAnswer } = {}) {
   return {
     yonlendir(cmd) {
       nav = { ...cleanNav(cmd), seq: ++seq, at: Date.now() };
+      thinkingSince = 0;
       return nav;
     },
     sor(q) {
       const clean = cleanQuestion(q);
       release(null); // the open question is dropped: whoever waited for it learns that
       question = { id: `s${Date.now().toString(36)}${randomBytes(3).toString("hex")}`, ...clean, seq: ++seq };
+      thinkingSince = 0;
       return { id: question.id };
     },
     /** The answer to question `id`, or null when it does not come within `ms` (or the question was replaced). */
@@ -139,6 +143,7 @@ export function createChannel({ onLateAnswer } = {}) {
       if (!secim.length && !note) throw new Error("bir seçenek seç ya da cevabını yaz");
       const answer = { id, soru: question.soru, secim: [...new Set(secim)], metin: note };
       const about = question.bolum;
+      thinkingSince = now();
       question = null;
       if (!release(answer)) onLateAnswer?.(answer, about);
       return answer;
@@ -146,10 +151,13 @@ export function createChannel({ onLateAnswer } = {}) {
     /** Start, move on or close the wizard (panel_adim). */
     sihirbaz(cmd) {
       wizard = applyWizard(wizard, cmd, ++seq);
+      thinkingSince = 0;
       return copyWizard(wizard);
     },
     durum() {
-      return { yon: nav, soru: question ? { ...question } : null, sihirbaz: copyWizard(wizard) };
+      // the panel locks its buttons and shows Claude thinking; it lets go if Claude stays silent too long
+      const dusunuyor = !!thinkingSince && now() - thinkingSince < THINKING_MAX_MS;
+      return { yon: nav, soru: question ? { ...question } : null, sihirbaz: copyWizard(wizard), dusunuyor };
     },
   };
 }

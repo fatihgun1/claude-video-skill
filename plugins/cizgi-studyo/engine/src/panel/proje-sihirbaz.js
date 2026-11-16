@@ -3,6 +3,7 @@
 // (bolumler/<id>/hikaye.json: baslik, istekler, karakterler, kartlar with mekan/saat/nesneler), so an
 // episode can be "being made" before it has a bolum.json. "Oluştur" sends it to Claude (panel-yapim.mjs).
 import { el } from "./dom.js";
+import { mergeStory } from "./hikaye-birlestir.js";
 
 const STEPS = [
   ["hikaye", "Hikâye"],
@@ -30,6 +31,8 @@ export function createProjectWizard(ctx) {
   const choiceList = (key) => s.choices?.[key] || [];
   const w = () => s.story.istekler;
 
+  let thinking = false; // Claude is working on the last answer: the steps wait for it
+  const spinner = el("div", { class: "psih-dusunuyor", role: "status" }, el("span", { class: "cark", "aria-hidden": "true" }), el("span", { text: "Claude düşünüyor…" }));
   const slot = el("div", { class: "psih-soru" }); // Claude's question (panel_sor) shows here while the wizard is open
   const stepIndex = (id) => Math.max(0, STEPS.findIndex(([key]) => key === id));
   const unsaved = () => !!s && s.savedText !== undefined && JSON.stringify(s.story) !== s.savedText;
@@ -63,7 +66,17 @@ export function createProjectWizard(ctx) {
     follow();
   }
 
-  /** While open, follow the story on disk: Claude records answers there. The person's unsaved typing is never overwritten. */
+  /** The person is in a field of the wizard (or of Claude's question in it): redrawing now would close a list or lose the cursor. */
+  const busy = () => {
+    const a = document.activeElement;
+    return !!a && dialog.contains(a) && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName);
+  };
+
+  /**
+   * While open, follow the story on disk: Claude records answers there. Each new version on disk is
+   * handled once; the person's unsaved typing is never overwritten, and nothing is redrawn while
+   * they are in a field (it waits until they leave it).
+   */
   let followTimer = 0;
   function follow() {
     clearTimeout(followTimer);
@@ -71,9 +84,15 @@ export function createProjectWizard(ctx) {
       if (!dialog.open || !s?.idFixed) return;
       try {
         const r = await ctx.api(`/api/yapim/oku?${new URLSearchParams({ id: s.id })}`);
-        if (r.version !== s.version) {
-          if (unsaved()) s.info = "Claude hikâyeyi güncelledi: kaydedersen seninkiler onun üstüne yazılır (Kapat ve yeniden aç ile onunkini gör).";
-          else {
+        if (r.version !== s.version && !busy()) {
+          if (unsaved()) {
+            // both wrote: Claude's answers join the person's unsaved edits (theirs stay unsaved, over the new base)
+            const mine = s.story;
+            const before = JSON.parse(s.savedText); // what both edits started from
+            take(r); // the new base: what is on disk now
+            s.story = { ...newStory(), ...mergeStory(before, mine, s.story) };
+            s.info = "Claude da yazdı: ikiniz de korundu (kaydetmeyi unutma).";
+          } else {
             take(r);
             s.info = "Claude güncelledi.";
           }
@@ -95,7 +114,19 @@ export function createProjectWizard(ctx) {
       if (r.exists || r.bolum) throw new Error(`“${s.id}” kimliği kullanılıyor: başka bir kimlik seç.`);
       s.version = r.version;
     }
-    const res = await ctx.api("/api/yapim", { id: s.id, story: s.story, version: s.version });
+    let res;
+    try {
+      res = await ctx.api("/api/yapim", { id: s.id, story: s.story, version: s.version });
+    } catch (err) {
+      if (!s.idFixed || !/diskte değişti/.test(err.message)) throw err;
+      // Claude wrote meanwhile: merge its version with the person's edit and save that
+      const r = await ctx.api(`/api/yapim/oku?${new URLSearchParams({ id: s.id })}`);
+      const mine = s.story;
+      const before = s.savedText ? JSON.parse(s.savedText) : newStory();
+      take(r);
+      s.story = { ...newStory(), ...mergeStory(before, mine, s.story) };
+      res = await ctx.api("/api/yapim", { id: s.id, story: s.story, version: s.version });
+    }
     s.version = res.version;
     s.savedText = JSON.stringify(s.story);
     if (!s.idFixed) {
@@ -305,17 +336,18 @@ export function createProjectWizard(ctx) {
         el("button", { class: "btn", type: "button", text: "Kapat", on: { click: () => dialog.close() } })),
       el("ol", { class: "padimlar" }, STEPS.map(([, t], i) => el("li", {}, el("button", {
         class: `btn small${i === s.step ? " primary" : ""}`, type: "button", "aria-current": i === s.step ? "step" : null, text: `${i + 1}. ${t}`,
-        on: { click: () => go(i) },
+        disabled: thinking, on: { click: () => go(i) },
       })))),
       el("h3", { text: title }),
       el("div", { class: "pgovde" }, body),
+      thinking ? spinner : null,
       slot, // Claude asks here, step by step; its answers fill the fields above
       s.error ? el("p", { class: "err", text: s.error }) : null,
       el("div", { class: "row pnav" },
-        el("button", { class: "btn", type: "button", disabled: s.step === 0, text: "← Geri", on: { click: () => go(s.step - 1) } }),
+        el("button", { class: "btn", type: "button", disabled: s.step === 0 || thinking, text: "← Geri", on: { click: () => go(s.step - 1) } }),
         s.step < STEPS.length - 1
-          ? el("button", { class: "btn primary", type: "button", text: "Kaydet ve ileri →", on: { click: () => go(s.step + 1) } })
-          : el("button", { class: "btn primary", type: "button", text: s.bolum ? "Değişiklikleri Claude'a gönder" : "Oluştur (Claude'a gönder)", on: { click: build } }),
+          ? el("button", { class: "btn primary", type: "button", disabled: thinking, text: "Kaydet ve ileri →", on: { click: () => go(s.step + 1) } })
+          : el("button", { class: "btn primary", type: "button", disabled: thinking, text: s.bolum ? "Değişiklikleri Claude'a gönder" : "Oluştur (Claude'a gönder)", on: { click: build } }),
         s.info && !s.error ? el("span", { class: "muted small", text: s.info }) : null),
     ].filter(Boolean));
     s.info = "";
@@ -325,5 +357,11 @@ export function createProjectWizard(ctx) {
     open,
     /** Where Claude's question goes while the wizard is open (it is a modal: nothing behind it can be clicked). */
     slot: () => (dialog.open ? slot : null),
+    /** Claude is (no longer) working on an answer: lock or free the steps. */
+    setThinking(on) {
+      if (on === thinking) return;
+      thinking = on;
+      if (s && dialog.open && !busy()) render();
+    },
   };
 }
