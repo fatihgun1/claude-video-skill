@@ -20,7 +20,9 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { queueOf, takeRequests, updateRequest, describe, episodeFile, ANSWERS, MAX_TEXT } from "./istekler.mjs";
 
-const SERVER_INFO = { name: "cizgi-studyo", version: "2.4.3" };
+// The Claude session this server belongs to: requests from its panel are for it alone (istekler.mjs).
+const SESSION_ID = process.env.CLAUDE_CODE_SESSION_ID || null;
+const SERVER_INFO = { name: "cizgi-studyo", version: "2.4.4" };
 // panel-kanal.mjs PANELS (not imported: engine modules load on first use)
 const PANEL_TABS = ["projeler", "uretim", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"];
 const WAIT_DEFAULT_S = 600;
@@ -232,6 +234,7 @@ async function panelAc({ klasor, bolum } = {}) {
   if (!panel || panel.root !== space.root) {
     await closePanel(); // frees the port, so the panel stays at the same address
     panel = await e.openPanel({
+      session: SESSION_ID,
       target: space.root, library: LIBRARY, status: e.status, port: portOf() ?? e.DEFAULT_PORT, fallbackPort: true, requests: requestsFile(),
     });
   }
@@ -255,7 +258,7 @@ async function panelAc({ klasor, bolum } = {}) {
 let queue = Promise.resolve();
 
 function panelIstekleri({ hepsi = false } = {}) {
-  const list = takeRequests(requestsFile(), { all: hepsi === true });
+  const list = takeRequests(requestsFile(), { all: hepsi === true, session: SESSION_ID });
   return {
     istekler: list.map((r) => ({ id: r.id, bolum: episodeFile(r), hedef: r.hedef, zaman: r.zaman, metin: r.metin, aciklama: describe(r) })),
     not: list.length

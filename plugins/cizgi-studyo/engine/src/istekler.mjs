@@ -14,6 +14,10 @@
  * A request is text: it is stored and shown, never run or used as a path. Every field that
  * reaches Claude's context is checked when read back and quoted when shown.
  *
+ * Several Claude sessions may work in one project folder (and so share its queue). A request knows
+ * the session whose panel it was written in (oturum); only that session's hook announces it and only
+ * that session takes it. A request with no session (an older line, a panel with no session) is anyone's.
+ *
  * States: bekliyor (waiting) → alindi (Claude took it) → yapildi | soru | olmadi.
  * A request taken and never answered stops counting as open after STALE_MS (the session died).
  */
@@ -32,6 +36,18 @@ const STATES = new Set(["bekliyor", "alindi", ...ANSWERS]);
 export const TARGETS = ["bolum", "sahne", "shot", "karakter", "nesne", "efekt", "replik"];
 const TARGET_TEXT = { bolum: "bölüm", sahne: "sahne", shot: "shot", karakter: "karakter", nesne: "nesne", efekt: "efekt", replik: "replik" };
 const ID = /^p[0-9a-z]{4,24}$/;
+const SESSION = /^[A-Za-z0-9_-]{8,80}$/;
+/** The session that owns each queue file (set by the panel that writes into it): queue file → session id. */
+const owners = new Map();
+
+/** The panel of session `session` writes into `file`: its requests are that session's. */
+export function claimQueue(file, session) {
+  if (typeof session === "string" && SESSION.test(session)) owners.set(file, session);
+  else owners.delete(file);
+}
+
+/** Whether session `session` should see request `r` (no session on either side: yes). */
+export const forSession = (r, session) => !r.oturum || !session || r.oturum === session;
 // eslint-disable-next-line no-control-regex
 const CONTROL = /[\u0000-\u001f\u007f\u2028\u2029]/g;
 
@@ -77,7 +93,8 @@ function validNew(rec) {
   return ID.test(rec.id) && rec.durum === "bekliyor" && typeof rec.at === "string" && !Number.isNaN(Date.parse(rec.at))
     && shortText(rec.root, MAX_PATH) && shortText(rec.b, MAX_PATH) && cleanTarget(rec.hedef) !== null
     && typeof rec.metin === "string" && rec.metin.length > 0 && rec.metin.length <= MAX_TEXT
-    && (rec.zaman === undefined || (typeof rec.zaman === "number" && Number.isFinite(rec.zaman) && rec.zaman >= 0));
+    && (rec.zaman === undefined || (typeof rec.zaman === "number" && Number.isFinite(rec.zaman) && rec.zaman >= 0))
+    && (rec.oturum === undefined || (typeof rec.oturum === "string" && SESSION.test(rec.oturum)));
 }
 
 /** What an update line may change: the state, the answer, the hook's mark and the time. */
@@ -157,6 +174,7 @@ export function addRequest(file, req) {
     hedef,
     metin,
     ...(req.zaman !== undefined ? { zaman: Math.round(req.zaman * 100) / 100 } : {}),
+    ...(owners.has(file) ? { oturum: owners.get(file) } : {}),
   };
   append(file, record);
   return record;
@@ -180,14 +198,14 @@ export function updateRequest(file, id, patch) {
  * Claude takes the waiting requests: they turn "alindi". With all, the ones taken before and
  * not answered yet come too (to see them again).
  */
-export function takeRequests(file, { all = false } = {}) {
-  const list = readRequests(file).filter((r) => r.durum === "bekliyor" || (all && r.durum === "alindi"));
+export function takeRequests(file, { all = false, session } = {}) {
+  const list = readRequests(file).filter((r) => forSession(r, session) && (r.durum === "bekliyor" || (all && r.durum === "alindi")));
   for (const r of list) if (r.durum === "bekliyor") updateRequest(file, r.id, { durum: "alindi" });
   return list.map((r) => ({ ...r, durum: "alindi" }));
 }
 
 /** Waiting requests no hook has told Claude about yet. */
-export const unannounced = (file) => readRequests(file).filter((r) => r.durum === "bekliyor" && !r.duyuruldu);
+export const unannounced = (file, session) => readRequests(file).filter((r) => r.durum === "bekliyor" && !r.duyuruldu && forSession(r, session));
 
 export function announce(file, ids) {
   for (const id of ids) updateRequest(file, id, { duyuruldu: true });

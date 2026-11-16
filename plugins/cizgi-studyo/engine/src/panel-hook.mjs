@@ -7,7 +7,8 @@
  *
  * Each waiting request is announced once (so a Stop never loops). Claude then takes them with
  * the MCP tool panel_istekleri and answers with panel_yanitla. A request that arrives while the
- * session is idle waits for the next turn: hooks cannot wake an idle session.
+ * session is idle waits for the next turn: hooks cannot wake an idle session. A request written in
+ * another session's panel (same folder, other session) is left for that session.
  *
  * Whatever goes wrong here (no queue, a broken line, bad input), the hook stays silent and exits 0:
  * it must never stop the session.
@@ -45,7 +46,7 @@ async function main() {
   const project = process.env.CLAUDE_PROJECT_DIR || input.cwd;
   if (!project) return;
   const file = queueOf(project);
-  const list = unannounced(file);
+  const list = unannounced(file, typeof input.session_id === "string" ? input.session_id : undefined);
   if (!list.length) return;
   announce(file, list.map((r) => r.id));
   const text = message(list);

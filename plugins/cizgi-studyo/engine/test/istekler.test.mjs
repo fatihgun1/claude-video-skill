@@ -138,3 +138,21 @@ test("reading a missing queue does not create it", () => {
   unannounced(file);
   assert.equal(existsSync(file), false);
 });
+
+test("each session takes only the requests written in its own panel; ones with no session are anyone's", async () => {
+  const { claimQueue, takeRequests, addRequest: add } = await import("../src/istekler.mjs");
+  const { mkdtempSync: mk } = await import("node:fs");
+  const { join: j } = await import("node:path");
+  const { tmpdir: t } = await import("node:os");
+  const file = j(mk(j(t(), "cizgi-oturum-")), "q.jsonl");
+  const req = (metin) => ({ root: "C:/p", b: "bolum.json", hedef: { tur: "bolum" }, metin });
+  const open = add(file, req("herkesin"));
+  claimQueue(file, "oturum-aaaa-1111");
+  const mine = add(file, req("benim"));
+  claimQueue(file, "oturum-bbbb-2222");
+  const theirs = add(file, req("onların"));
+  claimQueue(file, null);
+  const got = takeRequests(file, { session: "oturum-aaaa-1111" }).map((r) => r.id).sort();
+  assert.deepEqual(got, [open.id, mine.id].sort());
+  assert.deepEqual(takeRequests(file, { session: "oturum-bbbb-2222" }).map((r) => r.id), [theirs.id]);
+});

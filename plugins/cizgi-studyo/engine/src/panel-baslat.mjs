@@ -11,7 +11,7 @@ import { workspaceOf } from "./panel-proje.mjs";
 import { cachedLibrary } from "./panel-kutuphane.mjs";
 import { createJobs } from "./panel-is.mjs";
 import { createChannel } from "./panel-kanal.mjs";
-import { addRequest } from "./istekler.mjs";
+import { addRequest, claimQueue } from "./istekler.mjs";
 
 export const DEFAULT_PORT = 4810;
 const CLI = fileURLToPath(new URL("./cli.mjs", import.meta.url));
@@ -20,9 +20,11 @@ const CLI = fileURLToPath(new URL("./cli.mjs", import.meta.url));
  * @param {{target:string, library:string, status:Function, port?:number, fallbackPort?:boolean, requests?:string}} opts
  *   fallbackPort: when the port is taken (another panel is open), take any free port instead of failing.
  *   requests: the session's request queue file (only when a Claude session listens: the MCP server).
+ *   session: that Claude session's id: the requests written in this panel are for it alone.
  * @returns {Promise<{url:string, root:string, initial:string|null, loadLib:() => object, channel:object, close:() => Promise<void>}>}
  */
-export async function openPanel({ target, library, status, port = DEFAULT_PORT, fallbackPort = false, requests = null }) {
+export async function openPanel({ target, library, status, port = DEFAULT_PORT, fallbackPort = false, requests = null, session = null }) {
+  if (requests) claimQueue(requests, session);
   const space = workspaceOf(resolve(target));
   // The project's library: the nearest kutuphane at or above the folder, else where one would go.
   const project = projectLibraryOf(space.root) ?? join(space.root, PROJECT_LIBRARY);

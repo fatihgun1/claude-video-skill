@@ -77,3 +77,16 @@ test("a broken input or another event never blocks", () => {
   assert.equal(bad.stdout, "");
   assert.equal(run("PreToolUse").stdout, "");
 });
+
+test("a request written in another session's panel (same folder) is left for that session", async () => {
+  const { claimQueue } = await import("../src/istekler.mjs");
+  claimQueue(queueOf(project), "oturum-test-7-aaaa");
+  const theirs = ask("bölümü oluştur");
+  claimQueue(queueOf(project), null);
+  assert.equal(theirs.oturum, "oturum-test-7-aaaa");
+  const other = run("Stop", { session_id: "gelistirme-oturumu-bbbb" });
+  assert.equal(other.stdout, "", "another session's hook stays silent");
+  assert.notEqual(readRequests(queueOf(project))[0].duyuruldu, true, "and does not mark it announced");
+  const own = run("Stop", { session_id: "oturum-test-7-aaaa" });
+  assert.match(own.json.reason, new RegExp(theirs.id), "the panel's own session gets it");
+});
