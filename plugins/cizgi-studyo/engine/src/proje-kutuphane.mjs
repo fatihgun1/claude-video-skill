@@ -13,7 +13,7 @@
  * A draft becomes usable only when the person takes it in ("Kütüphaneye al" in the panel):
  * approveDraft checks it as the library would and moves it out of taslak/.
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import { homedir } from "node:os";
 import { createHash } from "node:crypto";
@@ -65,11 +65,46 @@ function draftPath(proj, tur, id) {
   return null;
 }
 
+/** The project library's own drawing with this id (folder or file), or null: a draft by its id is an update. */
+function inProject(proj, tur, id) {
+  const base = join(proj, folderOf(tur));
+  if (FOLDER.has(tur) && existsSync(join(base, id)) && statSync(join(base, id)).isDirectory()) return { path: join(base, id), ext: "" };
+  const ext = EXT[tur];
+  if (ext && existsSync(join(base, `${id}${ext}`))) return { path: join(base, `${id}${ext}`), ext };
+  return null;
+}
+
+/* Which episode a draft was drawn for, and a note: kutuphane/taslak/notlar.json, written by Claude.
+   {"karakter/suluman": {"bolum": "bolumler/suluman/bolum.json", "not": "…"}}. A broken file is ignored. */
+const NOTES = "notlar.json";
+function readNotes(proj) {
+  try {
+    const data = JSON.parse(readFileSync(join(proj, "taslak", NOTES), "utf8"));
+    return data && typeof data === "object" && !Array.isArray(data) ? data : {};
+  } catch {
+    return {};
+  }
+}
+function noteOf(notes, tur, id) {
+  const n = notes[`${tur}/${id}`];
+  const str = (v, max) => (typeof v === "string" && v.length <= max ? v : null);
+  return { bolum: str(n?.bolum, 300), not: str(n?.not, 500) };
+}
+function dropNote(proj, tur, id) {
+  const file = join(proj, "taslak", NOTES);
+  if (!existsSync(file)) return;
+  const notes = readNotes(proj);
+  if (!Object.hasOwn(notes, `${tur}/${id}`)) return;
+  const { [`${tur}/${id}`]: _gone, ...rest } = notes;
+  writeFileSync(file, `${JSON.stringify(rest, null, 2)}\n`);
+}
+
 /** A draft checked as the library would check it. */
 function inspect(proj, tur, id, lib) {
   const where = draftPath(proj, tur, id);
   if (!where) return null;
-  const out = { tur, id, ok: false, errors: [], name: null, layers: [], svg: null, taken: existing(lib, tur).has(id) };
+  const update = !!inProject(proj, tur, id);
+  const out = { tur, id, ok: false, errors: [], name: null, layers: [], svg: null, taken: existing(lib, tur).has(id) && !update, guncelleme: update };
   if (tur === "karakter") {
     const c = readCharacter(where.path);
     out.errors.push(...c.errors);
@@ -95,18 +130,21 @@ function inspect(proj, tur, id, lib) {
     if (tur === "mekan") out.layers = [{ id: "tum", derinlik: 1 }];
     out.svg = problems.length ? null : svg;
   }
-  if (out.taken) out.errors.push(`"${id}" adında bir ${tur} zaten var: taslağa başka bir ad verilmeli`);
+  if (out.taken) out.errors.push(`"${id}" adında bir ${tur} eklentide var: taslağa başka bir ad verilmeli`);
   out.ok = out.errors.length === 0;
   return out;
 }
 
 /**
  * Every draft with what is wrong with it (nothing, when ok).
- * @returns {{tur:"mekan"|"nesne"|"karakter"|"hareket", id:string, ok:boolean, errors:string[], name:string|null, layers:{id:string, derinlik:number}[], taken:boolean}[]}
+ * guncelleme: the project library has a drawing with this id, and taking the draft in replaces it.
+ * bolum, not: which episode it was drawn for and why (taslak/notlar.json), or null.
+ * @returns {{tur:"mekan"|"nesne"|"karakter"|"hareket", id:string, ok:boolean, errors:string[], name:string|null, layers:{id:string, derinlik:number}[], taken:boolean, guncelleme:boolean, bolum:string|null, not:string|null}[]}
  */
 export function listDrafts(proj, lib) {
   if (!proj) return [];
   const out = [];
+  const notes = readNotes(proj);
   for (const tur of Object.keys(KIND)) {
     const base = draftsDir(proj, tur);
     if (!existsSync(base)) continue;
@@ -119,11 +157,11 @@ export function listDrafts(proj, lib) {
     }
     for (const id of [...ids].sort()) {
       if (!ID_PATTERN.test(id)) {
-        out.push({ tur, id, ok: false, errors: ["ad küçük harf, rakam, - ya da _ olmalı"], name: null, layers: [], taken: false });
+        out.push({ tur, id, ok: false, errors: ["ad küçük harf, rakam, - ya da _ olmalı"], name: null, layers: [], taken: false, guncelleme: false, bolum: null, not: null });
         continue;
       }
       const d = inspect(proj, tur, id, lib);
-      if (d) out.push({ tur: d.tur, id: d.id, ok: d.ok, errors: d.errors, name: d.name, layers: d.layers, taken: d.taken });
+      if (d) out.push({ tur: d.tur, id: d.id, ok: d.ok, errors: d.errors, name: d.name, layers: d.layers, taken: d.taken, guncelleme: d.guncelleme, ...noteOf(notes, tur, id) });
     }
   }
   return out;
@@ -136,7 +174,13 @@ export function draftSvg(proj, tur, id, lib) {
   return d && d.ok ? d.svg : null;
 }
 
-/** Take a draft into the project library: it is checked again, then moved out of taslak/. */
+const stampNow = () => new Date().toISOString().replace(/[:.]/g, "-");
+
+/**
+ * Take a draft into the project library: it is checked again, then moved out of taslak/. An update
+ * (the project already has a drawing with this id) puts the old drawing aside first, kept in
+ * taslak/_reddedilen/<tur>-<id>-eski-<time>, so nothing is lost.
+ */
 export function approveDraft(proj, tur, id, lib) {
   folderOf(tur);
   if (!ID_PATTERN.test(id || "")) throw new Error(`taslak adı geçersiz: ${id}`);
@@ -145,10 +189,45 @@ export function approveDraft(proj, tur, id, lib) {
   if (!d.ok) throw new Error(d.errors.join("; "));
   const from = draftPath(proj, tur, id);
   const target = join(proj, folderOf(tur), `${id}${from.ext}`);
-  if (existsSync(target)) throw new Error(`"${id}" adında bir ${tur} zaten var`);
+  const old = inProject(proj, tur, id);
+  let oldAside = null;
+  if (old) {
+    const aside = join(proj, "taslak", ASIDE);
+    mkdirSync(aside, { recursive: true });
+    oldAside = join(aside, `${tur}-${id}-eski-${stampNow()}${old.ext}`);
+    move(old.path, oldAside);
+  } else if (existsSync(target)) throw new Error(`"${id}" adında bir ${tur} zaten var`);
   mkdirSync(dirname(target), { recursive: true });
-  move(from.path, target);
-  return { tur, id };
+  try {
+    move(from.path, target);
+  } catch (err) {
+    if (oldAside) move(oldAside, old.path); // put the old drawing back: the library is as it was
+    throw err;
+  }
+  dropNote(proj, tur, id);
+  return { tur, id, guncelleme: !!old };
+}
+
+/**
+ * Take every good draft in at once (of one kind, or all). Broken ones stay, each with its reason.
+ * @returns {{alinan:{tur:string, id:string, guncelleme:boolean}[], hatalar:{tur:string, id:string, hata:string}[]}}
+ */
+export function approveAll(proj, lib, tur = null) {
+  const alinan = [];
+  const hatalar = [];
+  for (const d of listDrafts(proj, lib)) {
+    if (tur && d.tur !== tur) continue;
+    if (!d.ok) {
+      hatalar.push({ tur: d.tur, id: d.id, hata: d.errors.join("; ") });
+      continue;
+    }
+    try {
+      alinan.push(approveDraft(proj, d.tur, d.id, lib));
+    } catch (err) {
+      hatalar.push({ tur: d.tur, id: d.id, hata: err.message });
+    }
+  }
+  return { alinan, hatalar };
 }
 
 /** Rename, with a plain reason when Windows holds the folder (open in Explorer, scanned by antivirus). */
@@ -170,8 +249,8 @@ export function rejectDraft(proj, tur, id) {
   if (!from) throw new Error(`taslak yok: ${tur} ${id}`);
   const aside = join(proj, "taslak", ASIDE);
   mkdirSync(aside, { recursive: true });
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  move(from.path, join(aside, `${tur}-${id}-${stamp}${from.ext}`));
+  move(from.path, join(aside, `${tur}-${id}-${stampNow()}${from.ext}`));
+  dropNote(proj, tur, id);
   return { tur, id };
 }
 

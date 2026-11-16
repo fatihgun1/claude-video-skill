@@ -11,6 +11,7 @@ The plugin's MCP server (`cizgi-studyo`) starts with the session and hosts the e
 - `panel_kapat`: stops the panel and any storyboard/render job it started.
 - `panel_istekleri {hepsi?}` and `panel_yanitla {id, durum, yanit}`: requests the person writes in the panel (below).
 - `panel_git {bolum?, sekme?, shot?, kaydir?, vurgula?}`: move the open panel to what the person should look at (an episode, a left panel or `hikaye`/`projeler`, a shot, the drafts list, a button to highlight). Use it instead of telling them where to click.
+- `panel_adim {sihirbaz? | adim, durum?, aciklama?, gorsel? | kapat?}`: a wizard in the panel (a drawer with the steps of a longer job) that you move on yourself; the person follows it there instead of in chat. A `panel_sor` question shows inside it.
 - `panel_sor {soru, secenekler, coklu?, serbest?, bolum?, bekle?}`: ask in the panel with option cards (each may show a picture the panel serves). It waits for the answer and returns it; when it runs out of time the answer comes later as a panel request. Use it for every choice about the episode instead of asking in chat; gate approvals (`cizgi onayla`) stay in chat.
 
 ## Steps
@@ -33,7 +34,7 @@ At the top of its properties the panel has **Claude'a yaz**: the person selects 
 - Answer every request with `panel_yanitla {id, durum, yanit}`: `yapildi` (what changed), `soru` (what you need from them), `olmadi` (why not). Keep it short and in their language. They see it under the request in the panel.
 
 ## Story cards (hikaye.json)
-A draft next to `bolum.json`, before the script: the idea, the audience, the characters and one card per scene. It is not a gate; nothing waits for it. The person edits it in the panel (**Hikâye** in the top bar); you write it when they shape the story with you in chat, or when a panel request asks ("Claude kartları önersin").
+A draft next to `bolum.json`, before the script: the idea, the audience, the characters and one card per scene. The panel's **project wizard** (Projeler → "+ Yeni bölüm", or "Bölümü düzenle" in the editor) writes the person's wishes into it too: `baslik`, `istekler` (`format`, `sure`, `boyut`, `stil3d`, `muzik`, `efekt`, `altyazi`) and, per card, `mekan` (a library background id, or words for a place to draw), `saat` and `nesneler`. An episode can exist as `bolumler/<id>/hikaye.json` alone ("yapım aşamasında") until its "Oluştur" request asks you to write `bolum.json` (see the `cizgi-proje` skill). It is not a gate; nothing waits for it. The person edits it in the panel (**Hikâye** in the top bar); you write it when they shape the story with you in chat, or when a panel request asks ("Claude kartları önersin").
 
 ```json
 {
@@ -57,7 +58,8 @@ New drawings for a project go to its own library, `<project>/kutuphane` (the nea
 - A prop: `kutuphane/taslak/props/<id>.svg` with `data-base="x,y"` (where it stands on the ground) and, only if someone will hold it, `data-grip="x,y"` (where a hand holds it). Decor (a tree, a bench, a fountain) has no grip. Draw it in world units: a person is about 620 tall.
 - A character: `kutuphane/taslak/characters/<id>/rig.svg` plus `character.json`, in the same format as the library's characters (copy the structure of the nearest one, e.g. `library/characters/genc` for a profile view: the same part ids, pivots, `view`, `palette_vars` and `limits`). Show the person a concept image before drawing the rig.
 - An action: `kutuphane/taslak/actions/<id>.json` in the format of `library/actions` (`label`, `views` matching the character's `view`, `duration`, `keys` within the rig's `limits`).
-- Ids: lowercase letters, digits, `-`, `_`; not a name the library already has.
+- Ids: lowercase letters, digits, `-`, `_`; not a name the plugin's library has. A draft with the id of a drawing already in the **project** library is a new version of it: taking it in replaces that drawing (the old one is kept in `taslak/_reddedilen`). Use this for every fix; never copy a drawing under a new name to fix it.
+- Notes: `kutuphane/taslak/notlar.json` maps `"<karakter|mekan|nesne|hareket>/<id>"` to `{"bolum": "<episode path>", "not": "<what and why>"}`. The draft card shows which episode it is for and the note. The entry goes when the draft is taken in or put aside.
 - Match the library's look: flat fills, soft natural colours, dark brown-green outlines (stroke 5-6), no gradients except the sky, no text. Characters stand on y = 870 and the middle third (x 560-1360) stays calm so they read clearly. Plain shapes only: no `<script>`, `<style>`, `<image>`, `<foreignObject>`, event attributes or links to other files (the library refuses them).
 - A concept sketch (the look of a new character, place or prop, before its rig or layers are drawn): one plain SVG at `kutuphane/taslak/konsept/<id>.svg`. The panel serves it at `/kutuphane-taslak/konsept/<id>.svg`: show it with `panel_sor` as the picture of an option card. It is not a draft and is never taken into the library.
 - Check your draft: `node "${CLAUDE_PLUGIN_ROOT}/engine/src/cli.mjs" taslaklar <project folder>` lists each draft with its problems. Then look at it before you answer: in the panel (its Mekân, Nesne, Karakter or Hareket panel, built-in browser), or open `/kutuphane-taslak/<mekan|nesne|karakter>/<id>.svg` on the panel's address. Never open a drawing in a separate browser tab or by a `file://` address: the person looks at it in the panel. Fix what is wrong, then `panel_git` to it (`sekme`, `kaydir: "taslaklar"`, `vurgula: "Kütüphaneye al"`) and tell the person (panel_yanitla for a panel request) its name and that it waits for them there.
@@ -77,5 +79,5 @@ Effects come only from the library: the plugin's `library/sfx` and the project's
 
 ## Rules
 - Never suggest characters the person did not name. Offer the library's characters only when they ask what exists.
-- The panel only edits; it never approves. Gate approvals (`cizgi onayla …`) come from the person in chat, as in the other skills.
+- A gate is approved only by the person: either they press the approval button in the panel's **Üretim** window themselves, or they say an explicit yes in this conversation and you run `cizgi onayla`. Never press an approval button yourself (not with browser tools either), and never run `onayla` without that yes.
 - Panel details (what each part does) are in the `cizgi-panel` skill.

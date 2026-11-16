@@ -15,7 +15,7 @@
 import { randomBytes } from "node:crypto";
 import { HttpError } from "./panel-proje.mjs";
 
-export const PANELS = Object.freeze(["projeler", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"]);
+export const PANELS = Object.freeze(["projeler", "uretim", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"]);
 const SCROLL = Object.freeze(["taslaklar"]);
 const SHOT = /^[a-z0-9_-]{1,40}$/;
 // a library drawing or a draft (incl. concept sketches), as the panel serves them
@@ -85,6 +85,7 @@ export function createChannel({ onLateAnswer } = {}) {
   let nav = null;
   let question = null; // {id, soru, secenekler, coklu, serbest, seq}
   let waiter = null; // {id, done}
+  let wizard = null; // {id, baslik, adimlar, aktif, bitti, seq}
 
   function release(value) {
     if (!waiter) return false;
@@ -129,10 +130,63 @@ export function createChannel({ onLateAnswer } = {}) {
       if (!release(answer)) onLateAnswer?.(answer, about);
       return answer;
     },
+    /** Start, move on or close the wizard (panel_adim). */
+    sihirbaz(cmd) {
+      wizard = applyWizard(wizard, cmd, ++seq);
+      return copyWizard(wizard);
+    },
     durum() {
-      return { yon: nav, soru: question ? { ...question } : null };
+      return { yon: nav, soru: question ? { ...question } : null, sihirbaz: copyWizard(wizard) };
     },
   };
+}
+
+/* ---------- the wizard: a modal in the panel whose steps Claude moves on (panel_adim) ---------- */
+
+export const STEP_STATES = Object.freeze(["sirada", "calisiyor", "bekliyor", "bitti", "hata"]);
+const STEP_ID = /^[a-z0-9_-]{1,40}$/;
+const MAX_STEPS = 12;
+const MAX_PICTURES = 6;
+
+const copyWizard = (w) => (w ? { ...w, adimlar: w.adimlar.map((a) => ({ ...a, gorsel: [...a.gorsel] })) } : null);
+
+function newWizard(def, seq) {
+  if (!def || typeof def !== "object") throw new Error("sihirbaz bir nesne olmalı");
+  const baslik = text(def.baslik, "baslik", 120);
+  if (!Array.isArray(def.adimlar) || !def.adimlar.length || def.adimlar.length > MAX_STEPS) throw new Error(`adimlar 1-${MAX_STEPS} adım olmalı`);
+  const adimlar = def.adimlar.map((a, i) => {
+    if (!a || typeof a !== "object" || typeof a.id !== "string" || !STEP_ID.test(a.id)) throw new Error(`adım ${i + 1}: id küçük harf, rakam, - ya da _ olmalı`);
+    return { id: a.id, baslik: text(a.baslik, "adım başlığı", 80), durum: "sirada", aciklama: "", gorsel: [] };
+  });
+  if (new Set(adimlar.map((a) => a.id)).size !== adimlar.length) throw new Error("adım kimlikleri farklı olmalı");
+  return { id: `w${Date.now().toString(36)}${randomBytes(3).toString("hex")}`, baslik, adimlar, aktif: null, bitti: false, seq };
+}
+
+function applyWizard(wizard, cmd, seq) {
+  if (!cmd || typeof cmd !== "object") throw new Error("komut bir nesne olmalı");
+  if (cmd.kapat === true) return null;
+  if (cmd.sihirbaz !== undefined) return newWizard(cmd.sihirbaz, seq);
+  if (cmd.adim === undefined) throw new Error("sihirbaz, adim ya da kapat ver");
+  if (!wizard) throw new Error("açık sihirbaz yok: önce sihirbaz ile başlat");
+  const at = wizard.adimlar.findIndex((a) => a.id === cmd.adim);
+  if (at < 0) throw new Error(`adım yok: ${cmd.adim} (var olanlar: ${wizard.adimlar.map((a) => a.id).join(", ")})`);
+  const durum = cmd.durum ?? "calisiyor";
+  if (!STEP_STATES.includes(durum)) throw new Error(`durum ${STEP_STATES.join(", ")} olmalı`);
+  const aciklama = cmd.aciklama === undefined ? undefined : text(cmd.aciklama, "aciklama", 500, { multiline: true });
+  let gorsel;
+  if (cmd.gorsel !== undefined) {
+    if (!Array.isArray(cmd.gorsel) || cmd.gorsel.length > MAX_PICTURES || cmd.gorsel.some((g) => typeof g !== "string" || !PICTURE.test(g))) {
+      throw new Error(`gorsel en çok ${MAX_PICTURES} panel çizimi olmalı (/kutuphane/… ya da /kutuphane-taslak/….svg)`);
+    }
+    gorsel = cmd.gorsel;
+  }
+  const adimlar = wizard.adimlar.map((a, i) => {
+    if (i < at && a.durum !== "hata") return { ...a, durum: "bitti" }; // moving on means the steps before are done
+    if (i !== at) return a;
+    return { ...a, durum, ...(aciklama !== undefined ? { aciklama } : {}), ...(gorsel ? { gorsel } : {}) };
+  });
+  const bitti = at === adimlar.length - 1 && durum === "bitti";
+  return { ...wizard, adimlar, aktif: cmd.adim, bitti, seq };
 }
 
 /** The panel's routes of the channel. */

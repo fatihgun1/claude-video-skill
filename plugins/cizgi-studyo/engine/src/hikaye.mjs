@@ -10,16 +10,28 @@
  *     "karakterler": [{ "ad": "Ela", "rig": "ela", "not": "…" }]   rig: a library character; none = to be drawn
  *     "kartlar": [{ "id": "k1", "baslik": "…", "olay": "…", "kim": ["Ela"], "duygu": "…", "sure": 8, "sahne": "s1" }]
  *   }                                sahne: the scene of bolum.json the card became (set when the script is written)
+ *
+ * The project wizard (panel) also writes the person's wishes, all optional:
+ *   "baslik": "…"                    the episode's title
+ *   "istekler": { "format": "9:16"|"16:9", "sure": 40, "boyut": "2b"|"3b", "stil3d": "toon"|…,
+ *                 "muzik": "yok"|<library track>, "efekt": true|false, "altyazi": "yok"|"var"|"renkli" }
+ *   card: "mekan": a library background id, or a place to be drawn described in words;
+ *         "saat": "sabah"|"ogle"|"aksam"|"gece"; "nesneler": props (library ids or words for ones to draw)
  */
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { createHash } from "node:crypto";
 
-export const LIMITS = Object.freeze({ short: 80, text: 1000, cards: 40, characters: 20, who: 8, minSec: 1, maxSec: 120 });
+export const LIMITS = Object.freeze({ short: 80, text: 1000, cards: 40, characters: 20, who: 8, minSec: 1, maxSec: 120, title: 120, place: 200, props: 12, minFilm: 5, maxFilm: 600 });
+const WISHES = new Set(["format", "sure", "boyut", "stil3d", "muzik", "efekt", "altyazi"]);
+const FORMATS = ["9:16", "16:9"];
+const LOOKS = ["toon", "yumusak", "pastel", "golge"];
+const TIMES = ["sabah", "ogle", "aksam", "gece"];
+const CAPTIONS = ["yok", "var", "renkli"];
 const ID = /^[a-z0-9]+([_-][a-z0-9]+)*$/;
-const TOP = new Set(["fikir", "yas", "karakterler", "kartlar"]);
+const TOP = new Set(["fikir", "yas", "karakterler", "kartlar", "baslik", "istekler"]);
 const CHARACTER = new Set(["ad", "rig", "not"]);
-const CARD = new Set(["id", "baslik", "olay", "kim", "duygu", "sure", "sahne"]);
+const CARD = new Set(["id", "baslik", "olay", "kim", "duygu", "sure", "sahne", "mekan", "saat", "nesneler"]);
 
 /** The story a new episode starts with. */
 export const emptyStory = () => ({ fikir: "", yas: "", karakterler: [], kartlar: [] });
@@ -56,6 +68,8 @@ export function validateStory(story, lib) {
   known(story, TOP, "hikâye");
   text(story.fikir, "fikir");
   text(story.yas, "yaş", LIMITS.short);
+  text(story.baslik, "başlık", LIMITS.title);
+  if (story.istekler !== undefined) checkWishes(story.istekler, lib, errors);
 
   const names = new Set();
   if (!Array.isArray(story.karakterler)) errors.push("karakterler bir liste olmalı");
@@ -101,10 +115,30 @@ export function validateStory(story, lib) {
         errors.push(`${where}: süre ${LIMITS.minSec}-${LIMITS.maxSec} saniye olmalı`);
       }
       if (k.sahne !== undefined && !(typeof k.sahne === "string" && ID.test(k.sahne))) errors.push(`${where}: sahne bir sahne kimliği olmalı (örneğin s1)`);
+      text(k.mekan, `${where} mekânı`, LIMITS.place);
+      if (k.saat !== undefined && !TIMES.includes(k.saat)) errors.push(`${where}: saat ${TIMES.join(", ")} olmalı`);
+      if (k.nesneler !== undefined) {
+        if (!Array.isArray(k.nesneler) || k.nesneler.length > LIMITS.props) errors.push(`${where}: nesneler en çok ${LIMITS.props} öğelik bir liste olmalı`);
+        else k.nesneler.forEach((n, j) => text(n, `${where} nesne ${j + 1}`, LIMITS.short, true));
+      }
       return undefined;
     });
   }
   return { ok: errors.length === 0, errors };
+}
+
+/** The wizard's decisions (istekler), each optional, each from a fixed list or the library. */
+function checkWishes(w, lib, errors) {
+  if (!w || typeof w !== "object" || Array.isArray(w)) return errors.push("istekler bir nesne olmalı");
+  for (const k of Object.keys(w)) if (!WISHES.has(k)) errors.push(`istekler: bilinmeyen alan "${k}"`);
+  if (w.format !== undefined && !FORMATS.includes(w.format)) errors.push(`istekler: format ${FORMATS.join(" ya da ")} olmalı`);
+  if (w.sure !== undefined && !(typeof w.sure === "number" && w.sure >= LIMITS.minFilm && w.sure <= LIMITS.maxFilm)) errors.push(`istekler: süre ${LIMITS.minFilm}-${LIMITS.maxFilm} saniye olmalı`);
+  if (w.boyut !== undefined && !["2b", "3b"].includes(w.boyut)) errors.push("istekler: boyut 2b ya da 3b olmalı");
+  if (w.stil3d !== undefined && (w.boyut !== "3b" || !LOOKS.includes(w.stil3d))) errors.push(`istekler: stil3d yalnız 3B için, ${LOOKS.join(", ")} olmalı`);
+  if (w.muzik !== undefined && w.muzik !== "yok" && !(typeof w.muzik === "string" && lib.music?.has(w.muzik))) errors.push(`istekler: müzik "yok" ya da kütüphanedeki bir parça olmalı`);
+  if (w.efekt !== undefined && typeof w.efekt !== "boolean") errors.push("istekler: efekt evet/hayır olmalı");
+  if (w.altyazi !== undefined && !CAPTIONS.includes(w.altyazi)) errors.push(`istekler: altyazı ${CAPTIONS.join(", ")} olmalı`);
+  return undefined;
 }
 
 /**

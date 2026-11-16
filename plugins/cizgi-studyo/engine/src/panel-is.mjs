@@ -10,7 +10,7 @@ import { join, relative, sep, dirname } from "node:path";
 
 // sahne: stills of one scene for review (its scene id follows --sahne); ses: speak the lines
 // (no format: the audio is the same for both)
-export const JOB_KINDS = Object.freeze({ storyboard: ["storyboard"], taslak: ["render", "--taslak"], taslak3b: ["render", "--taslak", "--3b"], sahne: ["storyboard", "--sahne"], ses: ["ses"] });
+export const JOB_KINDS = Object.freeze({ storyboard: ["storyboard"], render: ["render"], taslak: ["render", "--taslak"], taslak3b: ["render", "--taslak", "--3b"], sahne: ["storyboard", "--sahne"], ses: ["ses"] });
 const NO_FORMAT = new Set(["ses"]);
 // `cizgi ses` exits 3 when some lines failed the listening check: still a finished job
 const DONE_CODES = { ses: [0, 3] };

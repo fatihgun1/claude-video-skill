@@ -1,11 +1,22 @@
-// Production: where the episode stands (script → audio → storyboard → render), and the two
-// steps the panel can start itself on the saved file: storyboard stills and a draft video.
-// Approvals are never given here; the panel says what to ask for and from whom.
+// Production, as a wizard: where the episode stands (script → audio → storyboard → draft → final
+// video) and what the person does at each step on the saved file: complete the open decisions, read
+// the script table, approve the script, speak the lines, take the stills, approve the storyboard,
+// render. An approval is recorded only when the person presses its button here (POST /api/onay, the
+// same checks as `cizgi onayla`); Claude never presses it.
 import { el } from "./dom.js";
 import { tr } from "./tr.js";
 
 const POLL_MS = 2000;
 const GATE_TEXT = { onayli: "onaylı", eskimis: "eskidi (içerik değişti)", yok: "onaylanmadı" };
+/** The decisions the script needs, with their choices (kararlar.mjs). */
+const DECISIONS = [
+  ["format", "Format", [["9:16", "Dikey 9:16"], ["16:9", "Yatay 16:9"]]],
+  ["boyut", "Boyut", [["2b", "2B"], ["3b", "3B"]]],
+  ["muzik", "Müzik", [["yok", "Yok"], ["var", "Var (Bölüm ayarları → müzik seç)"]]],
+  ["efekt", "Ses efektleri", [["yok", "Yok"], ["var", "Var"]]],
+  ["altyazi", "Altyazı", [["var", "Açık"], ["yok", "Kapalı"]]],
+];
+const COLUMNS = [["plan", "Plan"], ["mekan", "Mekân"], ["konusan", "Konuşan"], ["replik", "Replik"], ["hareket", "Hareket"], ["kamera", "Kamera"], ["bekleme", "Bekleme"]];
 
 /**
  * @param {{dialog:HTMLDialogElement, steps:HTMLElement}} els
@@ -19,6 +30,9 @@ export function createProduction(els, ctx) {
   let timer = 0;
   let error = "";
   let note = ""; // what the last action did (a request left for Claude)
+  let script = null; // GET /api/senaryo of the saved file: {baslik, satirlar, kararlar, new_assets}
+  let scriptError = "";
+  const picks = {}; // open decisions the person chose here, before saving them
 
   /**
    * Why a step cannot start now, or "" when it can. A draft video is only a preview: it needs
@@ -32,7 +46,87 @@ export function createProduction(els, ctx) {
     if (kind === "taslak" || kind === "taslak3b") return "";
     if (s.gates?.senaryo !== "onayli") return "Senaryo onayı gerekli.";
     if (s.audio?.todo?.length) return `${s.audio.todo.length} replik seslendirilmeli.`;
+    if (kind === "render" && s.gates?.storyboard !== "onayli") return "Storyboard onayı gerekli.";
     return "";
+  }
+
+  /** The person pressed an approval button: record it (the server runs the same checks as cizgi onayla). */
+  async function approve(kapi, what, name) {
+    if (!window.confirm(`${what} onaylıyor musun? Bu onayı sen veriyorsun; içerik sonra değişirse onay düşer.`)) return;
+    error = "";
+    try {
+      const res = await ctx.api("/api/onay", { b: ctx.path(), kapi });
+      if (res.status) ctx.setStatus(res.status);
+      note = `${name} onaylandı.`;
+    } catch (err) {
+      error = tr(err.message);
+    }
+    await refresh();
+  }
+
+  async function loadScript() {
+    scriptError = "";
+    if (!ctx.path() || ctx.dirty()) return;
+    try {
+      script = await ctx.api(`/api/senaryo?${new URLSearchParams({ b: ctx.path() })}`);
+    } catch (err) {
+      script = null;
+      scriptError = err.message;
+    }
+  }
+
+  /** Save the decisions the person picked for the open ones (into the draft, then the usual save). */
+  async function saveDecisions() {
+    const { format, ...kararlar } = picks;
+    if (!Object.keys(picks).length) return;
+    error = "";
+    try {
+      await ctx.applyDecisions({ format, kararlar });
+      for (const k of Object.keys(picks)) delete picks[k];
+      await loadScript();
+      note = "Kararlar kaydedildi.";
+    } catch (err) {
+      error = err.message;
+    }
+    await refresh();
+  }
+
+  /** Step 1: decisions, the script table, what the library lacks, and the approval button. */
+  function scriptStep(g) {
+    if (ctx.dirty()) return el("p", { class: "warn small", text: "Kaydedilmemiş değişiklikler var: önce kaydet, sonra senaryoya bak." });
+    if (scriptError) return el("p", { class: "err small", text: scriptError });
+    if (!script) return el("p", { class: "muted small", text: "Senaryo yükleniyor…" });
+    const missing = script.kararlar.eksik;
+    // not chosen yet: picked here; anything else (a choice the episode contradicts) is fixed where it lives
+    const notChosen = (m) => m.includes("not chosen");
+    const openKeys = DECISIONS.filter(([key]) => missing.some((m) => m.startsWith(`${key}:`) && notChosen(m)));
+    const contradictions = missing.filter((m) => !notChosen(m));
+    const decisions = openKeys.length
+      ? el("div", { class: "pkarar" },
+        el("b", { text: "Önce bu kararlar:" }),
+        openKeys.map(([key, label, options]) => {
+          const sel = el("select", { "aria-label": label }, el("option", { value: "", text: "Seç…" }), options.map(([v, t]) => el("option", { value: v, text: t })));
+          sel.value = picks[key] || "";
+          sel.addEventListener("change", () => { if (sel.value) picks[key] = sel.value; else delete picks[key]; });
+          return el("label", { class: "field" }, el("span", { text: label }), sel);
+        }),
+        el("button", { class: "btn small", type: "button", on: { click: saveDecisions } }, "Kararları kaydet"))
+      : null;
+    const table = el("div", { class: "ptablo-kap" }, el("table", { class: "ptablo" },
+      el("thead", {}, el("tr", {}, COLUMNS.map(([, t]) => el("th", { text: t })))),
+      el("tbody", {}, script.satirlar.map((r) => el("tr", { tabindex: "0", title: "Tıkla: bu shot'ı düzenleyicide aç", on: { click: () => ctx.goShot(r.plan), keydown: (e) => { if (e.key === "Enter") ctx.goShot(r.plan); } } },
+        COLUMNS.map(([key]) => el("td", { text: Array.isArray(r[key]) ? r[key].join(" / ") || "—" : r[key] || "—" })))))));
+    const ready = !missing.length && g.senaryo !== "onayli";
+    return [
+      el("p", { class: "small", text: script.baslik }),
+      decisions,
+      contradictions.length ? el("ul", { class: "warn small" }, contradictions.map((m) => el("li", { text: tr(m) }))) : null,
+      table,
+      script.new_assets.length ? el("p", { class: "warn small", text: `Kütüphanede olmayanlar: ${script.new_assets.map((n) => `${n.name} (${n.type})`).join(", ")}` }) : null,
+      g.senaryo === "onayli"
+        ? el("p", { class: "ok-line small", text: "Senaryo onaylı. Metin değişirse onay düşer." })
+        : el("button", { class: "btn primary", type: "button", disabled: !ready, title: ready ? "" : "Önce eksik kararları tamamla", on: { click: () => approve("senaryo", "Senaryoyu", "Senaryo") } }, "Senaryoyu onayla"),
+    ];
   }
   /** Final videos and drafts apart: only a final one is a finished render. */
   const isDraft = (p) => /-taslak\.mp4$/.test(p);
@@ -122,6 +216,7 @@ export function createProduction(els, ctx) {
       job = res.job;
       outputs = res.outputs;
       if (res.status) ctx.setStatus(res.status);
+      if (els.dialog.open && !script && !scriptError) await loadScript(); // the senaryo step's table, once per opening
     } catch (err) {
       error = err.message;
     }
@@ -199,28 +294,41 @@ export function createProduction(els, ctx) {
     els.dialog.replaceChildren(el("div", {},
       el("div", { class: "phead" }, el("h2", { text: "Üretim" }),
         el("button", { class: "btn icon", type: "button", "aria-label": "Kapat", text: "✕", on: { click: () => els.dialog.close() } })),
-      el("p", { class: "muted small", text: "Onaylar senin: panel hiçbir şeyi onaylamaz. Bir adımı onaylamak için Claude'a söyle." }),
+      el("p", { class: "muted small", text: "Adım adım: senaryo → ses → storyboard → taslak → son video. Onay düğmelerine yalnız sen basarsın; Claude onay vermez." }),
       error ? el("p", { class: "err", text: error }) : null,
       note ? el("p", { class: "ok-line small", text: note }) : null,
       jobBox,
       step("1. Senaryo", { cls: g.senaryo === "onayli" ? "ok" : "stale", text: GATE_TEXT[g.senaryo] || "?" },
-        g.senaryo === "onayli" ? "" : "Replikleri okuduktan sonra Claude'a “senaryoyu onaylıyorum” de."),
+        g.senaryo === "onayli" ? "" : "Kararları tamamla, tabloyu oku (satıra tıklarsan o shot açılır), sonra onayla.",
+        scriptStep(g)),
       step("2. Ses", { cls: a && !a.todo.length ? "ok" : "stale", text: a ? `${a.lines - a.todo.length}/${a.lines} hazır` : "?" },
         a?.todo.length ? `Seslendirilecek: ${a.todo.join(", ")}.` : a?.failed?.length ? `${a.failed.length} replik dinleme kontrolünden geçmedi: replik satırlarında görebilirsin.` : "",
         a?.todo.length ? audioAction(g.senaryo === "onayli") : null),
       step("3. Storyboard", { cls: g.storyboard === "onayli" ? "ok" : "stale", text: GATE_TEXT[g.storyboard] || "?" },
-        "Her shot'tan iki kare. İnceledikten sonra Claude'a “storyboard'u onaylıyorum” de.",
+        "Her shot'tan iki kare. Kareleri incele, hareketi görmek için taslak videoya bak, sonra onayla. Bir karede sorun varsa düzenleyicide “Claude'a yaz” ile söyle.",
         [runBtn("storyboard", "Storyboard karelerini al"),
-          outputs.sheets.length ? el("div", { class: "psheets" }, outputs.sheets.map((p) => el("a", { href: base + p, target: "_blank", rel: "noopener" }, el("img", { src: base + p, alt: p, loading: "lazy" })))) : null]),
+          outputs.sheets.length ? el("div", { class: "psheets" }, outputs.sheets.map((p) => el("a", { href: base + p, target: "_blank", rel: "noopener" }, el("img", { src: base + p, alt: p, loading: "lazy" })))) : null,
+          g.storyboard === "onayli"
+            ? el("p", { class: "ok-line small", text: "Storyboard onaylı. Sonraki her değişiklik onayı düşürür." })
+            : (() => {
+              const no = ctx.dirty() ? "Önce kaydet." : g.senaryo !== "onayli" ? "Önce senaryo onayı." : a?.todo.length ? "Önce bütün replikler seslendirilmeli." : !outputs.sheets.length ? "Önce storyboard karelerini al." : "";
+              return el("button", { class: "btn primary", type: "button", disabled: !!no, title: no, on: { click: () => approve("storyboard", "Storyboard'u", "Storyboard") } }, "Storyboard'u onayla");
+            })()]),
       step("4. Taslak video", { cls: outputs.videos.length ? "ok" : "stale", text: outputs.videos.length ? `${outputs.videos.length} video` : "yok" },
         `Hızlı bakış için düşük kalite; onay gerekmez. Asıl render storyboard onaylanınca Claude'la yapılır.${a?.todo.length ? ` Dikkat: ${a.todo.length} replik seslendirilmedi ya da metni sonradan değişti; taslakta sessiz ya da eski sesiyle geçer.` : ""}`,
         [runBtn("taslak", "Taslak video çıkar"), runBtn("taslak3b", "Taslak 3B video"),
-          outputs.videos.map((p) => el("figure", { class: "pvideo" }, el("video", { src: base + p, controls: true, preload: "metadata" }), el("figcaption", { text: p })))]),
+          outputs.videos.filter(isDraft).map((p) => el("figure", { class: "pvideo" }, el("video", { src: base + p, controls: true, preload: "metadata" }), el("figcaption", { text: p })))]),
+      step("5. Son video", { cls: outputs.videos.some((p) => !isDraft(p)) ? "ok" : "stale", text: outputs.videos.some((p) => !isDraft(p)) ? "hazır" : "yok" },
+        "Storyboard onaylandıktan sonra tam kalitede çıkar.",
+        [runBtn("render", "Son videoyu çıkar"),
+          outputs.videos.filter((p) => !isDraft(p)).map((p) => el("figure", { class: "pvideo" }, el("video", { src: base + p, controls: true, preload: "metadata" }), el("figcaption", { text: p })))]),
       why ? el("p", { class: "warn small", text: `Storyboard şu an başlatılamaz: ${why}${blocker("taslak") ? "" : " (taslak video çıkarılabilir)"}` }) : null));
   }
 
   function show() {
     if (!ctx.path()) return;
+    script = null; // read the saved script again: it may have changed since
+    scriptError = "";
     render();
     if (!els.dialog.open) els.dialog.showModal();
     refresh();

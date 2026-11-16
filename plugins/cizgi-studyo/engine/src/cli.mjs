@@ -26,13 +26,14 @@ import { loadLibrary } from "./library.mjs";
 import { validateEpisode, profileOf } from "./validate.mjs";
 import { compileEpisode, safeJoin } from "./compile.mjs";
 import { readJson } from "./util.mjs";
-import { GATES, approve, readApprovals, gateStatus, scriptFingerprint, storyboardFingerprint, libraryFingerprint } from "./onay.mjs";
+import { GATES, readApprovals, gateStatus, scriptFingerprint, storyboardFingerprint, libraryFingerprint } from "./onay.mjs";
 import { runAudio, readManifest, linesOf, planAudio, lineFingerprint, failedLines, acceptLine } from "./ses.mjs";
 import { storyboard, sceneStills, render, qaPages } from "./uretim.mjs";
 import { loadTools, run } from "./tools.mjs";
 import { openPanel } from "./panel-baslat.mjs";
 import { projectLibraryOf, listDrafts } from "./proje-kutuphane.mjs";
-import { decisionProblems, requireDecisions } from "./kararlar.mjs";
+import { decisionProblems } from "./kararlar.mjs";
+import { approveEpisode } from "./onayla.mjs";
 import { scriptTable } from "./senaryo-tablo.mjs";
 import { checkLibrary, integrityErrors } from "./icerik.mjs";
 
@@ -147,15 +148,7 @@ function main(argv) {
       return 0;
     }
     case "onayla": {
-      const episode = readJson(a2);
-      const { ok, errors } = validateEpisode(episode, lib);
-      if (!ok) throw new Error(`episode is invalid:\n- ${errors.join("\n- ")}`);
-      const local = integrityErrors(episode, checkLibrary(library));
-      if (local.length) throw new Error(`episode uses library files that are not part of the plugin:\n- ${local.join("\n- ")}`);
-      if (a1 === "senaryo") requireDecisions(episode, lib);
-      const fp = a1 === "senaryo" ? scriptFingerprint(episode) : storyboardFingerprint(episode, readManifest(a2), libraryFingerprint(episode, lib));
-      approve(a2, a1, fp);
-      print({ approved: a1, fingerprint: fp });
+      print(approveEpisode(a2, a1, lib)); // the same checks as the panel's approval buttons
       return 0;
     }
     case "ses": {

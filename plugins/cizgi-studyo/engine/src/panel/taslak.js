@@ -16,6 +16,7 @@ const PLACEHOLDER = {
   ses: "Örnek: kuş cıvıltısı, kısa",
 };
 const TABS = Object.keys(KIND_TEXT);
+const good = (list) => list.filter((d) => d.ok).length;
 const blank = () => Object.fromEntries(TABS.map((t) => [t, ""]));
 // where Claude writes each kind of draft, and what it is made of
 const DRAFT_AT = {
@@ -95,20 +96,51 @@ export function createDrafts(ctx) {
     ctx.rerender();
   }
 
+  /** Take in every good draft of one kind with one click (the views of one character, say). */
+  async function takeAll(tur, count) {
+    error = "";
+    try {
+      const res = await ctx.api("/api/taslak", { islem: "hepsini-al", tur });
+      drafts = res.taslaklar;
+      ctx.setVocab(res.vocab);
+      const left = res.hatalar?.length ? ` ${res.hatalar.length} taslak hatalı olduğu için kaldı.` : "";
+      ctx.note(`${res.alinan?.length ?? count} ${KIND_TEXT[tur]} kütüphaneye alındı.${left}`);
+    } catch (err) {
+      error = err.message;
+    }
+    ctx.rerender();
+  }
+
+  const thumbOf = (d, src) => (d.ok && d.tur === "hareket"
+    ? el("span", { class: "why", text: "kütüphaneye alınca kartında denenir" })
+    : d.ok || src.startsWith("/kutuphane/")
+      ? el("img", { alt: "", loading: "lazy", src })
+      : el("span", { class: "why", text: "önizleme yok: hatalı" }));
+
   function draftCard(d) {
     const tur = d.tur;
-    const thumb = d.ok && tur === "hareket"
-      ? el("span", { class: "why", text: "kütüphaneye alınca kartında denenir" })
-      : d.ok
-      ? el("img", { alt: "", loading: "lazy", src: `/kutuphane-taslak/${tur}/${d.id}.svg?v=${signature || ""}` })
-      : el("span", { class: "why", text: "önizleme yok: hatalı" });
-    return el("div", { class: "card draft" },
-      el("div", { class: `thumb${tur === "mekan" ? " wide" : ""}` }, thumb, el("span", { class: "badge", text: "taslak" })),
+    const fresh = `/kutuphane-taslak/${tur}/${d.id}.svg?v=${signature || ""}`;
+    // an update shows the drawing it replaces next to the new one
+    const compare = d.guncelleme && tur !== "hareket";
+    const thumb = compare
+      ? el("div", { class: "dcompare" },
+        el("figure", {}, thumbOf(d, `/kutuphane/${tur}/${d.id}.svg?v=${signature || ""}`), el("figcaption", { text: "Şimdiki" })),
+        el("figure", {}, thumbOf(d, fresh), el("figcaption", { text: "Yeni" })))
+      : thumbOf(d, fresh);
+    const forEpisode = d.bolum ? d.bolum.replace(/\/bolum\.json$/, "").split("/").pop() : null;
+    return el("div", { class: `card draft${compare ? " wide-card" : ""}` },
+      el("div", { class: `thumb${tur === "mekan" || compare ? " wide" : ""}` }, thumb, el("span", { class: "badge", text: d.guncelleme ? "yeni sürüm" : "taslak" })),
       el("span", { class: "name", text: d.name ? `${d.name} (${d.id})` : d.id }),
+      forEpisode ? el("span", { class: "meta", text: `“${forEpisode}” bölümü için` }) : null,
+      d.not ? el("span", { class: "meta", text: d.not }) : null,
       tur === "mekan" && d.layers.length ? el("span", { class: "meta", text: d.layers.map((l) => `${l.id} ${l.derinlik}`).join(" · ") }) : null,
       d.errors.length ? el("ul", { class: "why derrs" }, d.errors.slice(0, 4).map((e) => el("li", { text: tr(e) }))) : null,
       el("div", { class: "row dacts" },
-        el("button", { class: "btn primary small", type: "button", disabled: !d.ok, title: d.ok ? "Kütüphaneye al: bölümlerde kullanılabilir olur" : "Önce sorunları Claude düzeltsin", text: "Kütüphaneye al", on: { click: () => act("al", d) } }),
+        el("button", {
+          class: "btn primary small", type: "button", disabled: !d.ok,
+          title: !d.ok ? "Önce sorunları Claude düzeltsin" : d.guncelleme ? "Şimdiki çizimin yerine geçer (eskisi kutuphane/taslak/_reddedilen içinde saklanır)" : "Kütüphaneye al: bölümlerde kullanılabilir olur",
+          text: d.guncelleme ? "Yeni sürümü al" : "Kütüphaneye al", on: { click: () => act("al", d) },
+        }),
         el("button", { class: "btn small danger", type: "button", title: "İstemiyorum: kenara koy (silinmez)", text: "Reddet", on: { click: () => act("reddet", d) } })));
   }
 
@@ -149,6 +181,9 @@ export function createDrafts(ctx) {
         drawings.length ? el("div", { class: "warn small span" }, el("b", { text: "Proje kütüphanesinde kullanılamayan çizimler:" }),
           el("ul", { class: "derrs" }, drawings.slice(0, 6).map((p) => el("li", { text: tr(p) })))) : null,
         el("h4", { class: "group-title", text: `Taslaklar · onay bekliyor (${mine.length})` }),
+        good(mine) > 1
+          ? el("button", { class: "btn primary small span", type: "button", text: `Hepsini kütüphaneye al (${good(mine)})`, title: "Hatasız bütün taslakları birlikte al", on: { click: () => takeAll(tab, good(mine)) } })
+          : null,
         ...mine.map(draftCard),
         error ? el("p", { class: "err small span", text: error }) : null,
         askError[tab] ? el("p", { class: "err small span", text: askError[tab] }) : null,

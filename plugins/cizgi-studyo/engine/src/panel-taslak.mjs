@@ -2,8 +2,9 @@
  * The panel's side of the project library's drafts (see proje-kutuphane.mjs):
  *
  *   GET  /api/taslaklar                  {kutuphane (the project library folder), taslaklar}
- *   POST /api/taslak  {islem, tur, id}   islem "al": take it in · "reddet": put it aside
- *                                        → {taslaklar, vocab} (the library's words, with the new asset)
+ *   POST /api/taslak  {islem, tur, id}   islem "al": take it in (a draft with a project drawing's id replaces
+ *                                        it) · "reddet": put it aside · "hepsini-al" (tur only): every good draft
+ *                                        of that kind → {taslaklar, vocab, alinan?, hatalar?}
  *   GET  /kutuphane-taslak/<tur>/<id>.svg   a good draft's drawing (all layers together)
  *   GET  /kutuphane-taslak/konsept/<id>.svg  a concept sketch (kutuphane/taslak/konsept/<id>.svg): a look to
  *                                            agree on before a rig is drawn, shown in the panel (panel_sor)
@@ -12,10 +13,12 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { listDrafts, draftSvg, approveDraft, rejectDraft } from "./proje-kutuphane.mjs";
+import { listDrafts, draftSvg, approveDraft, approveAll, rejectDraft } from "./proje-kutuphane.mjs";
 import { checkSvgSafety } from "./rigspec.mjs";
 import { vocabulary } from "./panel-kutuphane.mjs";
 import { HttpError } from "./panel-proje.mjs";
+
+const KINDS = ["mekan", "nesne", "karakter", "hareket"];
 
 /** @param {{project:string|null, loadLib:() => object}} opts */
 export function draftRoutes({ project, loadLib }) {
@@ -26,14 +29,19 @@ export function draftRoutes({ project, loadLib }) {
     "POST /api/taslak": (body) => {
       if (!project) throw new HttpError(409, "bu panelin proje kütüphanesi yok");
       const { islem, tur, id } = body || {};
+      let all = null;
       try {
         if (islem === "al") approveDraft(project, tur, id, loadLib());
         else if (islem === "reddet") rejectDraft(project, tur, id);
-        else throw new Error('islem "al" ya da "reddet" olmalı');
+        else if (islem === "hepsini-al") {
+          if (!KINDS.includes(tur)) throw new Error(`tür ${KINDS.join(", ")} olmalı`);
+          all = approveAll(project, loadLib(), tur);
+        } else throw new Error('islem "al", "hepsini-al" ya da "reddet" olmalı');
       } catch (err) {
         throw new HttpError(400, err.message);
       }
-      return { taslaklar: list(), vocab: vocabulary(loadLib(true)) }; // read again now: the drawing just moved
+      // read again now: the drawings just moved
+      return { taslaklar: list(), vocab: vocabulary(loadLib(true)), ...(all ?? {}) };
     },
   };
 }

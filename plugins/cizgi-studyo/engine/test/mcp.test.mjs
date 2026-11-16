@@ -70,7 +70,7 @@ test("initialize answers with tools capability and the asked protocol version", 
 test("tools/list names the panel and request tools with input schemas", async () => {
   const res = await rpc("tools/list", {});
   const names = res.result.tools.map((t) => t.name).sort();
-  assert.deepEqual(names, ["panel_ac", "panel_git", "panel_istekleri", "panel_kapat", "panel_sor", "panel_yanitla"]);
+  assert.deepEqual(names, ["panel_ac", "panel_adim", "panel_git", "panel_istekleri", "panel_kapat", "panel_sor", "panel_yanitla"]);
   for (const t of res.result.tools) assert.equal(t.inputSchema.type, "object");
 });
 
@@ -209,6 +209,20 @@ test("an answer after panel_sor stopped waiting reaches Claude as a panel reques
   assert.match(late.metin, /Seçim: Hayır/);
   assert.match(late.bolum, /bir/);
   textOf(await callTool("panel_yanitla", { id: late.id, durum: "yapildi", yanit: "Müzik yok." }));
+});
+
+test("panel_adim starts a wizard in the panel and moves its steps on", async () => {
+  const open = textOf(await callTool("panel_ac", { klasor: root }));
+  const base = open.url.slice(0, -1);
+  const started = textOf(await callTool("panel_adim", { sihirbaz: { baslik: "Yeni karakter", adimlar: [{ id: "konsept", baslik: "Konsept" }, { id: "al", baslik: "Kütüphaneye al" }] } }));
+  assert.equal(started.sihirbaz.adimlar.length, 2);
+  const moved = textOf(await callTool("panel_adim", { adim: "al", durum: "bekliyor", aciklama: "Taslakları al" }));
+  assert.deepEqual(moved.sihirbaz.adimlar.map((a) => a.durum), ["bitti", "bekliyor"]);
+  const kanal = await (await fetch(`${base}/api/kanal`)).json();
+  assert.equal(kanal.sihirbaz.aktif, "al");
+  const bad = await callTool("panel_adim", { adim: "yok" });
+  assert.equal(bad.result.isError, true);
+  assert.equal(textOf(await callTool("panel_adim", { kapat: true })).sihirbaz, null);
 });
 
 test("panel_kapat closes the panel", async () => {

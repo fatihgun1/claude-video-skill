@@ -563,3 +563,64 @@ body.at-home .editor, body.at-home .bar > :not(.brand):not(.state), body.at-home
 .kanal-vurgu { outline: 3px solid var(--select) !important; outline-offset: 2px; animation: kanal-nabiz 1s ease-in-out 3; }
 @keyframes kanal-nabiz { 50% { outline-color: transparent; } }
 @media (prefers-reduced-motion: reduce) { .kanal-vurgu { animation: none; } }
+
+/* Draft cards: an update shows the drawing it replaces next to the new one (taslak.js) */
+.card.draft.wide-card { grid-column: 1 / -1; }
+.dcompare { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; height: 100%; }
+.dcompare figure { margin: 0; display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.dcompare img { width: 100%; flex: 1; min-height: 0; object-fit: contain; }
+.dcompare figcaption { font-size: 11px; color: var(--muted); }
+.card .thumb .dcompare { position: absolute; inset: 6px; height: auto; padding-top: 2px; }
+.card .thumb .dcompare img { position: static; inset: auto; width: 100%; height: auto; max-height: 100%; }
+.kanal-soru[hidden], .kanal-cip[hidden] { display: none; }
+
+/* The wizard Claude moves on (panel_adim): sihirbaz.js */
+.sihirbaz { position: fixed; z-index: 55; top: 64px; right: 12px; bottom: 12px; width: min(420px, calc(100vw - 24px)); overflow: auto; display: flex; flex-direction: column; gap: var(--gap); padding: 14px 16px; background: var(--pane-2); border: 1px solid var(--accent); border-radius: 12px; box-shadow: 0 12px 40px rgba(0, 0, 0, .5); }
+.sihirbaz[hidden], .sihirbaz-cip[hidden] { display: none; }
+.sihirbaz h3 { margin: 0; font-size: 16px; }
+.sust { display: flex; align-items: center; justify-content: space-between; }
+.skim { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.sadimlar { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.sadim { display: flex; gap: 10px; padding: 8px; border-radius: var(--radius); }
+.sadim.aktif { background: var(--pane); border: 1px solid var(--line); }
+.sisaret { width: 22px; height: 22px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--pane-3); color: var(--muted); font-weight: 700; font-size: 12px; }
+.sadim.bitti .sisaret { background: var(--ok); color: var(--accent-ink); }
+.sadim.calisiyor .sisaret { background: var(--accent); color: var(--accent-ink); }
+.sadim.bekliyor .sisaret { background: var(--select); color: #2a1a00; }
+.sadim.hata .sisaret { background: var(--err); color: #2a0a08; }
+.sgovde { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sbaslik { font-weight: 600; }
+.sdurum { font-size: 11px; color: var(--muted); }
+.sadim.bekliyor .sdurum { color: var(--select); font-weight: 600; }
+.saciklama { margin: 4px 0 0; white-space: pre-wrap; }
+.sgorseller { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 6px; margin-top: 6px; }
+.sgorseller img { width: 100%; height: 110px; object-fit: contain; background: var(--pane-3); border-radius: 6px; }
+.sihirbaz-cip { position: fixed; z-index: 55; left: 50%; bottom: 16px; transform: translateX(-50%); max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--accent); background: var(--pane-2); color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+.sihirbaz-cip.bekliyor { border-color: var(--select); color: var(--select); }
+.kanal-soru.docked { position: static; transform: none; width: auto; max-height: none; box-shadow: none; padding: 12px; }
+@keyframes sihirbaz-nabiz { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: no-preference) { .sadim.calisiyor .sisaret { animation: sihirbaz-nabiz 1.4s ease-in-out infinite; } }
+
+/* The project wizard (proje-sihirbaz.js) */
+.psih { width: min(860px, calc(100vw - 40px)); }
+.psih input[type=text], .psih input:not([type]) { width: 100%; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.padimlar { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; padding: 0; }
+.pgovde { display: flex; flex-direction: column; gap: 4px; }
+.psatir { padding: 10px 12px; margin: 6px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--pane-2); }
+.pkart-ust { display: flex; align-items: center; gap: 6px; }
+.pkart-ust b { margin-right: auto; }
+.psecim { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.pradio { display: inline-flex; align-items: center; gap: 6px; color: var(--text); }
+.pozet { display: grid; grid-template-columns: 180px 1fr; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); white-space: pre-wrap; }
+.pnav { margin-top: 14px; gap: 8px; align-items: center; }
+.pyapim { margin: 16px 0 0; }
+.pyapim .row { flex-wrap: wrap; gap: 8px; }
+
+/* Üretim as a wizard: the senaryo step (uretim.js) */
+.pkarar { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; margin: 6px 0; border: 1px solid var(--select); border-radius: var(--radius); background: var(--pane-2); }
+.ptablo-kap { overflow: auto; max-height: 360px; margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); }
+.ptablo { width: 100%; border-collapse: collapse; font-size: 12px; }
+.ptablo th { position: sticky; top: 0; background: var(--pane-3); text-align: left; padding: 6px 8px; font-weight: 600; }
+.ptablo td { padding: 6px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+.ptablo tbody tr { cursor: pointer; }
+.ptablo tbody tr:hover, .ptablo tbody tr:focus-visible { background: var(--pane-2); }

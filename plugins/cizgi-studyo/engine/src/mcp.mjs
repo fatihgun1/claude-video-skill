@@ -9,6 +9,7 @@
  *   panel_yanitla {id, durum, yanit}  answer one; the panel shows it
  *   panel_git   {bolum?, sekme?, shot?, kaydir?, vurgula?}  move the open panel to what the person should look at
  *   panel_sor   {soru, secenekler, coklu?, serbest?, bolum?, bekle?}  ask in the panel with option cards; waits for the answer
+ *   panel_adim  {sihirbaz? | adim, durum?, aciklama?, gorsel? | kapat?}  a wizard modal in the panel whose steps Claude moves on
  *
  * stdout carries only protocol messages; anything else goes to stderr.
  * Engine modules load on first use, so a missing `npm install` is a readable tool error, not a dead server.
@@ -18,9 +19,9 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { queueOf, takeRequests, updateRequest, describe, episodeFile, ANSWERS, MAX_TEXT } from "./istekler.mjs";
 
-const SERVER_INFO = { name: "cizgi-studyo", version: "1.5.0" };
+const SERVER_INFO = { name: "cizgi-studyo", version: "2.0.0" };
 // panel-kanal.mjs PANELS (not imported: engine modules load on first use)
-const PANEL_TABS = ["projeler", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"];
+const PANEL_TABS = ["projeler", "uretim", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"];
 const WAIT_DEFAULT_S = 600;
 const WAIT_MAX_S = 1800;
 const PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
@@ -89,7 +90,7 @@ const TOOLS = [
       type: "object",
       properties: {
         bolum: { type: "string", description: "Episode to open: a path relative to the panel's folder, as panel_ac lists it." },
-        sekme: { type: "string", enum: PANEL_TABS, description: "Panel to open: projeler (home page), hikaye (story cards) or a left-rail panel." },
+        sekme: { type: "string", enum: PANEL_TABS, description: "Panel to open: projeler (home page), uretim (the production wizard: script table, approval buttons, stills, videos), hikaye (story cards) or a left-rail panel." },
         shot: { type: "string", description: "Shot id to select (in the open or the given episode)." },
         kaydir: { type: "string", enum: ["taslaklar"], description: "Scroll the open left panel: taslaklar = the drafts waiting to be taken in." },
         vurgula: { type: "string", description: "Highlight the buttons with this text for a few seconds (e.g. Kütüphaneye al)." },
@@ -105,7 +106,7 @@ const TOOLS = [
       "sketch /kutuphane-taslak/konsept/<id>.svg from <project>/kutuphane/taslak/konsept). Use it instead of asking in chat for choices " +
       "about the episode. It waits for the answer (bekle seconds, default 600) and returns {cevap: {secim, metin}}. If no answer " +
       "comes in time it returns {durum: 'bekliyor'}; the answer then arrives later as a panel request. One question is open at a time: " +
-      "a new one replaces it. Never use it to approve a gate (cizgi onayla): approvals are asked in chat.",
+      "a new one replaces it. Never use it to approve a gate: the person approves with the button in the panel's Üretim window (panel_git sekme uretim) or with an explicit yes in chat.",
     inputSchema: {
       type: "object",
       properties: {
@@ -129,6 +130,44 @@ const TOOLS = [
         bekle: { type: "number", minimum: 0, maximum: 1800, description: "Seconds to wait for the answer (default 600)." },
       },
       required: ["soru", "secenekler"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "panel_adim",
+    description:
+      "Show a multi-step job in the open editor panel as a wizard modal and move its steps on yourself, so the person follows it " +
+      "there instead of in chat (a new character, place or prop; building an episode; the script or storyboard steps). " +
+      "Start: {sihirbaz: {baslik, adimlar: [{id, baslik}]}} (every step 'sirada'). Then for each step: {adim, durum, aciklama?, gorsel?}: " +
+      "durum calisiyor (you work on it), bekliyor (the person must act: say what in aciklama, and ask with panel_sor or point with panel_git), " +
+      "bitti, hata. Moving to a step marks the steps before it done. gorsel: up to 6 drawings the panel serves (as in panel_sor), " +
+      "shown in the step. A panel_sor question shows inside the wizard while it is open. {kapat: true} removes it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sihirbaz: {
+          type: "object",
+          properties: {
+            baslik: { type: "string", description: "What is being made (at most 120 characters)." },
+            adimlar: {
+              type: "array", minItems: 1, maxItems: 12,
+              items: {
+                type: "object",
+                properties: { id: { type: "string", description: "Lowercase id (a-z, 0-9, -, _)." }, baslik: { type: "string", description: "Step title (at most 80 characters)." } },
+                required: ["id", "baslik"],
+                additionalProperties: false,
+              },
+            },
+          },
+          required: ["baslik", "adimlar"],
+          additionalProperties: false,
+        },
+        adim: { type: "string", description: "The step id to move to or update." },
+        durum: { type: "string", enum: ["sirada", "calisiyor", "bekliyor", "bitti", "hata"], description: "Default: calisiyor." },
+        aciklama: { type: "string", description: "What happens in this step now, in the person's language (at most 500 characters)." },
+        gorsel: { type: "array", maxItems: 6, items: { type: "string" }, description: "Drawings to show in the step." },
+        kapat: { type: "boolean", description: "Remove the wizard from the panel." },
+      },
       additionalProperties: false,
     },
   },
@@ -240,6 +279,7 @@ const TOOL_RUN = {
   panel_yanitla: panelYanitla,
   panel_git: panelGit,
   panel_sor: panelSor,
+  panel_adim: (args = {}) => ({ sihirbaz: openPanelOrThrow().channel.sihirbaz(args) }),
 };
 
 function callTool(name, args) {

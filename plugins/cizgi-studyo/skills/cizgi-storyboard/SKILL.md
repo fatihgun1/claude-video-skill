@@ -21,9 +21,9 @@ The command compiles the episode, runs `hyperframes check` (it must pass) and ta
    - nothing is cut off
    - the 9:16 frame works too
 3. **Show the person the contact sheets.** Send the image files so they can see them, list what is in each shot, and repeat any failed audio lines.
-4. Ask with **AskUserQuestion**: approve / change something. Changes to action, camera, mark or palette go into `bolum.json`; run `storyboard` again afterwards. A change to the words needs the script gate again (**cizgi-senaryo**), then **cizgi-ses**.
+4. Ask in the panel: `panel_git {sekme: "uretim"}` opens the Üretim wizard at its storyboard step (stills, drafts and the **Storyboard'u onayla** button); without the panel, ask with AskUserQuestion: approve / change something. Changes to action, camera, mark or palette go into `bolum.json`; run `storyboard` again afterwards. A change to the words needs the script gate again (**cizgi-senaryo**), then **cizgi-ses**.
 5. Render a draft so the motion can be judged: `$CLI render <bolum.json> --taslak --format 16:9`. Then run `$CLI qa <the draft>` and go through **every** page with the checklist in **cizgi-render** before showing it. Stills alone miss walks, contact and cut problems.
-6. **Only after an explicit yes from the person in this conversation**:
+6. The approval is recorded when the person presses **Storyboard'u onayla** in Üretim (check with `cli.mjs durum`), or, **only after an explicit yes from the person in this conversation**:
 
    ```bash
    $CLI onayla storyboard <bolum.json>

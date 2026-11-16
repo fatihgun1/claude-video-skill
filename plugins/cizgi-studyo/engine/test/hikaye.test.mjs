@@ -93,3 +93,37 @@ test("the next card id is k<n> and unused", () => {
   assert.equal(nextCardId(emptyStory()), "k1");
   assert.equal(nextCardId(good()), "k3");
 });
+
+// The project wizard writes the person's wishes into the story: the title, the decisions, and for each card its place, time and props.
+const wishes = () => ({
+  ...good(),
+  baslik: "Sokaktan kurtuluş",
+  istekler: { format: "9:16", sure: 40, boyut: "2b", muzik: "yok", efekt: true, altyazi: "renkli" },
+  kartlar: [
+    { id: "k1", baslik: "Gece", olay: "Şişe toplar.", kim: ["Ela"], mekan: "sokak", saat: "gece", nesneler: ["plastik-sise", "eski bir el arabası"] },
+    { id: "k2", baslik: "Sabah", olay: "Yola çıkar.", mekan: "yağmurlu eski İstanbul sokağı (çizilecek)", saat: "sabah" },
+  ],
+});
+
+test("the wizard's wishes are part of a valid story", () => {
+  assert.deepEqual(validateStory(wishes(), lib), { ok: true, errors: [] });
+  const threeD = wishes();
+  threeD.istekler = { ...threeD.istekler, boyut: "3b", stil3d: "pastel", muzik: "eskiz-2024-04-10" };
+  assert.deepEqual(validateStory(threeD, lib).errors, []);
+});
+
+test("the wishes are checked", () => {
+  const bad = (patch) => validateStory({ ...wishes(), ...patch }, lib).ok;
+  assert.equal(bad({ istekler: { format: "4:3" } }), false);
+  assert.equal(bad({ istekler: { sure: 2 } }), false);
+  assert.equal(bad({ istekler: { boyut: "4b" } }), false);
+  assert.equal(bad({ istekler: { boyut: "2b", stil3d: "pastel" } }), false, "a look is only for 3D");
+  assert.equal(bad({ istekler: { muzik: "olmayan-parca" } }), false);
+  assert.equal(bad({ istekler: { altyazi: "bazen" } }), false);
+  assert.equal(bad({ istekler: { renk: "mavi" } }), false);
+  assert.equal(bad({ baslik: "x".repeat(121) }), false);
+  const card = (k) => validateStory({ ...wishes(), kartlar: [{ id: "k1", ...k }] }, lib).ok;
+  assert.equal(card({ saat: "şafak" }), false);
+  assert.equal(card({ nesneler: Array.from({ length: 13 }, (_, i) => `n${i}`) }), false);
+  assert.equal(card({ mekan: "x".repeat(201) }), false);
+});

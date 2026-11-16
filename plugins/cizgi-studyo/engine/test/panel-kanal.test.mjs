@@ -96,3 +96,64 @@ test("the panel routes read the channel and post an answer", () => {
   assert.deepEqual(routes["POST /api/kanal/cevap"]({ id, secim: ["Sokak"] }), { ok: true });
   assert.throws(() => routes["POST /api/kanal/cevap"]({ id: "yok", secim: ["Sokak"] }), (e) => e.code === 400);
 });
+
+const WIZ = { baslik: "Yeni karakter: Sülüman", adimlar: [{ id: "bilgi", baslik: "Bilgiler" }, { id: "konsept", baslik: "Konsept" }, { id: "gorunus", baslik: "Görünüşler" }, { id: "al", baslik: "Kütüphaneye al" }] };
+
+test("a wizard starts with every step waiting", () => {
+  const ch = createChannel();
+  assert.equal(ch.durum().sihirbaz, null);
+  const w = ch.sihirbaz({ sihirbaz: WIZ });
+  assert.equal(w.baslik, "Yeni karakter: Sülüman");
+  assert.deepEqual(w.adimlar.map((a) => a.durum), ["sirada", "sirada", "sirada", "sirada"]);
+  assert.equal(w.aktif, null);
+  assert.deepEqual(ch.durum().sihirbaz, w);
+});
+
+test("Claude moves the wizard on: earlier steps are done, the current one runs or waits", () => {
+  const ch = createChannel();
+  ch.sihirbaz({ sihirbaz: WIZ });
+  const w = ch.sihirbaz({ adim: "gorunus", durum: "calisiyor", aciklama: "Önden ve arkadan çiziliyor", gorsel: ["/kutuphane-taslak/konsept/suluman.svg"] });
+  assert.deepEqual(w.adimlar.map((a) => a.durum), ["bitti", "bitti", "calisiyor", "sirada"]);
+  assert.equal(w.aktif, "gorunus");
+  assert.equal(w.adimlar[2].aciklama, "Önden ve arkadan çiziliyor");
+  assert.deepEqual(w.adimlar[2].gorsel, ["/kutuphane-taslak/konsept/suluman.svg"]);
+  const v = ch.sihirbaz({ adim: "al", durum: "bekliyor", aciklama: "Taslakları al" });
+  assert.equal(v.adimlar[2].durum, "bitti");
+  assert.equal(v.adimlar[3].durum, "bekliyor");
+  assert.ok(v.seq > w.seq);
+});
+
+test("a failed step stays failed when later steps move on", () => {
+  const ch = createChannel();
+  ch.sihirbaz({ sihirbaz: WIZ });
+  ch.sihirbaz({ adim: "konsept", durum: "hata", aciklama: "çizim kontrolden geçmedi" });
+  const w = ch.sihirbaz({ adim: "gorunus" });
+  assert.deepEqual(w.adimlar.map((a) => a.durum), ["bitti", "hata", "calisiyor", "sirada"]);
+});
+
+test("the last step done finishes the wizard; kapat removes it", () => {
+  const ch = createChannel();
+  ch.sihirbaz({ sihirbaz: WIZ });
+  const w = ch.sihirbaz({ adim: "al", durum: "bitti" });
+  assert.equal(w.bitti, true);
+  assert.equal(ch.sihirbaz({ kapat: true }), null);
+  assert.equal(ch.durum().sihirbaz, null);
+});
+
+test("wizard commands are checked", () => {
+  const ch = createChannel();
+  assert.throws(() => ch.sihirbaz({ adim: "bilgi" }), /sihirbaz/); // none open
+  for (const bad of [
+    { sihirbaz: { baslik: "", adimlar: WIZ.adimlar } },
+    { sihirbaz: { baslik: "x", adimlar: [] } },
+    { sihirbaz: { baslik: "x", adimlar: Array.from({ length: 13 }, (_, i) => ({ id: `a${i}`, baslik: "x" })) } },
+    { sihirbaz: { baslik: "x", adimlar: [{ id: "a", baslik: "x" }, { id: "a", baslik: "y" }] } },
+    { sihirbaz: { baslik: "x", adimlar: [{ id: "A B", baslik: "x" }] } },
+    {},
+  ]) assert.throws(() => ch.sihirbaz(bad), undefined, JSON.stringify(bad));
+  ch.sihirbaz({ sihirbaz: WIZ });
+  assert.throws(() => ch.sihirbaz({ adim: "yok" }));
+  assert.throws(() => ch.sihirbaz({ adim: "bilgi", durum: "uyuyor" }));
+  assert.throws(() => ch.sihirbaz({ adim: "bilgi", gorsel: ["file:///C:/a.svg"] }));
+  assert.throws(() => ch.sihirbaz({ adim: "bilgi", aciklama: "x".repeat(501) }));
+});

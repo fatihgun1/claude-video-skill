@@ -15,6 +15,8 @@ import { createRequests } from "./istek.js";
 import { createReview } from "./inceleme.js";
 import { createStory } from "./hikaye.js";
 import { createChannel as createClaudeChannel } from "./kanal.js";
+import { createProjectWizard } from "./proje-sihirbaz.js";
+import { slug } from "./projeler.js";
 import { installKeys } from "./klavye.js";
 import { installViews } from "./gorunum.js";
 import { createDrafts } from "./taslak.js";
@@ -484,6 +486,18 @@ const production = createProduction({ dialog: $("uretim"), steps: $("steps") }, 
   setStatus: (s) => { state.status = s; },
   api: (path, body) => api(path, body),
   audioReady: () => { if (state.draft) refreshPreview(); },
+  // the senaryo step completes open decisions in the draft and saves them like any other edit
+  applyDecisions: async ({ format, kararlar }) => {
+    if (!state.draft) return;
+    if (format) state.draft.format = format;
+    state.draft.kararlar = { ...(state.draft.kararlar || {}), ...kararlar };
+    changed(true);
+    await save();
+  },
+  goShot: (id) => {
+    $("uretim").close();
+    if (find(id)) choose(id);
+  },
 });
 const renderSteps = () => production.renderSteps();
 function renderHeader() {
@@ -662,7 +676,9 @@ async function open(rel) {
 }
 
 // unsaved story cards count too: switching episodes would drop them
+const projectWizard = createProjectWizard({ api, note, slug, onClose: () => { if (projects.shown()) projects.show(); } });
 const projects = createProjects($("projects"), {
+  wizard: (id) => projectWizard.open(id ?? null),
   current: () => state.path,
   dirty: () => (!!state.draft && dirty()) || story.dirty(),
   open,
@@ -716,6 +732,17 @@ const story = createStory($("hikaye"), {
   api,
 });
 $("story").addEventListener("click", () => story.show());
+// "Bölümü düzenle": the project wizard on the open episode (its wishes live in its story)
+$("story").after(el("button", {
+  class: "btn small", type: "button", text: "Bölümü düzenle", title: "Proje sihirbazı: bu bölümün isteklerini değiştir",
+  on: {
+    click: () => {
+      const m = /^bolumler\/([a-z0-9]+(?:-[a-z0-9]+)*)\/bolum\.json$/.exec(state.path || "");
+      if (!m) return note("Sihirbaz yalnız bolumler/<kimlik>/bolum.json bölümlerini düzenler.");
+      return projectWizard.open(m[1]);
+    },
+  },
+}));
 /* ---------- Claude moving the panel and asking in it (panel_git, panel_sor) ---------- */
 createClaudeChannel({
   api,

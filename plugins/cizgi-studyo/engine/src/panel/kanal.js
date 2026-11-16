@@ -3,6 +3,7 @@
 // of in chat. Everything shown comes from Claude's tool call: it is drawn as text, never as HTML, and
 // pictures are only the panel's own drawings (checked on the server).
 import { $, el } from "./dom.js";
+import { createWizard } from "./sihirbaz.js";
 
 const POLL_MS = 1500;
 const HIGHLIGHT_MS = 6000;
@@ -24,6 +25,7 @@ export function createChannel(ctx) {
   const box = el("div", { class: "kanal-soru", role: "dialog", "aria-modal": "false", "aria-labelledby": "kanal-soru-baslik", hidden: true });
   const chip = el("button", { class: "kanal-cip", type: "button", hidden: true, text: "Claude bir şey soruyor", on: { click: () => { later = false; render(); } } });
   document.body.append(box, chip);
+  const wizard = createWizard(); // panel_adim: the steps of a longer job; a question shows inside it
 
   function openRail(id) {
     const button = $("rail")?.querySelector(`button[title="${RAIL_TITLE[id]}"]`);
@@ -37,7 +39,7 @@ export function createChannel(ctx) {
 
   function highlight(text) {
     const want = text.toLocaleLowerCase("tr");
-    const hits = [...document.querySelectorAll("button")].filter((b) => !b.closest(".kanal-soru") && b.offsetParent && b.textContent.trim().toLocaleLowerCase("tr") === want);
+    const hits = [...document.querySelectorAll("button")].filter((b) => !b.closest(".kanal-soru, .sihirbaz") && b.offsetParent && b.textContent.trim().toLocaleLowerCase("tr").startsWith(want));
     hits[0]?.scrollIntoView({ block: "center", behavior: "smooth" });
     for (const b of hits) b.classList.add("kanal-vurgu");
     setTimeout(() => hits.forEach((b) => b.classList.remove("kanal-vurgu")), HIGHLIGHT_MS);
@@ -46,12 +48,17 @@ export function createChannel(ctx) {
 
   /** Apply one navigation command, in order: episode, panel, shot, scroll, highlight. */
   async function go(cmd) {
+    if (cmd.shot || cmd.kaydir || cmd.vurgula) {
+      wizard.shrink(); // the person must see what Claude points at
+      render();
+    }
     if (cmd.sekme === "projeler") await ctx.home();
     if (cmd.bolum && cmd.bolum !== ctx.current()) {
       await ctx.openEpisode(cmd.bolum);
       await wait(300); // the editor draws the new episode first
     }
     if (cmd.sekme === "hikaye") ctx.story();
+    else if (cmd.sekme === "uretim") document.querySelector("#steps button")?.click(); // the production wizard
     else if (RAIL_TITLE[cmd.sekme]) openRail(cmd.sekme);
     if (cmd.shot && !ctx.selectShot(cmd.shot)) ctx.note(`Claude ${cmd.shot} shot'ını göstermek istedi ama bu bölümde yok.`);
     if (cmd.kaydir || cmd.vurgula) await wait(500); // the left panel and its drafts list load
@@ -96,6 +103,14 @@ export function createChannel(ctx) {
     box.hidden = !show;
     chip.hidden = !(question && later);
     if (!show) return;
+    // inside the open wizard when there is one, else floating over the editor
+    const home = wizard.slot();
+    box.classList.toggle("docked", !!home);
+    if (home && box.parentElement !== home) {
+      home.append(box);
+      requestAnimationFrame(() => box.scrollIntoView({ block: "nearest", behavior: "smooth" })); // the steps can be long
+    }
+    else if (!home && box.parentElement !== document.body) document.body.append(box);
     const typed = box.querySelector("textarea")?.value || "";
     const note = question.serbest
       ? el("textarea", { rows: "2", maxlength: "1000", placeholder: "İstersen kendi cevabını ya da notunu yaz", "aria-label": "Kendi cevabın" })
@@ -128,13 +143,17 @@ export function createChannel(ctx) {
         if (fresh) await go(nav);
       }
       started = true;
+      wizard.set(res.sihirbaz || null);
       const q = res.soru;
       if ((q?.id || null) !== (question?.id || null)) {
         question = q;
         picked = new Set();
         later = false;
+        if (q) wizard.grow(); // a question in a wizard is asked where its steps are
         box.querySelector("textarea")?.remove();
         render();
+      } else if (question && !later && wizard.slot() !== (box.classList.contains("docked") ? box.parentElement : null)) {
+        render(); // the wizard opened, grew or closed: the question follows it
       }
     } catch {
       /* the panel's server is gone or busy: try again */

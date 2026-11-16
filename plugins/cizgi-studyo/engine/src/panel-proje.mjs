@@ -18,7 +18,7 @@ export const MAX_EPISODES = 200;
 const MAX_TITLE = 120;
 /** Folders never searched: tools, outputs and hidden folders (.git, .cizgi). */
 const SKIP_DIRS = new Set(["node_modules", "renders", "cikti", "storyboard"]);
-const EPISODE_ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+export const EPISODE_ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 export class HttpError extends Error {
   constructor(code, message) {
@@ -157,6 +157,8 @@ export function newEpisodeChoices(lib) {
   return {
     rigs: [...lib.characters].map(([id, c]) => ({ id, label: c.meta?.name?.tr || id })),
     backgrounds: [...lib.backgrounds.keys()].map((id) => ({ id, label: lib.backgroundNames?.get(id) || id })),
+    muzik: [...(lib.music?.keys() ?? [])].map((id) => ({ id, label: id })),
+    props: [...(lib.props?.keys() ?? [])].map((id) => ({ id, label: id })),
   };
 }
 

@@ -28,10 +28,12 @@ export function matches(e, query) {
 /**
  * @param {HTMLElement} page the home page section
  * @param {{current:() => string|null, dirty:() => boolean, open:(rel:string) => Promise<void>,
- *          api:(path:string, body?:object) => Promise<any>, onView:(home:boolean) => void}} ctx
+ *          api:(path:string, body?:object) => Promise<any>, onView:(home:boolean) => void,
+ *          wizard:(id?:string) => void}} ctx   wizard: the project wizard, new (no id) or an episode being made
  */
 export function createProjects(page, ctx) {
   let list = null;
+  let making = []; // episodes being made: a story, no bolum.json yet (the project wizard)
   let pending = null; // an episode waiting for "discard my edits?"
   let error = "";
   let busy = false;
@@ -71,6 +73,7 @@ export function createProjects(page, ctx) {
     render();
     try {
       list = await ctx.api("/api/bolumler");
+      making = (await ctx.api("/api/yapim").catch(() => ({ yapimlar: [] }))).yapimlar;
     } catch (err) {
       error = `Liste alınamadı: ${err.message}`;
     }
@@ -205,7 +208,8 @@ export function createProjects(page, ctx) {
         el("h2", { text: "Projeler" }),
         el("p", { class: "muted", title: list?.root, text: list ? `“${folderName(list.root)}” klasöründeki bölümler. Birini aç ya da yeni bir bölüm başlat.` : "Bu klasördeki bölümler." })),
       back,
-      el("button", { class: "btn primary", type: "button", text: "+ Yeni bölüm", "aria-expanded": String(creating), on: { click: () => { creating = !creating; render(); if (creating) newEp.focus(); } } }));
+      el("button", { class: "btn", type: "button", text: "Boş bölüm", title: "Sihirbazsız: tek sahne, tek shot", "aria-expanded": String(creating), on: { click: () => { creating = !creating; render(); if (creating) newEp.focus(); } } }),
+      el("button", { class: "btn primary", type: "button", text: "+ Yeni bölüm", title: "Proje sihirbazı: hikâye, kararlar, karakterler, sahneler, ses", on: { click: () => ctx.wizard() } }));
     const tools = el("div", { class: "htools" },
       el("label", { class: "hsearch-wrap" }, el("span", { class: "hsearch-lab", text: "Ara" }), search),
       el("span", { class: "muted small", text: list ? `${list.episodes.length} bölüm` : "" }));
@@ -214,7 +218,11 @@ export function createProjects(page, ctx) {
       : null;
     renderGrid();
     newEp.setChoices(list?.secenekler);
-    const parts = [head, creating ? newEp.form : null, confirmBar(), error ? el("p", { class: "err", text: error }) : null, tools, grid, more];
+    const inMaking = making.length
+      ? el("section", { class: "pyapim" }, el("h3", { text: `Yapım aşamasında (${making.length})` }),
+        el("div", { class: "row" }, making.map((m) => el("button", { class: "btn", type: "button", text: m.baslik || m.id, title: `bolumler/${m.id}/hikaye.json: sihirbazda aç`, on: { click: () => ctx.wizard(m.id) } }))))
+      : null;
+    const parts = [head, creating ? newEp.form : null, inMaking, confirmBar(), error ? el("p", { class: "err", text: error }) : null, tools, grid, more];
     page.replaceChildren(el("div", { class: "hpage" }, parts.filter(Boolean)));
   }
   const newEp = newForm(); // made once, so a half-typed title survives the list refreshing
