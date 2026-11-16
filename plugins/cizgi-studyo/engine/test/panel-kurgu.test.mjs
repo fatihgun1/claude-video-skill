@@ -8,7 +8,7 @@ import { vocabulary } from "../src/panel-kutuphane.mjs";
 import { buildTimeline, TIMING } from "../src/timing.mjs";
 import {
   nextShotId, standingAction, addShotAfter, duplicateShot, deleteShot, moveShot, createHistory,
-  shotLength, minShotLength, holdForLength, sfxAtAfterDrag, reorderIndex, MAX_HOLD,
+  shotLength, minShotLength, holdForLength, sfxAtAfterDrag, reorderAt, delayFirstSegment, MAX_HOLD,
 } from "../src/panel/kurgu.js";
 
 const RULES = { lead: TIMING.lead, tail: TIMING.tail, min_shot: TIMING.min_shot, default_hold: TIMING.default_hold };
@@ -47,13 +47,35 @@ test("a dragged effect snaps, and always starts inside its shot", () => {
   }
 });
 
-test("a dragged shot lands by its middle among its scene's shots", () => {
+test("a dragged shot lands where the pointer is: between the two shots around it", () => {
   const sib = [{ start: 0, len: 2 }, { start: 2, len: 4 }, { start: 6, len: 1 }];
-  assert.equal(reorderIndex(sib, 2, -10), 0);
-  assert.equal(reorderIndex(sib, 2, -3), 1); // middle 3.5: past the first (1), not the second (4)
-  assert.equal(reorderIndex(sib, 0, 0.5), 0);
-  assert.equal(reorderIndex(sib, 0, 4), 1);
-  assert.equal(reorderIndex(sib, 0, 9), 2);
+  // the last shot: left of the first one's middle goes first, past it second
+  assert.deepEqual(reorderAt(sib, 2, 0.5), { index: 0, at: 0 });
+  assert.deepEqual(reorderAt(sib, 2, 1.5), { index: 1, at: 2 });
+  assert.deepEqual(reorderAt(sib, 2, 4.5), { index: 2, at: 6 }); // where it already is
+  // the first shot: a short drag into the next one's first half keeps it in place, past the middle moves it
+  assert.equal(reorderAt(sib, 0, 3.9).index, 0);
+  assert.deepEqual(reorderAt(sib, 0, 4.1), { index: 1, at: 6 });
+  assert.deepEqual(reorderAt(sib, 0, 99), { index: 2, at: 7 });
+});
+
+test("delaying the first action: a standing action fills the time before it", () => {
+  const isLoop = (id) => id === "bekle" || id === "yuru";
+  const m = { id: "pamuk", action: "selam", from: 0.3, mark: "orta" };
+  assert.equal(delayFirstSegment(m, 1.23, 6, "bekle", isLoop), true);
+  assert.deepEqual(m, { id: "pamuk", action: "bekle", mark: "orta", actions: [{ action: "selam", at: 1.25, from: 0.3 }] });
+  // never past the next action's start
+  const two = { action: "alkis", actions: [{ action: "zipla", at: 2 }] };
+  assert.equal(delayFirstSegment(two, 5, 6, "bekle", isLoop), true);
+  assert.deepEqual(two.actions.map((a) => [a.action, a.at]), [["alkis", 1.95], ["zipla", 2]]);
+  // refused: too close to the start, already standing, or a walk (it starts with the shot)
+  const keep = { action: "selam" };
+  assert.equal(delayFirstSegment(keep, 0.01, 6, "bekle", isLoop), false);
+  assert.deepEqual(keep, { action: "selam" });
+  assert.equal(delayFirstSegment({ action: "bekle" }, 2, 6, "bekle", isLoop), false);
+  const walker = { action: "yuru", walk: { dx: 300 } };
+  assert.equal(delayFirstSegment(walker, 2, 6, "bekle", isLoop), false);
+  assert.equal(walker.action, "yuru");
 });
 
 const LIB_DIR = fileURLToPath(new URL("../../library", import.meta.url));

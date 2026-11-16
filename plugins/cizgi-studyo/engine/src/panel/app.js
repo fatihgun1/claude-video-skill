@@ -19,6 +19,7 @@ import { decorId } from "./dekor.js";
 import {
   addShotAfter, duplicateShot, deleteShot, moveShot, createHistory, rowOfMessage,
   moveSegmentStart, insertSegment, replaceSegmentAction, removeSegment, segmentIndexAt,
+  delayFirstSegment, standingAction,
 } from "./kurgu.js";
 
 const PREVIEW_DELAY_MS = 350;
@@ -141,6 +142,18 @@ const timeline = createTimeline(
       const m = find(shotId)?.shot.cast[castIndex];
       if (t && m) stage.seek(t.start + (seg ? m.actions[seg - 1].at : 0) + 0.05);
       renderAll();
+    },
+    delayFirst: (shot, castIndex, at, shotLen) => {
+      const m = shot.cast[castIndex];
+      const standing = m && standingAction(state.vocab, viewOf(m.id), m.action);
+      if (!m || !delayFirstSegment(m, at, shotLen, standing, isLoop)) {
+        if (m && standing === m.action) note(`${labelOf(m.id)} bu shot'ta zaten bekliyor: başka bir hareketi sürükle.`);
+        else if (m && !m.walk) note("Bir sonraki hareket hemen başlıyor: önce onu sağa sürükle.");
+        return false;
+      }
+      state.sel = { shot: shot.shot_id, kind: "cast", index: castIndex, seg: 1 };
+      changed(true);
+      return true;
     },
     moveSegment: (shot, castIndex, seg, at, shotLen) => {
       const m = shot.cast[castIndex];
@@ -468,7 +481,7 @@ function renderMessages(preview) {
     ...(preview && !preview.ok && v?.ok ? [["err", "Önizleme", preview.error]] : []),
     ...(v?.warnings || []).map((m) => ["warn", "Uyarı", m]),
   ];
-  if (!items.length) return $("msgs").replaceChildren(el("p", { class: "muted", text: "Hata ya da uyarı yok." }));
+  if (!items.length) return $("msgs").replaceChildren(); // nothing to say: the line takes no room under the stage
   $("msgs").replaceChildren(el("ul", {}, items.map(([cls, kind, m]) => {
     const id = shotOfMessage(m);
     return el("li", { class: cls }, id

@@ -97,6 +97,26 @@ export function moveSegmentStart(member, index, at, shotLen, isLoop) {
 }
 
 /**
+ * Start the member's first action later: a standing action fills the shot until `at`, and
+ * the first action (with its `from`) becomes the first listed one. Not for a walk (it moves
+ * from the shot's start) nor when the first action already is the standing one.
+ * @returns {boolean} whether it changed
+ */
+export function delayFirstSegment(member, at, shotLen, standing, isLoop) {
+  if (member.walk || member.action === standing) return false;
+  const list = member.actions || [];
+  const hi = (list.length ? list[0].at : shotLen) - STEP;
+  const t = round2(clamp(snap(at), STEP, hi));
+  if (snap(at) < STEP || hi < STEP) return false;
+  const first = { action: member.action, at: t, ...(member.from ? { from: member.from } : {}) };
+  member.action = standing;
+  member.actions = [first, ...list];
+  delete member.from;
+  syncWalkStop(member, isLoop, shotLen);
+  return true;
+}
+
+/**
  * Keep a walk in step with its sequence: a walking start followed by a still action stops
  * walking when that action starts (walk.time), with no stop it walks the whole shot (no
  * walk.time). The speed stays the same, so walk.dx grows or shrinks with the walking time
@@ -222,16 +242,19 @@ export function walkDxAfterDrag(x, anchor, ratio = 1) {
 }
 
 /**
- * Where a dragged shot lands among the shots of its scene: the number of the others whose
- * middle is left of its new middle.
+ * Where a dragged shot lands among the shots of its scene: where the pointer is, between the
+ * two other shots around it (past the middle of a shot is after it). `at` is the edge between
+ * them as they are drawn now, for the drop marker.
  * @param {{start:number, len:number}[]} siblings the scene's shots in order, the dragged one included
  * @param {number} index the dragged shot's index in siblings
- * @param {number} seconds how far it was dragged
+ * @param {number} t the pointer's time, on the same clock as `start`
+ * @returns {{index:number, at:number}}
  */
-export function reorderIndex(siblings, index, seconds) {
-  const p = siblings[index];
-  const center = p.start + p.len / 2 + seconds;
-  return siblings.filter((q, i) => i !== index && q.start + q.len / 2 < center).length;
+export function reorderAt(siblings, index, t) {
+  const others = siblings.filter((_, i) => i !== index);
+  const k = others.filter((q) => q.start + q.len / 2 < t).length;
+  const at = k === 0 ? others[0]?.start ?? siblings[index].start : others[k - 1].start + others[k - 1].len;
+  return { index: k, at };
 }
 
 /** A shot id not used anywhere in the episode: "<scene>_sh<n>". */

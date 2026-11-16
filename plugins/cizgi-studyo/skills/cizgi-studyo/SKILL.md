@@ -19,7 +19,7 @@ The plugin's MCP server (`cizgi-studyo`) starts with the session and hosts the e
 4. When they pick one, call `panel_ac` again with `bolum` set to its `path` and open that URL.
 
 ## Requests from the panel
-Under the stage the panel has **Claude'a yaz**: the person selects something (a character on the stage, a prop, an effect, a line, a shot, a scene, or the whole episode), writes what they want, and sends it. It lands in the queue of this project folder's sessions (`~/.cizgi-studyo/istekler/<hash>.jsonl`, outside the project, so a queue file shipped with a project cannot pose as the person).
+At the top of its properties the panel has **Claude'a yaz**: the person selects something (a character on the stage, a prop, an effect, a line, a shot, a scene, or the whole episode), writes what they want, and sends it. It lands in the queue of this project folder's sessions (`~/.cizgi-studyo/istekler/<hash>.jsonl`, outside the project, so a queue file shipped with a project cannot pose as the person).
 
 - The plugin's hooks hand waiting requests to you: after you finish a turn (Stop) and when the person writes in chat (UserPromptSubmit). An idle session only sees them on the next turn, so the panel tells the person to write something (e.g. "panel") if nothing happens.
 - When a hook says requests are waiting, call `panel_istekleri`. Each request has the episode file (`bolum`), the target (`hedef`: kind, shot, scene, id, label), the playhead moment (`zaman`) and the text (`metin`).

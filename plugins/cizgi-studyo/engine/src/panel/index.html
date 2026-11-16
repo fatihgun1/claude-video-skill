@@ -37,10 +37,12 @@
     </div>
   </aside>
   <section class="stage-wrap" aria-label="Sahne">
-    <div class="stage" id="stage">
-      <iframe id="frame" title="Önizleme" tabindex="-1"></iframe>
-      <div class="edit" id="edit" aria-label="Sahnede düzenleme"></div>
-      <div class="over" id="over" hidden></div>
+    <div class="stage-box">
+      <div class="stage" id="stage">
+        <iframe id="frame" title="Önizleme" tabindex="-1"></iframe>
+        <div class="edit" id="edit" aria-label="Sahnede düzenleme"></div>
+        <div class="over" id="over" hidden></div>
+      </div>
     </div>
     <div class="transport">
       <button id="play" class="btn icon" aria-label="Oynat" title="Oynat / durdur (Boşluk)">▶</button>
@@ -57,13 +59,14 @@
         <div class="layers-menu" id="layers-menu"></div>
       </details>
     </div>
-    <section class="claude" id="claude" aria-label="Claude'a yaz"></section>
     <div class="msgs" id="msgs" aria-live="polite"></div>
   </section>
   <aside class="pane inspector" aria-label="Özellikler">
+    <details class="claude" id="claude" aria-label="Claude'a yaz"></details>
     <div id="inspector"></div>
   </aside>
   <footer class="timeline" aria-label="Zaman çizelgesi">
+    <div class="tl-resize" id="tl-resize" role="separator" aria-orientation="horizontal" aria-label="Zaman çizelgesinin yüksekliği" tabindex="0" title="Sürükle: zaman çizelgesinin yüksekliği (↑/↓ ile de olur)"></div>
     <div class="tl-head">
       <span class="tl-title">Zaman çizelgesi</span>
       <div class="seg" role="group" aria-label="Zaman çizelgesinde gösterilen">

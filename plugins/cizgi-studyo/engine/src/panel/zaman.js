@@ -8,10 +8,12 @@
 import { el, svg } from "./dom.js";
 import { musicGain } from "./muzik.mjs";
 import { speakerColor, captionShown } from "./altyazi.mjs";
-import { MAX_HOLD, shotLength, minShotLength, holdForLength, sfxAtAfterDrag, reorderIndex, segmentSpans } from "./kurgu.js";
+import { MAX_HOLD, shotLength, minShotLength, holdForLength, sfxAtAfterDrag, reorderAt, segmentSpans } from "./kurgu.js";
 
 const PX = 80; // pixels per second
 const DRAG_START_PX = 5;
+const EDGE_PX = 48; // a drag this close to the timeline's left or right edge scrolls it
+const EDGE_STEP_PX = 14; // how far each frame of that scrolls
 const FX_MIN_PX = 64;
 const ROW = { ruler: 30, shots: 64, actor: 26, lines: 30, captions: 26, fx: 50, music: 34 }; // track heights (px)
 const MAX_DELAY = 5; // schema limit of utterance.delay
@@ -71,11 +73,29 @@ export function createTimeline(els, ctx) {
   /** The scene on show in scene view, or null for the whole episode. */
   const shownScene = () => (places !== all ? places[0]?.scene || null : null);
 
-  /** Follow the pointer from a pointerdown until release; onMove gets the x distance. */
+  /**
+   * Follow the pointer from a pointerdown until release; onMove gets the x distance in timeline
+   * pixels. Near the timeline's edge it scrolls on its own, and the distance counts the scroll.
+   */
   function follow(down, { onMove, onEnd, onClick }) {
     const target = down.currentTarget;
     const x0 = down.clientX;
+    const scroll0 = els.scroll.scrollLeft;
+    const dxOf = (clientX) => clientX - x0 + els.scroll.scrollLeft - scroll0;
     let moved = false;
+    let last = null; // the latest move, for the edge scroll
+    let frame = 0;
+    const edgeScroll = () => {
+      frame = 0;
+      if (!last) return;
+      const box = els.scroll.getBoundingClientRect();
+      const step = last.clientX < box.left + EDGE_PX ? -EDGE_STEP_PX : last.clientX > box.right - EDGE_PX ? EDGE_STEP_PX : 0;
+      const before = els.scroll.scrollLeft;
+      els.scroll.scrollLeft += step;
+      if (els.scroll.scrollLeft === before) return; // not near an edge, or at the end already
+      onMove(dxOf(last.clientX), last);
+      frame = requestAnimationFrame(edgeScroll);
+    };
     try {
       target.setPointerCapture(down.pointerId);
     } catch {
@@ -83,18 +103,21 @@ export function createTimeline(els, ctx) {
     }
     dragging = true; // a preview arriving now must not redraw the block being dragged
     const move = (e) => {
-      const dx = e.clientX - x0;
-      if (!moved && Math.abs(dx) < DRAG_START_PX) return;
+      if (!moved && Math.abs(e.clientX - x0) < DRAG_START_PX) return;
       moved = true;
-      onMove(dx, e);
+      last = e;
+      onMove(dxOf(e.clientX), e);
+      if (!frame) frame = requestAnimationFrame(edgeScroll);
     };
     const up = (e) => {
       target.removeEventListener("pointermove", move);
       target.removeEventListener("pointerup", up);
       target.removeEventListener("pointercancel", up);
       target.removeEventListener("lostpointercapture", up);
+      cancelAnimationFrame(frame);
+      last = null;
       dragging = false;
-      if (moved && e.type === "pointerup") onEnd(e.clientX - x0, e);
+      if (moved && e.type === "pointerup") onEnd(dxOf(e.clientX), e);
       else if (moved) onEnd(null, e);
       else if (e.type === "pointerup") onClick?.(e);
       if (redrawLater) render();
@@ -135,21 +158,31 @@ export function createTimeline(els, ctx) {
     return grip;
   }
 
-  /** Drag a shot block sideways to a new place among the shots of its own scene. */
+  /**
+   * Drag a shot block sideways to a new place among the shots of its own scene: it goes where
+   * the pointer is, and a line between two shots shows where before the button is let go.
+   */
   function reorder(down, p, block) {
     const siblings = places.filter((q) => q.scene === p.scene);
+    const from = siblings.indexOf(p);
+    const mark = el("div", { class: "drop-mark", hidden: true, "aria-hidden": "true" });
+    const target = (e) => reorderAt(siblings, from, (e.clientX - els.tracks.getBoundingClientRect().left) / PX);
     follow(down, {
-      onMove: (dx) => {
+      onMove: (dx, e) => {
         block.classList.add("dragging");
         block.style.transform = `translateX(${dx}px)`;
+        const to = target(e);
+        if (!mark.isConnected) block.parentElement.append(mark);
+        mark.hidden = to.index === from;
+        mark.style.left = `${to.at * PX}px`;
       },
-      onEnd: (dx) => {
+      onEnd: (dx, e) => {
         block.classList.remove("dragging");
         block.style.transform = "";
+        mark.remove();
         if (dx === null) return;
-        const from = siblings.indexOf(p);
-        const index = reorderIndex(siblings, from, dx / PX);
-        if (index !== from) ctx.moveShot(p.shot.shot_id, index);
+        const to = target(e);
+        if (to.index !== from) ctx.moveShot(p.shot.shot_id, to.index);
       },
       onClick: () => ctx.choose(p.shot.shot_id),
     });
@@ -320,7 +353,8 @@ export function createTimeline(els, ctx) {
   /**
    * One character's actions in one shot: a clip per action from its start to the next one.
    * A one-off action shorter than its clip holds its last pose: the dark bar is the action.
-   * Drag a clip's left edge to change when it starts.
+   * Drag a clip's left edge to change when it starts; the first one's too (a standing action
+ * then fills the time before it). A walk starts with the shot, so its first clip has no edge.
    */
   function actionClips(p, characterId) {
     const ci = p.shot.cast.findIndex((m) => m.id === characterId);
@@ -335,11 +369,11 @@ export function createTimeline(els, ctx) {
       const label = el("span", { text: `${info?.label || s.action}${info?.loop ? " ↻" : ""}` });
       const clip = el("div", {
         class: `clip act-clip${on ? " sel" : ""}`,
-        title: `${ctx.labelOf(m.id)}: ${info?.label || s.action} · ${s.start.toFixed(2)}–${s.end.toFixed(2)} s${s.index ? " · sol kenarı sürükle: başlangıcı" : ""}`,
+        title: `${ctx.labelOf(m.id)}: ${info?.label || s.action} · ${s.start.toFixed(2)}–${s.end.toFixed(2)} s${s.index || !m.walk ? " · sol kenarı sürükle: başlangıcı" : ""}`,
         style: { left: `${(p.start + s.start) * PX}px`, width: `${Math.max(6, span * PX - 2)}px` },
         on: { click: () => ctx.selectSegment(p.shot.shot_id, ci, s.index) },
       }, el("i", { class: "dur", style: { width: `${plays * PX}px` } }), label);
-      if (s.index > 0 && p.t) {
+      if (p.t && (s.index > 0 || !m.walk)) {
         const grip = el("span", { class: "lgrip", title: "Sürükle: bu hareketin başladığı an" });
         grip.addEventListener("pointerdown", (down) => {
           if (down.button !== 0) return;
@@ -352,7 +386,11 @@ export function createTimeline(els, ctx) {
               clip.style.width = `${Math.max(6, (s.end - at) * PX - 2)}px`;
               label.textContent = `${info?.label || s.action} · ${at.toFixed(2)} s`;
             },
-            onEnd: (dx) => (dx === null ? render() : ctx.moveSegment(p.shot, ci, s.index, s.start + dx / PX, p.len)),
+            onEnd: (dx) => {
+              if (dx === null) return render();
+              if (s.index > 0) return ctx.moveSegment(p.shot, ci, s.index, s.start + dx / PX, p.len);
+              if (!ctx.delayFirst(p.shot, ci, dx / PX, p.len)) render(); // refused: draw it back where it was
+            },
           });
         });
         clip.append(grip);
@@ -416,6 +454,7 @@ export function createTimeline(els, ctx) {
     const rough = places.some((p) => !p.t); // a shot not compiled yet: its length is a guess
     const scene = shownScene();
     els.info.textContent = `${scene ? `${scene.title || `sahne ${scene.scene_id}`} · ` : ""}${places.length} shot · ${rough ? "≈" : ""}${(Math.round(total * 100) / 100).toFixed(1)} s`;
+    els.labels.scrollTop = els.scroll.scrollTop; // a redraw may change how far the tracks can scroll
     place(ctx.now());
   }
 
@@ -450,6 +489,8 @@ export function createTimeline(els, ctx) {
     for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) els.ruler.addEventListener(ev, end);
   });
   els.tracks.addEventListener("click", (e) => { if (e.target.classList.contains("track")) seekAt(e); });
+  // the names column scrolls up and down with the tracks
+  els.scroll.addEventListener("scroll", () => { els.labels.scrollTop = els.scroll.scrollTop; });
 
   return {
     render,

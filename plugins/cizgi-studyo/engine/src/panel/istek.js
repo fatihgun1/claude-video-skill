@@ -32,6 +32,7 @@ export function createRequests(box, ctx) {
   let changedOnDisk = null; // the version on disk when it differs and the person has unsaved edits
   let timer = 0;
   let busy = false;
+  let shownWaiting = "|"; // what last opened the drawer, so closing it sticks
   const text = el("textarea", { rows: "2", maxlength: String(MAX_TEXT), placeholder: "Örnek: el sallasın, sonra banka yürüsün", "aria-label": "Claude'a istek" });
   const target = el("select", { "aria-label": "İstek neyle ilgili" });
   const send = el("button", { class: "btn primary small", type: "button", text: "Gönder", title: "Gönder (Ctrl+Enter)" });
@@ -160,10 +161,14 @@ export function createRequests(box, ctx) {
     text.disabled = off || busy;
     target.disabled = off || busy;
     send.disabled = off || busy;
-    box.replaceChildren(el("div", {},
-      el("div", { class: "chead" },
+    // a drawer (<details>) in the inspector: closed it is one line, so it takes no room from the stage
+    const asked = list.some((r) => r.durum === "soru" && !r.bayat);
+    box.replaceChildren(
+      el("summary", { class: "chead" },
         el("h2", { text: "Claude'a yaz" }),
-        el("span", { class: `pill ${session ? "on" : ""}`, text: session === null ? "…" : session ? "oturuma bağlı" : "oturum yok" })),
+        el("span", { class: `pill ${session ? "on" : ""}`, text: session === null ? "…" : session ? "oturuma bağlı" : "oturum yok" }),
+        asked ? el("span", { class: "rstate soru", text: STATE_TEXT.soru }) : null),
+      el("div", {},
       off ? el("p", { class: "muted small", text: "Bu panel bir Claude oturumuna bağlı değil. İstek göndermek için paneli Claude'da /cizgi-studyo ile aç." }) : null,
       changedOnDisk ? el("div", { class: "confirm", role: "alert" },
         el("span", { text: "bolum.json diskte değişti (Claude düzenlemiş olabilir). Kaydedilmemiş değişikliklerin var." }),
@@ -172,6 +177,10 @@ export function createRequests(box, ctx) {
       waiting ? el("p", { class: "muted small", text: "İstek sırada: Claude bir işi bitirince ya da sen sohbete bir şey yazınca (örneğin “panel”) ona iletilir." }) : null,
       error ? el("p", { class: "err small", text: error }) : null,
       list.length ? el("ol", { class: "reqs" }, list.slice(0, 5).map(item)) : null));
+    // something new waits on the person (a question, the file changed under unsaved edits): open the drawer once
+    const waitingOn = `${list.filter((r) => r.durum === "soru" && !r.bayat).map((r) => r.id).join()}|${changedOnDisk || ""}`;
+    if (waitingOn !== shownWaiting && (asked || changedOnDisk)) box.open = true;
+    shownWaiting = waitingOn;
   }
 
   document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });

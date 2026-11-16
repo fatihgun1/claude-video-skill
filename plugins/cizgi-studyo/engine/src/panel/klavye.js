@@ -16,7 +16,7 @@ export function installKeys(ctx) {
     if (ctx.blocked()) return;
     const a = document.activeElement;
     const typing = /^(TEXTAREA|SELECT)$/.test(a?.tagName || "") || (a?.tagName === "INPUT" && !["range", "checkbox"].includes(a.type));
-    const ownsSpace = /^(BUTTON|A)$/.test(a?.tagName || "") || a?.type === "checkbox" || a?.getAttribute?.("role") === "button";
+    const ownsSpace = /^(BUTTON|A|SUMMARY)$/.test(a?.tagName || "") || a?.type === "checkbox" || a?.getAttribute?.("role") === "button";
     const ownsArrows = a?.type === "range" && a.id !== "time";
     const ctrl = e.ctrlKey || e.metaKey;
     const key = e.key.toLowerCase();
