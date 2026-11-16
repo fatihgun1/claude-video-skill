@@ -161,6 +161,42 @@ export function checkProp(svg) {
   return { errors, grip: point("data-grip", false), base: point("data-base", true) };
 }
 
+/**
+ * The project's own sound effects (<project>/kutuphane/sfx/<id>.wav). Each one joins only when its
+ * file name is written in the folder's KAYNAKLAR.md (where it came from, its licence): a sound
+ * whose source nobody wrote down stays out. Problems go to `errors`, never stop the library.
+ */
+function loadProjectSfx(folder, into, errors) {
+  if (!existsSync(folder)) return;
+  const sourcesPath = join(folder, "KAYNAKLAR.md");
+  const sources = existsSync(sourcesPath) ? readFileSync(sourcesPath, "utf8") : "";
+  for (const file of entries(folder, ".wav")) {
+    const id = basename(file, ".wav");
+    const bad = [];
+    checkId("sound effect", id, bad);
+    if (bad.length) {
+      errors.push(`project ${bad[0]}`);
+      continue;
+    }
+    if (into.has(id)) {
+      errors.push(`project sound effect ${id}: the plugin's library already has a sound effect "${id}"`);
+      continue;
+    }
+    // the file's own name as a cell or an item (`| kus.wav |`, `- kus.wav`, `**kus.wav**`), not a
+    // name inside a link or another name (`…/kus.wav`, `no-kus.wav`); the id is checked above
+    if (!new RegExp(`(^|[\\s|\`*[(])${id}\\.wav([\\s|\`*\\]),.]|$)`, "m").test(sources)) {
+      errors.push(`project sound effect ${id}: its source is not written in kutuphane/sfx/KAYNAKLAR.md (file, where from, licence)`);
+      continue;
+    }
+    const path = join(folder, file);
+    try {
+      into.set(id, { path, duration: wavDuration(readFileSync(path)) });
+    } catch (err) {
+      errors.push(`project sound effect ${id}: ${err.message}`);
+    }
+  }
+}
+
 function checkId(kind, id, errors) {
   if (!ID_PATTERN.test(id)) errors.push(`${kind} "${id}": name must be lowercase letters, digits, - or _`);
 }
@@ -275,6 +311,7 @@ export function loadLibrary(dir, opts = {}) {
       errors.push(`sound effect ${id}: ${err.message}`);
     }
   }
+  if (opts.project) loadProjectSfx(join(opts.project, "sfx"), sfx, projectErrors);
 
   // Background music: 16-bit PCM WAVs (episode.music), mixed under the film at compile time.
   const music = new Map();

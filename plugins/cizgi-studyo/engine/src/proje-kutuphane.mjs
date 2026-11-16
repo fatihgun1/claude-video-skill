@@ -158,10 +158,13 @@ export function rejectDraft(proj, tur, id) {
   return { tur, id };
 }
 
-/** Changes when a draft is added, changed, taken in or put aside (for the panel's poll). */
+/**
+ * Changes when a draft is added, changed, taken in or put aside, or the project's sound effects
+ * or their KAYNAKLAR.md change (for the panel's poll: the Ses tab lists effects left out).
+ */
 export function draftsSignature(proj) {
-  const base = proj && join(proj, "taslak");
-  if (!base || !existsSync(base)) return "0";
+  const bases = proj ? [join(proj, "taslak"), join(proj, "sfx")].filter((d) => existsSync(d)) : [];
+  if (!bases.length) return "0";
   // paths too: putting a draft aside moves it without changing a file's time
   const hash = createHash("sha256");
   const walk = (d) => {
@@ -183,6 +186,6 @@ export function draftsSignature(proj) {
       }
     }
   };
-  walk(base);
+  for (const base of bases) walk(base);
   return hash.digest("hex").slice(0, 16);
 }

@@ -34,6 +34,41 @@ before(() => {
   base = loadLibrary(LIB);
 });
 
+test("project sound effects join the library only with their source written in KAYNAKLAR.md", () => {
+  const root = project();
+  const sfxDir = join(root, "kutuphane", "sfx");
+  mkdirSync(sfxDir, { recursive: true });
+  const wav = join(LIB, "sfx", "pat.wav");
+  copyFileSync(wav, join(sfxDir, "kus.wav"));
+  copyFileSync(wav, join(sfxDir, "gizemli.wav"));
+  copyFileSync(wav, join(sfxDir, "pat.wav")); // the plugin has one by this name
+  writeFileSync(join(sfxDir, "Kotu Ad.wav"), "not a wav");
+  writeFileSync(join(sfxDir, "KAYNAKLAR.md"), "| Dosya | Kaynak | Lisans |\n|---|---|---|\n| kus.wav | example.org/kus | CC0 |\n| pat.wav | x | CC0 |\n");
+  const lib = loadLibrary(LIB, { project: join(root, "kutuphane") });
+  assert.ok(lib.sfx.has("kus"), "listed in KAYNAKLAR.md: in");
+  assert.equal(lib.sfx.get("kus").path, join(sfxDir, "kus.wav"));
+  assert.ok(!lib.sfx.has("gizemli"), "no source written: out");
+  assert.ok(lib.projectErrors.some((e) => /gizemli/.test(e) && /KAYNAKLAR/.test(e)), lib.projectErrors.join("\n"));
+  assert.equal(lib.sfx.get("pat").path, join(LIB, "sfx", "pat.wav"), "the plugin's keeps its name");
+  assert.ok(lib.projectErrors.some((e) => /pat/.test(e) && /already/.test(e)));
+  assert.ok(lib.projectErrors.some((e) => /Kotu Ad/.test(e)));
+  // writing a source changes the signature the panel polls (its list of effects left out follows)
+  const before = draftsSignature(join(root, "kutuphane"));
+  writeFileSync(join(sfxDir, "KAYNAKLAR.md"), `${readFileSync(join(sfxDir, "KAYNAKLAR.md"), "utf8")}| gizemli.wav | example.org/g | CC0 |\n`);
+  assert.notEqual(draftsSignature(join(root, "kutuphane")), before);
+  assert.ok(loadLibrary(LIB, { project: join(root, "kutuphane") }).sfx.has("gizemli"));
+  // a file name only mentioned inside a link or a sentence is not a source row
+  writeFileSync(join(sfxDir, "KAYNAKLAR.md"), "Bkz. https://x.org/a/kus.wav ve no-kus.wav\n");
+  assert.ok(!loadLibrary(LIB, { project: join(root, "kutuphane") }).sfx.has("kus"));
+  writeFileSync(join(sfxDir, "KAYNAKLAR.md"), "- `kus.wav`, freesound.org/s/1 (CC0)\n| **gizemli.wav** | x | CC0 |\n");
+  const listed = loadLibrary(LIB, { project: join(root, "kutuphane") });
+  assert.ok(listed.sfx.has("kus") && listed.sfx.has("gizemli"));
+  // an episode can use it
+  const ep = JSON.parse(readFileSync(SOKAK, "utf8"));
+  ep.scenes[0].shots[0].sfx = [{ sfx: "kus", at: 0.2 }];
+  assert.deepEqual(validateEpisode(ep, lib).errors, []);
+});
+
 test("a project library is the nearest kutuphane folder above an episode", () => {
   const root = project();
   assert.equal(projectLibraryOf(join(root, "bolumler", "a")), null);

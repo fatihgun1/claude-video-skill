@@ -56,6 +56,15 @@ New drawings for a project go to its own library, `<project>/kutuphane` (the nea
 - Match the library's look: flat fills, soft natural colours, dark brown-green outlines (stroke 5-6), no gradients except the sky, no text. Characters stand on y = 870 and the middle third (x 560-1360) stays calm so they read clearly. Plain shapes only: no `<script>`, `<style>`, `<image>`, `<foreignObject>`, event attributes or links to other files (the library refuses them).
 - Check your draft: `node "${CLAUDE_PLUGIN_ROOT}/engine/src/cli.mjs" taslaklar <project folder>` lists each draft with its problems. Then look at it before you answer: in the panel (Mekân or Nesne tab, built-in browser), or open `/kutuphane-taslak/<mekan|nesne>/<id>.svg` on the panel's address. Fix what is wrong, then tell the person (panel_yanitla for a panel request) its name and layers, and that it waits for them in the panel.
 
+## New sound effects
+Effects come only from the library: the plugin's `library/sfx` and the project's `<project>/kutuphane/sfx`. When one is missing (a panel request from **Ses → Claude'dan yeni efekt iste**, or the story needs a sound the library lacks), do not make one up and do not download anything yet.
+
+1. Look for it in CC0 (public domain) collections only: Kenney (kenney.nl, every pack CC0), OpenGameArt filtered to CC0, Freesound filtered to "Creative Commons 0". Nothing with attribution-required, non-commercial or unclear terms: the set is given away for free.
+2. Tell the person what you found: the page link, the file, its licence as the page states it, and its length. Ask before downloading. Only on their yes in chat:
+3. Download it into a new empty folder (a site that needs a login, such as Freesound: give the person the link to download it themselves and the folder to put it in), convert it to a short 44.1 kHz mono 16-bit WAV with ffmpeg (`ffmpeg -i "<file>" -ac 1 -ar 44100 -c:a pcm_s16le "<project>/kutuphane/sfx/<id>.wav"`, quoting the paths), trimmed to the sound itself, then remove the download folder.
+4. Write its row in `<project>/kutuphane/sfx/KAYNAKLAR.md` (create it with a header if missing): `| <id>.wav | <page link> | <original file name> | CC0 |`. A project effect whose file name is not written there is left out of the library (the panel lists it under Ses).
+5. Check it loads (`cizgi taslaklar <project folder>` lists the project library's problems), then answer the request: its name, and that it is in the Ses tab.
+
 ## If the tool is not there
 - `panel_ac` returns an error that names `npm install`: run `npm install --prefix "${CLAUDE_PLUGIN_ROOT}/engine"` and call it again.
 - If the MCP server is not connected (no `panel_ac` tool), start the panel from the CLI in the background instead: `node "${CLAUDE_PLUGIN_ROOT}/engine/src/cli.mjs" panel <folder>`. It prints the URL. That panel lives until it is stopped, not with the session.
