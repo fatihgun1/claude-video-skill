@@ -331,6 +331,7 @@ textarea { min-height: 70px; resize: vertical; }
 
 /* Timeline: ruler + shot / line / effect tracks, track names in a fixed column */
 .tl-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.tl-head .btn { white-space: nowrap; }
 .tl-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-right: 8px; }
 /* one scroller (.tl-scroll) for both directions: the ruler and the shot row stay on top, the
    horizontal bar stays in view; the names column follows its vertical scroll */
@@ -538,6 +539,7 @@ body.at-home .editor, body.at-home .bar > :not(.brand):not(.state), body.at-home
   .bar { gap: 6px; }
   .bar .btn.small, .bar .btn:not(.icon) { padding: 3px 8px; }
   .ep-title { max-width: 110px; }
+  .tl-title, #tl-info { display: none; } /* the timeline's toolbar keeps its buttons on one line */
   .bar .state { max-width: 90px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

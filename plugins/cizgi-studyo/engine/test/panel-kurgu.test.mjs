@@ -328,3 +328,18 @@ test("the timeline's magnet: a time close to a target takes it, the nearest one 
   assert.deepEqual(snapTo(3, [], 0.1), { t: 3, hit: null });
   assert.deepEqual(snapTo(1.27, targets, 0), { t: 1.27, hit: null }); // magnet off
 });
+
+test("timeline zoom: steps within limits, a fit for the view, ruler labels that never crowd", async () => {
+  const { zoomed, fitZoom, tickStep, ZOOM } = await import("../src/panel/kurgu.js");
+  assert.equal(zoomed(80, ZOOM.step), 100);
+  assert.equal(zoomed(80, 1 / ZOOM.step), 64);
+  assert.equal(zoomed(300, 2), ZOOM.max);
+  assert.equal(zoomed(25, 0.5), ZOOM.min);
+  assert.equal(fitZoom(1000, 25), 40); // 25 s in 1000 px
+  assert.equal(fitZoom(1000, 1), ZOOM.max); // a short scene: as close as it goes
+  assert.equal(fitZoom(1000, 600), ZOOM.min); // a long episode: as far as it goes (it scrolls)
+  assert.equal(tickStep(80), 1); // a label every second at 80 px/s
+  assert.equal(tickStep(30), 2);
+  assert.equal(tickStep(12), 5);
+  assert.equal(tickStep(3), 15);
+});

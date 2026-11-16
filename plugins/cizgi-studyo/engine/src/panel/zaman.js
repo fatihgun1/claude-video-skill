@@ -1,6 +1,7 @@
 // Timeline: a time ruler and three tracks under the stage.
 //   Shot:   one block per shot, as wide as it lasts. Drag the right edge to change hold
 //           (never shorter than its lines); drag the block to reorder it within its scene.
+// Zoom: Ctrl + wheel around the pointer, − / + and Sığdır (the view fits the width).
 //   Replik: the lines where they are spoken (read-only: they come from the script).
 //   Altyazı: each line's caption; a click turns it on or off.
 //   Efekt:  the sound effects; drag one sideways to change its time in the shot.
@@ -8,13 +9,17 @@
 import { el, svg } from "./dom.js";
 import { musicGain } from "./muzik.mjs";
 import { speakerColor, captionShown } from "./altyazi.mjs";
-import { MAX_HOLD, shotLength, minShotLength, holdForLength, sfxAtAfterDrag, reorderAt, segmentSpans, snapTo, snap as gridSnap } from "./kurgu.js";
+import { MAX_HOLD, shotLength, minShotLength, holdForLength, sfxAtAfterDrag, reorderAt, segmentSpans, snapTo, snap as gridSnap,
+  ZOOM, zoomed, fitZoom, tickStep } from "./kurgu.js";
 
-const PX = 80; // pixels per second
+let PX = ZOOM.start; // pixels per second: the zoom (one timeline per page)
 const DRAG_START_PX = 5;
 const EDGE_PX = 48; // a drag this close to the timeline's left or right edge scrolls it
 const EDGE_STEP_PX = 14; // how far each frame of that scrolls
 const SNAP_PX = 8; // the magnet's reach
+const WHEEL_ZOOM = 0.0022; // one wheel notch (100) ≈ one − / + step
+const TAIL_PX = 120; // room after the last shot
+const FIT_MARGIN_PX = TAIL_PX + 24; // Sığdır leaves that room too, so nothing scrolls
 const MAGNET_KEY = "cizgi.miknatis";
 const round2 = (x) => Math.round(x * 100) / 100;
 const FX_MIN_PX = 64;
@@ -75,6 +80,45 @@ export function createTimeline(els, ctx) {
     return out;
   }
   let guide = null;
+
+  /* ---------- zoom ---------- */
+  let shownTotal = 0; // the length on show (a scene, or the episode), for Sığdır
+  /** Zoom to px pixels per second, keeping the moment under page x (default: the middle) where it is. */
+  function setZoom(px, clientX) {
+    const box = els.scroll.getBoundingClientRect();
+    const ax = (clientX ?? box.left + els.scroll.clientWidth / 2) - box.left;
+    const t = (els.scroll.scrollLeft + ax) / PX;
+    if (px === PX) return; // at a limit already
+    PX = px;
+    render();
+    els.scroll.scrollLeft = Math.max(0, t * PX - ax);
+    if (els.zoomIn) els.zoomIn.disabled = PX >= ZOOM.max;
+    if (els.zoomOut) els.zoomOut.disabled = PX <= ZOOM.min;
+  }
+  // Ctrl + wheel: as far as the wheel turned (a trackpad pinch sends many small turns), drawn once a frame
+  let wheelFactor = 1;
+  let wheelX = 0;
+  let wheelFrame = 0;
+  els.scroll.addEventListener("wheel", (e) => {
+    if (!e.ctrlKey && !e.metaKey) return; // a plain wheel scrolls
+    e.preventDefault(); // not the page's own zoom
+    if (dragging || !e.deltaY) return; // mid-drag the clips hold their scale; a sideways turn is not a zoom
+    const lines = e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? 400 : 1; // lines or pages to pixels
+    wheelFactor *= Math.exp(-e.deltaY * lines * WHEEL_ZOOM);
+    wheelX = e.clientX;
+    wheelFrame ||= requestAnimationFrame(() => {
+      wheelFrame = 0;
+      const f = wheelFactor;
+      wheelFactor = 1;
+      setZoom(zoomed(PX, f), wheelX);
+    });
+  }, { passive: false });
+  els.zoomIn?.addEventListener("click", () => setZoom(zoomed(PX, ZOOM.step)));
+  els.zoomOut?.addEventListener("click", () => setZoom(zoomed(PX, 1 / ZOOM.step)));
+  els.fit?.addEventListener("click", () => {
+    setZoom(fitZoom(els.scroll.clientWidth - FIT_MARGIN_PX, shownTotal));
+    els.scroll.scrollLeft = 0;
+  });
   /** The magnet's guide at view time t (seconds from the view's left edge), or none. */
   function showGuide(t) {
     if (t === null) return guide?.remove();
@@ -470,8 +514,9 @@ export function createTimeline(els, ctx) {
   function ruler(total) {
     const ticks = [];
     // film seconds, so a scene's ruler reads the same times as the stage clock
-    for (let s = Math.ceil(origin - 1e-9); s <= origin + total; s++) {
-      ticks.push(el("span", { class: s % 5 === 0 ? "tick major" : "tick", style: { left: `${(s - origin) * PX}px` } }, `${s}`));
+    const step = tickStep(PX); // labels never crowd: further apart as the view zooms out
+    for (let s = Math.ceil((origin - 1e-9) / step) * step; s <= origin + total; s += step) {
+      ticks.push(el("span", { class: s % (step * 5) === 0 ? "tick major" : "tick", style: { left: `${(s - origin) * PX}px` } }, `${s}`));
     }
     // Where each scene starts: shots move only within their scene, and a scene keeps one shot.
     const scenes = places.filter((p, i) => i === 0 || places[i - 1].scene !== p.scene);
@@ -493,8 +538,9 @@ export function createTimeline(els, ctx) {
     }
     redrawLater = false;
     const total = layout();
+    shownTotal = total;
     const problems = ctx.problems();
-    const width = `${Math.max(total * PX + 120, els.scroll.clientWidth)}px`;
+    const width = `${Math.max(total * PX + TAIL_PX, els.scroll.clientWidth)}px`;
     els.ruler.style.width = width;
     els.tracks.style.width = width;
     els.ruler.replaceChildren(...ruler(total));

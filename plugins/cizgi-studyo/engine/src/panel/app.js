@@ -105,7 +105,8 @@ const stage = createStage(
   },
 );
 const timeline = createTimeline(
-  { ruler: $("tl-ruler"), tracks: $("tl-tracks"), scroll: $("tl-scroll"), info: $("tl-info"), labels: $("tl-labels"), snap: $("tl-snap") },
+  { ruler: $("tl-ruler"), tracks: $("tl-tracks"), scroll: $("tl-scroll"), info: $("tl-info"), labels: $("tl-labels"), snap: $("tl-snap"),
+    zoomIn: $("tl-zoom-in"), zoomOut: $("tl-zoom-out"), fit: $("tl-fit") },
   {
     shots: allShots, selected: () => state.sel.shot, sel: () => state.sel, choose, select, problems, labelOf,
     characters: () => state.draft.characters.map((c) => ({ id: c.id, label: labelOf(c.id) })),

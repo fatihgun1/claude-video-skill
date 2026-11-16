@@ -50,6 +50,18 @@ export function snapTo(t, targets, tol) {
   return hit === null ? { t, hit: null } : { t: hit, hit };
 }
 
+/** Timeline zoom in pixels per second: the default, its limits and one + / − step. */
+export const ZOOM = { start: 80, min: 20, max: 320, step: 1.25 };
+const RULER_STEPS = [1, 2, 5, 10, 15, 30, 60];
+const RULER_GAP_PX = 40; // labels at least this far apart
+
+/** One zoom step (factor > 1 closer), within the limits. */
+export const zoomed = (px, factor) => clamp(Math.round(px * factor * 100) / 100, ZOOM.min, ZOOM.max);
+/** The zoom that shows `seconds` in `width` pixels (Sığdır), within the limits. */
+export const fitZoom = (width, seconds) => clamp(width / Math.max(seconds, 0.1), ZOOM.min, ZOOM.max);
+/** Seconds between ruler labels at a zoom: the first step that leaves room for a label. */
+export const tickStep = (px) => RULER_STEPS.find((s) => s * px >= RULER_GAP_PX) ?? RULER_STEPS.at(-1);
+
 /* ---------- action sequences (cast.action, then cast.actions[] from their `at`) ---------- */
 
 const starts = (m) => [0, ...(m.actions || []).map((a) => a.at)];
