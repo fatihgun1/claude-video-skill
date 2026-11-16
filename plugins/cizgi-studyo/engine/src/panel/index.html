@@ -37,6 +37,8 @@
     </div>
   </aside>
   <section class="stage-wrap" aria-label="Sahne">
+    <div class="vresize left" id="left-resize" role="separator" aria-orientation="vertical" aria-controls="left" aria-label="Sol panelin genişliği" tabindex="0" title="Sürükle: sol panelin genişliği (←/→ ile de olur, çift tık: ilk hali)"></div>
+    <div class="vresize right" id="right-resize" role="separator" aria-orientation="vertical" aria-controls="inspector-pane" aria-label="Sağ panelin genişliği" tabindex="0" title="Sürükle: sağ panelin genişliği (←/→ ile de olur, çift tık: ilk hali)"></div>
     <div class="stage-box">
       <div class="stage" id="stage">
         <iframe id="frame" title="Önizleme" tabindex="-1"></iframe>
@@ -61,12 +63,12 @@
     </div>
     <div class="msgs" id="msgs" aria-live="polite"></div>
   </section>
-  <aside class="pane inspector" aria-label="Özellikler">
+  <aside class="pane inspector" id="inspector-pane" aria-label="Özellikler">
     <details class="claude" id="claude" aria-label="Claude'a yaz"></details>
     <div id="inspector"></div>
   </aside>
   <footer class="timeline" aria-label="Zaman çizelgesi">
-    <div class="tl-resize" id="tl-resize" role="separator" aria-orientation="horizontal" aria-label="Zaman çizelgesinin yüksekliği" tabindex="0" title="Sürükle: zaman çizelgesinin yüksekliği (↑/↓ ile de olur)"></div>
+    <div class="tl-resize" id="tl-resize" role="separator" aria-orientation="horizontal" aria-label="Zaman çizelgesinin yüksekliği" tabindex="0" title="Sürükle: zaman çizelgesinin yüksekliği (↑/↓ ile de olur, çift tık: ilk hali)"></div>
     <div class="tl-head">
       <span class="tl-title">Zaman çizelgesi</span>
       <div class="seg" role="group" aria-label="Zaman çizelgesinde gösterilen">

@@ -1,73 +1,35 @@
-// View choices that never change the episode: the left rail and its panel (serit.js), the timeline (Sahne | Bölüm), the stage's frame (16:9 | 9:16), safe areas and
-// the layers hidden in the preview, the timeline's height (remembered in the browser).
+// View choices that never change the episode: the left rail and its panel (serit.js), the sizes
+// of the side panels and the timeline (ayirici.js, remembered in the browser), the timeline
+// (Sahne | Bölüm), the stage's frame (16:9 | 9:16), safe areas and the layers hidden in the preview.
 import { $, el } from "./dom.js";
 import { LAYERS } from "./duzen.js";
 import { installRail } from "./serit.js";
+import { installDivider } from "./ayirici.js";
 
-const TL_KEY = "cizgi.cizelge";
-const TL_MIN = 150; // the shot row and one track
-const STAGE_MIN = 220; // what the timeline always leaves above it for the stage
-const TL_KEY_STEP = 20;
+const STAGE_MIN_H = 220; // what the timeline always leaves above it for the stage
+const STAGE_MIN_W = 420; // what the side panels always leave between them for the stage
+const RAIL_W = 64;
+const BAR_H = 52;
 
-/** Make the timeline this tall (within limits); returns the height it got. */
-function setTimelineHeight(px) {
-  const max = Math.max(TL_MIN, window.innerHeight - 52 - STAGE_MIN);
-  const h = Math.round(Math.min(max, Math.max(TL_MIN, px)));
-  document.querySelector(".editor").style.setProperty("--tl-h", `${h}px`);
-  $("tl-resize").setAttribute("aria-valuenow", String(h));
-  return h;
-}
+const width = (id) => $(id).getBoundingClientRect().width;
 
-function saveTimelineHeight(h) {
-  try {
-    localStorage.setItem(TL_KEY, String(h));
-  } catch {
-    /* storage off: the height lasts until reload */
-  }
-}
-
-/** Drag (or ↑/↓ on) the timeline's top edge to change its height. */
-function installTimelineResize() {
-  const sep = $("tl-resize");
-  const height = () => sep.parentElement.getBoundingClientRect().height;
-  sep.setAttribute("aria-valuemin", String(TL_MIN));
-  sep.addEventListener("pointerdown", (down) => {
-    if (down.button !== 0) return;
-    down.preventDefault();
-    const y0 = down.clientY;
-    const h0 = height();
-    let h = null; // unchanged until the pointer moves
-    try {
-      sep.setPointerCapture(down.pointerId);
-    } catch {
-      /* the pointer is already gone; the events below still end the drag */
-    }
-    sep.classList.add("active");
-    const move = (e) => { h = setTimelineHeight(h0 - (e.clientY - y0)); };
-    const end = () => {
-      sep.classList.remove("active");
-      sep.removeEventListener("pointermove", move);
-      for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) sep.removeEventListener(ev, end);
-      if (h !== null) saveTimelineHeight(h);
-    };
-    sep.addEventListener("pointermove", move);
-    for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) sep.addEventListener(ev, end);
+/** The timeline's top edge and the side panels' inner edges: drag, arrow keys, double-click resets. */
+function installDividers() {
+  installDivider($("tl-resize"), {
+    axis: "y", sign: -1, cssVar: "--tl-h", key: "cizgi.cizelge", min: 150, // the shot row and one track
+    size: () => $("tl-resize").parentElement.getBoundingClientRect().height,
+    max: () => Math.max(150, window.innerHeight - BAR_H - STAGE_MIN_H),
   });
-  sep.addEventListener("keydown", (e) => {
-    const step = e.key === "ArrowUp" ? TL_KEY_STEP : e.key === "ArrowDown" ? -TL_KEY_STEP : 0;
-    if (!step) return;
-    e.preventDefault();
-    e.stopPropagation(); // not the stage's frame steps
-    saveTimelineHeight(setTimelineHeight(height() + step));
+  installDivider($("left-resize"), {
+    axis: "x", sign: 1, cssVar: "--left-w", key: "cizgi.sol-gen", min: 220,
+    size: () => width("left"),
+    max: () => Math.min(480, window.innerWidth - RAIL_W - width("inspector-pane") - STAGE_MIN_W),
   });
-  let saved = NaN;
-  try {
-    saved = Number(localStorage.getItem(TL_KEY));
-  } catch {
-    /* storage off */
-  }
-  if (saved > 0) setTimelineHeight(saved);
-  else sep.setAttribute("aria-valuenow", String(Math.round(height())));
+  installDivider($("right-resize"), {
+    axis: "x", sign: -1, cssVar: "--right-w", key: "cizgi.sag-gen", min: 280,
+    size: () => width("inspector-pane"),
+    max: () => Math.min(560, window.innerWidth - RAIL_W - ($("left").hidden ? 0 : width("left")) - STAGE_MIN_W),
+  });
 }
 
 /**
@@ -75,7 +37,7 @@ function installTimelineResize() {
  *          format:() => string, setFormat:(format:string) => void, library:{show:(kind:string) => void}, tree:{render:() => void}}} ctx
  */
 export function installViews(ctx) {
-  installTimelineResize();
+  installDividers();
   installRail({ library: ctx.library, tree: ctx.tree });
   function setTimelineView(v) {
     $("tl-sahne").setAttribute("aria-pressed", String(v === "sahne"));
