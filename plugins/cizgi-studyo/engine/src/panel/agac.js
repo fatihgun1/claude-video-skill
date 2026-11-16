@@ -1,5 +1,5 @@
-// The project tree in the left pane, like a video editor's project panel:
-//   Bölümler (every bolum.json in the folder) > the open episode's scenes > their shots.
+// Sahneler, a panel of the left rail: the open episode's scenes > their shots (the folder's
+// episodes are on the Projeler home page).
 // A shot row selects the shot; dragging it onto another scene or shot moves it there
 // (Alt+↑/↓ does the same from the keyboard). The selected scene can be named, moved,
 // deleted, and a new scene added after it. Every change goes through the app's edit cycle.
@@ -16,12 +16,10 @@ const DRAG_TYPE = "application/x-cizgi-shot";
  *          timing:() => {shots:{shot_id:string, start:number, end:number}[]}|null,
  *          framingLabel:(id:string) => string, vocab:() => object, viewOf:(characterId:string) => string,
  *          changed:(selectShot:string|null, note?:string) => void, say:(text:string) => void,
- *          api:(path:string) => Promise<any>, openEpisode:(rel:string) => void, review:(scene:object) => void}} ctx
+ *          review:(scene:object) => void}} ctx
  *   changed(null) keeps the current selection.
  */
 export function createTree(root, ctx) {
-  let episodes = null; // the folder's episodes, from /api/bolumler
-  let error = "";
   let renaming = null; // scene_id whose name is being typed
   let dragging = false; // a shot row is being dragged: a redraw now would drop the drag
   let redrawLater = false;
@@ -33,16 +31,6 @@ export function createTree(root, ctx) {
   const sceneOf = (shotId) => ctx.episode()?.scenes.find((s) => s.shots.some((x) => x.shot_id === shotId)) || null;
   const lengths = () => new Map((ctx.timing()?.shots || []).map((t) => [t.shot_id, t.end - t.start]));
   const sceneName = (s) => s.title || `Sahne ${s.scene_id}`;
-
-  async function refresh() {
-    try {
-      episodes = (await ctx.api("/api/bolumler")).episodes;
-      error = "";
-    } catch (err) {
-      error = `Bölümler alınamadı: ${err.message}`;
-    }
-    render();
-  }
 
   /* ---------- scene operations ---------- */
   function addScene() {
@@ -233,26 +221,12 @@ export function createTree(root, ctx) {
       open ? el("ol", { class: "shots" }, scene.shots.map((x, i) => el("li", {}, shotRow(x, scene, i, lens.get(x.shot_id), problems.get(x.shot_id))))) : null);
   }
 
-  function episodeRow(e) {
-    const here = e.path === ctx.path();
-    return el("li", { class: `ep${here ? " here" : ""}` },
-      el("button", {
-        type: "button", class: "trow ep-row", "data-focus": `ep:${e.path}`, "aria-current": here ? "true" : null, title: e.path,
-        on: { click: () => { if (!here) ctx.openEpisode(e.path); } },
-      },
-      el("span", { class: "fold-mark", "aria-hidden": "true", text: here ? "▾" : "▸" }),
-      el("span", { class: "grow", text: e.title || e.id || e.path }),
-      e.ok && !e.valid ? el("span", { class: "bad", title: `${e.errors} hata`, text: `${e.errors}!` }) : null,
-      e.ok ? el("span", { class: "len", text: `${e.shots} shot` }) : el("span", { class: "warnb", title: e.error, text: "!" })),
-      here ? scenesOf() : null);
-  }
-
   function scenesOf() {
     const ep = ctx.episode();
     if (!ep) return null;
     const lens = lengths();
     const problems = ctx.problems();
-    return el("div", { class: "ep-body" },
+    return el("div", {},
       el("ol", { class: "scenes" }, ep.scenes.map((s, i) => sceneBlock(s, i, ep.scenes.length, lens, problems))),
       el("button", { class: "btn small add-scene", type: "button", "data-focus": "add", title: "Seçili sahneden sonra yeni bir sahne: aynı mekân, aynı oyuncular ayakta", text: "+ Sahne", on: { click: addScene } }));
   }
@@ -266,12 +240,8 @@ export function createTree(root, ctx) {
     const active = root.contains(document.activeElement) ? document.activeElement : null;
     if (renaming && active?.classList.contains("scene-name")) return; // keep typing (a commit clears `renaming` first)
     const focusKey = active?.dataset.focus || null;
-    const list = episodes || (ctx.path() ? [{ path: ctx.path(), ok: true, title: ctx.episode()?.title, shots: 0 }] : []);
     // el() drops empty parts; replaceChildren alone would print them as "null"
-    root.replaceChildren(el("div", {},
-      error ? el("p", { class: "err small", text: error }) : null,
-      el("ol", { class: "tree" }, list.map(episodeRow)),
-      el("p", { class: "muted small tree-hint", text: "Yeni bölüm ve bütün bölümler: üstteki “← Projeler”." })));
+    root.replaceChildren(el("div", { class: "tree" }, scenesOf()));
     if (!active) return;
     // The keyboard stays where it was; if that control is gone (a deleted scene), on the selected shot.
     const all = [...root.querySelectorAll("[data-focus]")];
@@ -279,5 +249,5 @@ export function createTree(root, ctx) {
     again?.focus();
   }
 
-  return { render, refresh };
+  return { render };
 }

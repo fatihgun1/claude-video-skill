@@ -274,7 +274,7 @@ export function createTimeline(els, ctx) {
   function musicRow(total) {
     const music = ctx.music();
     if (!music) {
-      return [el("div", { class: "music-none", text: "Müzik yok · Ses sekmesinden bir parça seç" })];
+      return [el("div", { class: "music-none", text: "Müzik yok · soldaki Müzik panelinden bir parça seç" })];
     }
     // the curve is the whole film's (fades at its ends, dips under every line); a scene shows its stretch of it
     const speech = all.flatMap((p) => (p.t ? p.t.utterances.map((u) => ({ start: p.start + u.start - p.t.start, end: p.start + u.end - p.t.start })) : []));

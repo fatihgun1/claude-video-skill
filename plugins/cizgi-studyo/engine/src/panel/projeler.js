@@ -207,13 +207,6 @@ export function createProjects(page, ctx) {
       show();
       await refresh();
     },
-    /** Switch to an episode through the home page, which asks first when there are unsaved edits. */
-    async pick(rel) {
-      pending = null;
-      show();
-      await refresh();
-      await choose(rel);
-    },
     /** Whether the home page is on screen (the editor's keys are off then). */
     shown: () => !page.hidden,
   };

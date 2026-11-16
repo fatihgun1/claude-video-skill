@@ -22,14 +22,14 @@
   <button id="save" class="btn primary" disabled title="Kaydet (Ctrl+S)">Kaydet</button>
 </header>
 <main class="editor">
-  <aside class="pane library" aria-label="Proje ve kütüphane">
-    <div class="ltabs" role="tablist" aria-label="Sol panel">
-      <button id="lt-proje" class="ltab" role="tab" type="button" aria-selected="true" aria-controls="proje-pane">Proje</button>
-      <button id="lt-kutuphane" class="ltab" role="tab" type="button" aria-selected="false" aria-controls="lib-pane">Kütüphane</button>
+  <nav class="rail" id="rail" aria-label="Sol paneller"></nav>
+  <aside class="pane library" id="left" aria-labelledby="left-title">
+    <div class="lhead">
+      <h2 id="left-title">Karakter</h2>
+      <button id="left-close" class="btn icon" type="button" aria-label="Paneli kapat" title="Paneli kapat: sahne büyür">✕</button>
     </div>
-    <div id="proje-pane" class="proje-pane" role="tabpanel" aria-labelledby="lt-proje"></div>
-    <div id="lib-pane" class="lib-pane" role="tabpanel" aria-labelledby="lt-kutuphane" hidden>
-      <div class="tabs" id="lib-tabs" role="tablist"></div>
+    <div id="proje-pane" class="proje-pane" hidden></div>
+    <div id="lib-pane" class="lib-pane">
       <input id="lib-search" class="search" type="search" placeholder="Kütüphanede ara" aria-label="Kütüphanede ara">
       <p id="lib-hint" class="hint"></p>
       <div id="lib-cards" class="cards"></div>

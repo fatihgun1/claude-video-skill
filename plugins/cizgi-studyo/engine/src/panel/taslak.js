@@ -1,4 +1,4 @@
-// Drafts of the project library, under the library's Mekân and Nesne tabs: what Claude drew and
+// Drafts of the project library, under the library's Mekân and Nesne panels: what Claude drew and
 // is waiting for the person. A good draft can be looked at and taken in ("Kütüphaneye al"), after
 // which it is an ordinary card; one the person does not want is put aside ("Reddet", kept in
 // kutuphane/taslak/_reddedilen). Below them, a form to ask Claude for a new drawing. Under Ses:
@@ -106,7 +106,7 @@ export function createDrafts(ctx) {
   }
 
   return {
-    /** The drafts part of the Mekân or Nesne tab; under Ses, the project's sound problems and the ask form. */
+    /** The drafts part of the Mekân or Nesne panel; under Ses, the project's sound problems and the ask form. */
     section(tab) {
       if (tab !== "mekan" && tab !== "nesne" && tab !== "ses") return [];
       if (!loaded) {

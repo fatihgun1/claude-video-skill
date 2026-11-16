@@ -21,7 +21,7 @@ export function decorId(scene, prop) {
  */
 export function sceneDecor(scene, ctx) {
   const list = scene.dekor || [];
-  if (!list.length) return el("p", { class: "muted small", text: "Bu sahnede dekor yok. Eklemek: Nesne sekmesinde + Dekor." });
+  if (!list.length) return el("p", { class: "muted small", text: "Bu sahnede dekor yok. Eklemek: soldaki Nesne panelinde + Dekor." });
   const set = (d, key, value, empty) => {
     if (value === undefined || value === empty) delete d[key];
     else d[key] = value;

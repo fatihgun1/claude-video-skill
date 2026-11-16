@@ -1,10 +1,9 @@
-// View choices that never change the episode: the left pane (Proje | Kütüphane, remembered in
-// the browser), the timeline (Sahne | Bölüm), the stage's frame (16:9 | 9:16), safe areas and
+// View choices that never change the episode: the left rail and its panel (serit.js), the timeline (Sahne | Bölüm), the stage's frame (16:9 | 9:16), safe areas and
 // the layers hidden in the preview, the timeline's height (remembered in the browser).
 import { $, el } from "./dom.js";
 import { LAYERS } from "./duzen.js";
+import { installRail } from "./serit.js";
 
-const LEFT_KEY = "cizgi.sol";
 const TL_KEY = "cizgi.cizelge";
 const TL_MIN = 150; // the shot row and one track
 const STAGE_MIN = 220; // what the timeline always leaves above it for the stage
@@ -73,30 +72,11 @@ function installTimelineResize() {
 
 /**
  * @param {{timeline:{setView:(v:string) => void}, editor:{setSafe:(on:boolean) => void, setLayer:(key:string, on:boolean) => void},
- *          format:() => string, setFormat:(format:string) => void}} ctx
+ *          format:() => string, setFormat:(format:string) => void, library:{show:(kind:string) => void}, tree:{render:() => void}}} ctx
  */
 export function installViews(ctx) {
   installTimelineResize();
-  function showLeft(which) {
-    const lib = which === "kutuphane";
-    $("lt-proje").setAttribute("aria-selected", String(!lib));
-    $("lt-kutuphane").setAttribute("aria-selected", String(lib));
-    $("proje-pane").hidden = lib;
-    $("lib-pane").hidden = !lib;
-    try {
-      localStorage.setItem(LEFT_KEY, which);
-    } catch {
-      /* storage off: the choice lasts until reload */
-    }
-  }
-  $("lt-proje").addEventListener("click", () => showLeft("proje"));
-  $("lt-kutuphane").addEventListener("click", () => showLeft("kutuphane"));
-  try {
-    if (localStorage.getItem(LEFT_KEY) === "kutuphane") showLeft("kutuphane");
-  } catch {
-    /* storage off */
-  }
-
+  installRail({ library: ctx.library, tree: ctx.tree });
   function setTimelineView(v) {
     $("tl-sahne").setAttribute("aria-pressed", String(v === "sahne"));
     $("tl-bolum").setAttribute("aria-pressed", String(v === "bolum"));

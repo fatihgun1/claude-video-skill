@@ -119,7 +119,7 @@ export function createInspector(box, ctx) {
     return el("div", { class: "seq" },
       el("div", { class: "seg-head", text: "Hareketler (sırayla)" }),
       rows,
-      el("p", { class: "muted small", text: "Yeni hareket: Hareket sekmesinde + Ekle (oynatma kafasının olduğu anda başlar)." }));
+      el("p", { class: "muted small", text: "Yeni hareket: soldaki Hareket panelinde + Ekle (oynatma kafasının olduğu anda başlar)." }));
   }
 
   /** Turkish names of the rigs' colour variables (others show as they are). */
@@ -344,7 +344,7 @@ export function createInspector(box, ctx) {
           el("button", { class: "btn small", type: "button", on: { click: () => listen(`/kutuphane/muzik/${m.track}.wav`) } }, "▶ Parçayı dinle"),
           el("button", { class: "btn small danger", type: "button", on: { click: () => { delete ep.music; ctx.changed(true); } } }, "Müziği kaldır")),
       ]
-      : [el("p", { class: "muted small", text: v.music.length ? "Müzik yok. Ses sekmesinde bir parçanın yanındaki “Kullan” ile ekle." : "Kütüphanede müzik yok (library/muzik)." })];
+      : [el("p", { class: "muted small", text: v.music.length ? "Müzik yok. Soldaki Müzik panelinde bir parçanın yanındaki “Kullan” ile ekle." : "Kütüphanede müzik yok (library/muzik)." })];
     return el("div", {},
       el("h2", { text: "Mikser" }),
       el("p", { class: "muted small", text: "Dinlerken sessize almak ya da tek başına dinlemek için zaman çizelgesindeki M / S düğmeleri." }),
@@ -431,11 +431,11 @@ export function createInspector(box, ctx) {
         select: (i) => ctx.select(i < 0 ? null : "dekor", i),
         changed: () => ctx.changed(true),
       }),
-      el("h3", {}, "Oyuncular", el("span", { class: "muted small", text: "eklemek: Karakter sekmesi" })),
+      el("h3", {}, "Oyuncular", el("span", { class: "muted small", text: "eklemek: soldaki Karakter" })),
       cast,
-      el("h3", {}, "Nesneler", el("span", { class: "muted small", text: "eklemek: Nesne sekmesi" })),
+      el("h3", {}, "Nesneler", el("span", { class: "muted small", text: "eklemek: soldaki Nesne" })),
       props.length ? props : el("p", { class: "muted small", text: "Bu shot'ta nesne yok." }),
-      el("h3", {}, "Efektler", el("span", { class: "muted small", text: "eklemek: Ses sekmesi" })),
+      el("h3", {}, "Efektler", el("span", { class: "muted small", text: "eklemek: soldaki Ses" })),
       sounds.length ? sounds : el("p", { class: "muted small", text: "Bu shot'ta efekt yok." }),
       el("h3", {}, "Replikler", el("span", { class: "muted small", text: "değişirse senaryo onayı düşer" })),
       (shot.utterances || []).map((u, i) => {

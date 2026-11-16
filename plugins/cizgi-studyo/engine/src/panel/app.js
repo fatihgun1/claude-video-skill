@@ -183,7 +183,7 @@ const timeline = createTimeline(
   },
 );
 const library = createLibrary(
-  { tabs: $("lib-tabs"), cards: $("lib-cards"), search: $("lib-search"), hint: $("lib-hint") },
+  { cards: $("lib-cards"), search: $("lib-search"), hint: $("lib-hint") },
   {
     vocab: () => state.vocab,
     context: () => {
@@ -562,7 +562,6 @@ async function save() {
     stage.load(res.preview);
     production.refresh();
     timeline.render();
-    tree.refresh(); // the episode list's validity and length follow the saved file
     renderHeader();
     say(dirty() ? "kaydedildi; sonraki değişiklikler kaydedilmedi" : "kaydedildi");
   } catch (err) {
@@ -601,7 +600,6 @@ async function open(rel) {
   renderMessages(res.preview);
   stage.load(res.preview);
   renderAll();
-  tree.refresh();
   requests.start();
   say("");
 }
@@ -629,10 +627,9 @@ const projects = createProjects($("projects"), {
   },
 });
 
-/* ---------- left pane: project tree | library ---------- */
+/* ---------- Sahneler: the scenes and shots of the open episode (a left rail panel) ---------- */
 const tree = createTree($("proje-pane"), {
   episode: () => state.draft,
-  path: () => state.path,
   selected: () => state.sel.shot,
   choose,
   problems,
@@ -646,9 +643,6 @@ const tree = createTree($("proje-pane"), {
     if (text) note(text);
   },
   say: note, // a refusal must outlive the preview status of the edit before it
-  api,
-  // another episode: straight there, or through the picker's "discard your edits?" when there are some
-  openEpisode: (rel) => (dirty() ? projects.pick(rel) : open(rel).catch((err) => say(`açılamadı: ${err.message}`))),
   review: (scene) => review.open(scene),
 });
 /* ---------- Hikâye: story cards (hikaye.json, a draft) ---------- */
@@ -772,6 +766,8 @@ function removeSelected() {
 installViews({
   timeline,
   editor,
+  library,
+  tree,
   format: () => state.format,
   setFormat: (format) => {
     state.format = format;

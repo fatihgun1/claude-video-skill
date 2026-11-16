@@ -1,13 +1,9 @@
-// Library browser: one tab per kind of asset, cards with real thumbnails, hover previews
+// Library browser: one panel per kind of asset (the left rail picks which, gorunum.js), cards with real thumbnails, hover previews
 // for actions, listening for sounds, and framing diagrams for the camera. A click hands the
 // choice to the app (ctx.pick), which decides what it changes; the browser never edits.
 import { el, svg } from "./dom.js";
 import { listen, stop as stopSound, isPlaying, rebind } from "./dinle.js";
 
-const TABS = [
-  ["karakter", "Karakter"], ["hareket", "Hareket"], ["mekan", "Mekân"],
-  ["nesne", "Nesne"], ["ses", "Ses"], ["kamera", "Kamera"],
-];
 /** Every action a cast member plays in its shot (its own, then its sequence). */
 const segmentActions = (m) => [m.action, ...(m.actions || []).map((x) => x.action)];
 const VIEW_TEXT = {
@@ -130,7 +126,7 @@ function attachActionPreview(card, thumb, q, onFit) {
 
 /* ---------- the browser ---------- */
 /**
- * @param {{tabs:HTMLElement, cards:HTMLElement, search:HTMLInputElement, hint:HTMLElement}} els
+ * @param {{cards:HTMLElement, search:HTMLInputElement, hint:HTMLElement}} els
  * @param {{vocab:() => object, context:() => object, pick:(kind:string, id:string, how?:string) => void}} ctx
  */
 export function createLibrary(els, ctx) {
@@ -142,15 +138,6 @@ export function createLibrary(els, ctx) {
     query = els.search.value.trim().toLocaleLowerCase("tr");
     render();
   });
-
-  function renderTabs() {
-    els.tabs.replaceChildren(...TABS.map(([id, text]) =>
-      el("button", { class: "tab", role: "tab", "aria-selected": String(id === tab), on: { click: () => {
-        if (id !== tab) stopSound(); // a sound from the Ses tab does not play on under another tab
-        tab = id;
-        render();
-      } } }, text)));
-  }
 
   const matches = (o) => !query || `${o.label} ${o.id}`.toLocaleLowerCase("tr").includes(query);
 
@@ -270,21 +257,19 @@ export function createLibrary(els, ctx) {
   }
 
   function sounds(v, cx) {
-    const fx = v.sfx.filter(matches).map((s) => el("div", { class: "card sound" },
+    return v.sfx.filter(matches).map((s) => el("div", { class: "card sound" },
       playButton(soundUrl(s.id), s.label),
       el("div", {}, el("div", { class: "name", text: s.label }), el("div", { class: "meta", text: `${s.id} · ${s.duration}s` })),
       el("button", { class: "btn small", disabled: !cx.shot, title: "Oynatma kafasının olduğu ana ekle", on: { click: () => ctx.pick("ses", s.id) } }, "+ Ekle")));
+  }
+
+  function music(v, cx) {
     const current = cx.musicTrack;
-    const music = v.music.filter(matches).map((m) => el("div", { class: `card sound${current === m.id ? " current" : ""}` },
+    const list = v.music.filter(matches).map((m) => el("div", { class: `card sound${current === m.id ? " current" : ""}` },
       playButton(`/kutuphane/muzik/${m.id}.wav`, m.label),
       el("div", {}, el("div", { class: "name", text: m.label }), el("div", { class: "meta", text: `müzik · ${m.duration}s` })),
       el("button", { class: "btn small", title: "Bölümün arka plan müziği yap", disabled: current === m.id, on: { click: () => ctx.pick("muzik", m.id) } }, current === m.id ? "Kullanılıyor" : "Kullan")));
-    return [
-      el("div", { class: "group-title", text: "Müzik" }),
-      ...(music.length ? music : [el("p", { class: "muted small", text: "Kütüphanede müzik yok (library/muzik)." })]),
-      el("div", { class: "group-title", text: "Efektler" }),
-      ...fx,
-    ];
+    return list.length || query ? list : [el("p", { class: "muted small", text: "Kütüphanede müzik yok (library/muzik)." })];
   }
 
   function camera(v, cx) {
@@ -314,7 +299,8 @@ export function createLibrary(els, ctx) {
         : "Önce sağdan bir oyuncu seç.";
       case "mekan": return cx.scene ? `"${cx.scene.scene_id}" sahnesinin bütün shot'larına uygulanır.` : "";
       case "nesne": return cx.prop ? `"${cx.prop.id}" yerine konacak nesneyi seç.` : "Tıklanan nesne seçili shot'a eklenir · + Dekor: sahnenin bütün shot'larında, karakterlerin arkasında durur.";
-      case "ses": return "▶ dinle. Müzik: Kullan ile bütün bölümün altına. Efekt: + Ekle ile oynatma kafasının olduğu ana.";
+      case "ses": return "▶ dinle · + Ekle: efekt oynatma kafasının olduğu ana gelir.";
+      case "muzik": return "▶ dinle · Kullan: bütün bölümün altında çalar (düzeyi Mikser'de).";
       case "kamera": return cx.shot ? `${cx.shot.shot_id} shot'ının kamerası.` : "";
       default: return "";
     }
@@ -324,13 +310,20 @@ export function createLibrary(els, ctx) {
     const v = ctx.vocab();
     if (!v) return;
     const cx = ctx.context();
-    renderTabs();
     els.hint.textContent = hint(cx);
-    const build = { karakter: characters, hareket: actions, mekan: backgrounds, nesne: props, ses: sounds, kamera: camera }[tab];
+    const build = { karakter: characters, hareket: actions, mekan: backgrounds, nesne: props, ses: sounds, muzik: music, kamera: camera }[tab];
     const list = [...build(v, cx), ...(ctx.extra ? ctx.extra(tab) : [])]; // drafts under Mekân and Nesne, the effect request under Ses
-    els.cards.className = `cards${["mekan", "ses", "kamera"].includes(tab) ? " wide" : ""}`;
+    els.cards.className = `cards${["mekan", "ses", "muzik", "kamera"].includes(tab) ? " wide" : ""}`;
     els.cards.replaceChildren(...(list.length ? list : [el("p", { class: "empty", text: "Sonuç yok." })]));
   }
 
-  return { render, show(name) { tab = name; render(); } };
+  return {
+    render,
+    /** Show one kind (the rail's choice); a sound playing from another panel stops. */
+    show(name) {
+      if (name !== tab) stopSound();
+      tab = name;
+      render();
+    },
+  };
 }
