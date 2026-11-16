@@ -5,6 +5,7 @@
 // the project's sound effects left out (no source written, a name taken…) and a form to ask Claude
 // for a missing effect (a CC0 source it suggests and downloads only after the person says yes).
 import { el } from "./dom.js";
+import { tr } from "./tr.js";
 
 const KIND_TEXT = { mekan: "mekân", nesne: "nesne", ses: "efekt" };
 const PLACEHOLDER = { mekan: "Örnek: akşamüstü bir sahil; uzakta ada, önde kumdan kale", nesne: "Örnek: kırmızı bir top (elde tutulur)", ses: "Örnek: kuş cıvıltısı, kısa" };
@@ -88,7 +89,7 @@ export function createDrafts(ctx) {
       el("div", { class: `thumb${tur === "mekan" ? " wide" : ""}` }, thumb, el("span", { class: "badge", text: "taslak" })),
       el("span", { class: "name", text: d.name ? `${d.name} (${d.id})` : d.id }),
       tur === "mekan" && d.layers.length ? el("span", { class: "meta", text: d.layers.map((l) => `${l.id} ${l.derinlik}`).join(" · ") }) : null,
-      d.errors.length ? el("ul", { class: "why derrs" }, d.errors.slice(0, 4).map((e) => el("li", { text: e }))) : null,
+      d.errors.length ? el("ul", { class: "why derrs" }, d.errors.slice(0, 4).map((e) => el("li", { text: tr(e) }))) : null,
       el("div", { class: "row dacts" },
         el("button", { class: "btn primary small", type: "button", disabled: !d.ok, title: d.ok ? "Kütüphaneye al: bölümlerde kullanılabilir olur" : "Önce sorunları Claude düzeltsin", text: "Kütüphaneye al", on: { click: () => act("al", d) } }),
         el("button", { class: "btn small danger", type: "button", title: "İstemiyorum: kenara koy (silinmez)", text: "Reddet", on: { click: () => act("reddet", d) } })));
@@ -118,7 +119,7 @@ export function createDrafts(ctx) {
         const mineBad = problems.filter(isSound);
         return [
           mineBad.length ? el("div", { class: "warn small span" }, el("b", { text: "Proje kütüphanesinde kullanılamayan efektler:" }),
-            el("ul", { class: "derrs" }, mineBad.slice(0, 6).map((p) => el("li", { text: p })))) : null,
+            el("ul", { class: "derrs" }, mineBad.slice(0, 6).map((p) => el("li", { text: tr(p) })))) : null,
           error ? el("p", { class: "err small span", text: error }) : null,
           askError.ses ? el("p", { class: "err small span", text: askError.ses }) : null,
           sent.ses ? el("p", { class: "ok-line small span", text: sent.ses }) : null,
@@ -129,7 +130,7 @@ export function createDrafts(ctx) {
       const drawings = problems.filter((p) => !isSound(p));
       return [
         drawings.length ? el("div", { class: "warn small span" }, el("b", { text: "Proje kütüphanesinde kullanılamayan çizimler:" }),
-          el("ul", { class: "derrs" }, drawings.slice(0, 6).map((p) => el("li", { text: p })))) : null,
+          el("ul", { class: "derrs" }, drawings.slice(0, 6).map((p) => el("li", { text: tr(p) })))) : null,
         el("h4", { class: "group-title", text: `Taslaklar · onay bekliyor (${mine.length})` }),
         ...mine.map(draftCard),
         error ? el("p", { class: "err small span", text: error }) : null,

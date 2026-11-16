@@ -2,7 +2,8 @@
  * Storyboard and render steps (they drive the HyperFrames CLI through npx).
  *   storyboard  compile, run `hyperframes check`, take stills of every shot → human review
  *   render      final MP4s; refused until the storyboard of the current content is approved
- *               (draft renders are always allowed, for a quick look)
+ *               (draft renders are always allowed, for a quick look: no approval needed,
+ *               lines not spoken yet play silent with a guessed length)
  */
 import { mkdirSync, existsSync, readdirSync, rmSync } from "node:fs";
 import { join, dirname, resolve, basename } from "node:path";
@@ -25,11 +26,12 @@ export function stillTimes(shots) {
   return shots.flatMap((s) => [0.4, 0.8].map((k) => Math.round((s.start + (s.end - s.start) * k) * 100) / 100));
 }
 
-function prepare(episodePath, lib) {
+/** The episode, valid; the script approved unless it is only a draft (gate: false). */
+function prepare(episodePath, lib, { gate = true } = {}) {
   const episode = readJson(episodePath);
   const { ok, errors, warnings } = validateEpisode(episode, lib);
   if (!ok) throw new Error(`episode is invalid:\n- ${errors.join("\n- ")}`);
-  requireGate(readApprovals(episodePath), "senaryo", scriptFingerprint(episode));
+  if (gate) requireGate(readApprovals(episodePath), "senaryo", scriptFingerprint(episode));
   const dir = dirname(resolve(episodePath));
   return { episode, warnings, dir, manifest: readManifest(episodePath) };
 }
@@ -152,14 +154,14 @@ export function qaPages(video, deps) {
  * @returns {string[]} written video paths
  */
 export function render(episodePath, lib, deps) {
-  const { episode, dir, manifest } = prepare(episodePath, lib);
+  const { episode, dir, manifest } = prepare(episodePath, lib, { gate: !deps.draft });
   if (!deps.draft) requireGate(readApprovals(episodePath), "storyboard", storyboardFingerprint(episode, manifest, libraryFingerprint(episode, lib)));
   const videos = [];
   for (const format of deps.formats || Object.keys(FORMATS)) {
     const tag = FORMATS[format];
     if (!tag) throw new Error(`unknown format "${format}"`);
     const project = join(dir, ".cizgi", `proje-${tag}`);
-    compileEpisode(episodePath, lib, project, { format });
+    compileEpisode(episodePath, lib, project, deps.draft ? { format, missingAudio: "estimate" } : { format });
     mkdirSync(join(dir, "cikti"), { recursive: true });
     const video = join(dir, "cikti", `${episode.episode}-${tag}${deps.draft ? "-taslak" : ""}.mp4`);
     deps.run("npx", ["--yes", HYPERFRAMES, "render", "-o", video, "--fps", "30", "-q", deps.draft ? "draft" : "looks"], { cwd: project });

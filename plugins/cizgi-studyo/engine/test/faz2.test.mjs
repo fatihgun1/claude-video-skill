@@ -223,6 +223,15 @@ test("runAudio reports lines that stay wrong after all retries; tempo 1 copies",
   assert.equal(fake.calls.filter((c) => c.cmd === "ffmpeg").length, 0);
 });
 
+test("a draft render is a preview: no script approval and no recorded lines needed; the final one still is gated", () => {
+  const { path } = makeEpisode(); // nothing approved, nothing spoken
+  const r = fakeRunner();
+  const draft = render(path, lib, { ...r, draft: true, formats: ["16:9"] });
+  assert.ok(draft[0].endsWith(join("cikti", "deneme-16x9-taslak.mp4")));
+  assert.ok(r.calls.some((c) => c.args.includes("draft")));
+  assert.throws(() => render(path, lib, fakeRunner()), /gate "senaryo"/);
+});
+
 test("stillTimes takes two stills per shot", () => {
   assert.deepEqual(stillTimes([{ start: 0, end: 10 }, { start: 10, end: 15 }]), [4, 8, 12, 14]);
 });

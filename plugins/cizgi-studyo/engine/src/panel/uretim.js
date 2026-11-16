@@ -2,6 +2,7 @@
 // steps the panel can start itself on the saved file: storyboard stills and a draft video.
 // Approvals are never given here; the panel says what to ask for and from whom.
 import { el } from "./dom.js";
+import { tr } from "./tr.js";
 
 const POLL_MS = 2000;
 const GATE_TEXT = { onayli: "onaylı", eskimis: "eskidi (içerik değişti)", yok: "onaylanmadı" };
@@ -19,16 +20,22 @@ export function createProduction(els, ctx) {
   let error = "";
   let note = ""; // what the last action did (a request left for Claude)
 
-  /** Why a step cannot start now, or "" when it can. */
-  function blocker() {
+  /**
+   * Why a step cannot start now, or "" when it can. A draft video is only a preview: it needs
+   * neither the script's approval nor the lines spoken (they play silent with a guessed length).
+   */
+  function blocker(kind) {
     const s = ctx.status();
     if (ctx.dirty()) return "Önce kaydet: üretim kayıtlı dosyadan yapılır.";
     if (!s) return "Bölümde hata var: önce düzelt.";
+    if (job?.status === "running") return "Bir iş sürüyor.";
+    if (kind === "taslak") return "";
     if (s.gates?.senaryo !== "onayli") return "Senaryo onayı gerekli.";
     if (s.audio?.todo?.length) return `${s.audio.todo.length} replik seslendirilmeli.`;
-    if (job?.status === "running") return "Bir iş sürüyor.";
     return "";
   }
+  /** Final videos and drafts apart: only a final one is a finished render. */
+  const isDraft = (p) => /-taslak\.mp4$/.test(p);
 
   /** The chips in the top bar: each step with how far it is. */
   function renderSteps() {
@@ -40,7 +47,13 @@ export function createProduction(els, ctx) {
       ["Senaryo", g.senaryo === "onayli" ? "ok" : g.senaryo === "eskimis" ? "stale" : "", GATE_TEXT[g.senaryo] || "durum bilinmiyor"],
       [a ? `Ses ${audioDone}/${a.lines}` : "Ses", a && !a.todo.length ? (a.failed?.length ? "stale" : "ok") : "", a ? `${a.todo.length} replik bekliyor${a.failed?.length ? `, ${a.failed.length} dinleme kontrolünden geçmedi` : ""}` : ""],
       ["Storyboard", g.storyboard === "onayli" ? "ok" : g.storyboard === "eskimis" ? "stale" : "", GATE_TEXT[g.storyboard] || ""],
-      [outputs.videos.length ? "Render ✓" : "Render", outputs.videos.length ? "ok" : "", outputs.videos.length ? `${outputs.videos.length} video` : "henüz video yok"],
+      (() => {
+        const drafts = outputs.videos.filter(isDraft).length;
+        const finals = outputs.videos.length - drafts;
+        if (finals) return ["Render ✓", "ok", `${finals} video${drafts ? `, ${drafts} taslak` : ""}`];
+        if (drafts) return [`Taslak ${drafts}`, "", `${drafts} taslak video; asıl render storyboard onaylanınca Claude'la`];
+        return ["Render", "", "henüz video yok"];
+      })(),
     ];
     const next = steps.findIndex(([, cls]) => cls !== "ok");
     els.steps.replaceChildren(...steps.map(([text, cls, tip], i) => el("li", {},
@@ -162,13 +175,14 @@ export function createProduction(els, ctx) {
     const g = s?.gates || {};
     const a = s?.audio;
     const why = blocker();
-    const runBtn = (kind, text) => el("button", {
-      class: "btn primary", type: "button", disabled: !!why, title: why || "", on: { click: () => startJob(kind) },
-    }, `${text} (${ctx.format()})`);
+    const runBtn = (kind, text) => {
+      const no = blocker(kind);
+      return el("button", { class: "btn primary", type: "button", disabled: !!no, title: no || "", on: { click: () => startJob(kind) } }, `${text} (${ctx.format()})`);
+    };
     const jobBox = job
       ? el("div", { class: `pjob ${job.status}` },
         el("b", { text: `${JOB_TEXT[job.kind] || job.kind}${job.kind === "ses" ? "" : ` ${job.format}`}: ${job.status === "running" ? "sürüyor…" : job.status === "done" ? "bitti" : "olmadı"}` }),
-        job.error ? el("p", { class: "err small perr", text: job.error }) : null, // several lines: what failed, then why
+        job.error ? el("p", { class: "err small perr", text: tr(job.error) }) : null, // several lines: what failed, then why
         job.kind === "ses" && job.status === "running" ? progressBar(job.progress) : null,
         // the speech tools' own last words say why it stopped (a missing model, out of memory…)
         job.kind === "ses" && job.status === "failed" && job.log ? el("pre", { class: "plog", text: lastWords(job.log) }) : null,
@@ -199,10 +213,10 @@ export function createProduction(els, ctx) {
         [runBtn("storyboard", "Storyboard karelerini al"),
           outputs.sheets.length ? el("div", { class: "psheets" }, outputs.sheets.map((p) => el("a", { href: base + p, target: "_blank", rel: "noopener" }, el("img", { src: base + p, alt: p, loading: "lazy" })))) : null]),
       step("4. Taslak video", { cls: outputs.videos.length ? "ok" : "stale", text: outputs.videos.length ? `${outputs.videos.length} video` : "yok" },
-        "Hızlı bakış için düşük kalite. Asıl render storyboard onaylanınca Claude'la yapılır.",
+        `Hızlı bakış için düşük kalite; onay gerekmez. Asıl render storyboard onaylanınca Claude'la yapılır.${a?.todo.length ? ` Dikkat: ${a.todo.length} replik seslendirilmedi ya da metni sonradan değişti; taslakta sessiz ya da eski sesiyle geçer.` : ""}`,
         [runBtn("taslak", "Taslak video çıkar"),
           outputs.videos.map((p) => el("figure", { class: "pvideo" }, el("video", { src: base + p, controls: true, preload: "metadata" }), el("figcaption", { text: p })))]),
-      why ? el("p", { class: "warn small", text: `Şu an başlatılamaz: ${why}` }) : null));
+      why ? el("p", { class: "warn small", text: `Storyboard şu an başlatılamaz: ${why}${blocker("taslak") ? "" : " (taslak video çıkarılabilir)"}` }) : null));
   }
 
   function show() {

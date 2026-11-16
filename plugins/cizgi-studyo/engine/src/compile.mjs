@@ -388,16 +388,19 @@ function pageHtml({ episode, timeline, viewport, lib, audioTags, data, props, de
 `;
 }
 
+const SILENT_RATE = 8000; // enough for silence, and small: 16 kB a second
+
+/** A silent mono 16-bit PCM WAV this many seconds long. */
+export function silentWav(seconds, rate = SILENT_RATE) {
+  return writeWav({ rate, channels: 1, samples: new Int16Array(Math.ceil(seconds * rate)) });
+}
+
 /**
- * Compile an episode file into a HyperFrames project.
- * @param {string} episodePath path to episode.json
- * @param {ReturnType<import("./library.mjs").loadLibrary>} lib
- * @param {string} outDir project folder to (over)write
- * @param {{format?: "16:9"|"9:16", episode?: object}} [opts]
- * @returns {{duration:number, shots:number, outDir:string, estimated?:string[]}} estimated: with
- *   opts.missingAudio "estimate", the keys of lines played silent with a guessed length
+ * What both renders (2D and 3D) need first: the episode checked, its timeline from the real audio,
+ * and every line, effect and the music copied into outDir/assets/audio with their <audio> tags.
+ * @returns {{episode:object, timeline:object, viewport:{width:number,height:number}, format:string, audioTags:string[], estimated:string[]}}
  */
-export function compileEpisode(episodePath, lib, outDir, opts = {}) {
+export function prepareMedia(episodePath, lib, outDir, opts = {}) {
   // opts.episode: compile an unsaved edit (the control panel); paths still resolve next to episodePath.
   const episode = opts.episode ?? readJson(episodePath);
   const { ok, errors } = validateEpisode(episode, lib);
@@ -410,7 +413,8 @@ export function compileEpisode(episodePath, lib, outDir, opts = {}) {
   const audioFile = (u, shot, i) => safeJoin(episodeDir, audioPathFor(u, shot, i));
   // opts.missingAudio = "estimate" (the panel's preview only): a line not spoken yet gets a
   // length guessed from its text and plays silent, so a new line can be placed and saved
-  // before the audio step. A render never uses this: it needs every line's real audio.
+  // before the audio step. A final render never uses this (it needs every line's real audio);
+  // a draft render does, it is only a preview.
   const estimated = [];
   const audioInfo = (u, shot, i) => {
     const file = audioFile(u, shot, i);
@@ -428,8 +432,6 @@ export function compileEpisode(episodePath, lib, outDir, opts = {}) {
   const effects = soundEffects(episode, timeline, lib);
 
   mkdirSync(join(outDir, "assets", "audio"), { recursive: true });
-  mkdirSync(join(outDir, "runtime"), { recursive: true });
-  for (const f of ["core.js", "player.js"]) copyFileSync(join(RUNTIME_DIR, f), join(outDir, "runtime", f));
 
   const audioTags = [];
   const mix = { lines: 1, sfx: 1, ...episode.mix };
@@ -457,6 +459,27 @@ export function compileEpisode(episodePath, lib, outDir, opts = {}) {
     writeFileSync(join(outDir, "assets", "audio", "muzik.wav"), writeWav(mixMusic(track, timeline.duration, episode.music, speech)));
     audioTags.push(`<audio id="muzik" src="assets/audio/muzik.wav" data-start="0" data-duration="${timeline.duration.toFixed(3)}" data-track-index="${2 + effects.length}" data-volume="1"></audio>`);
   }
+  if (!audioTags.length && opts.silentTrack !== false) {
+    // nothing to hear: a silent track anyway, so the video has an audio stream (platforms expect one)
+    writeFileSync(join(outDir, "assets", "audio", "sessiz.wav"), silentWav(timeline.duration));
+    audioTags.push(`<audio id="sessiz" src="assets/audio/sessiz.wav" data-start="0" data-duration="${timeline.duration.toFixed(3)}" data-track-index="1" data-volume="1"></audio>`);
+  }
+  return { episode, timeline, viewport, format, audioTags, estimated };
+}
+
+/**
+ * Compile an episode file into a HyperFrames project.
+ * @param {string} episodePath path to episode.json
+ * @param {ReturnType<import("./library.mjs").loadLibrary>} lib
+ * @param {string} outDir project folder to (over)write
+ * @param {{format?: "16:9"|"9:16", episode?: object}} [opts]
+ * @returns {{duration:number, shots:number, outDir:string, estimated?:string[]}} estimated: with
+ *   opts.missingAudio "estimate", the keys of lines played silent with a guessed length
+ */
+export function compileEpisode(episodePath, lib, outDir, opts = {}) {
+  const { episode, timeline, viewport, audioTags, estimated } = prepareMedia(episodePath, lib, outDir, opts);
+  mkdirSync(join(outDir, "runtime"), { recursive: true });
+  for (const f of ["core.js", "player.js"]) copyFileSync(join(RUNTIME_DIR, f), join(outDir, "runtime", f));
 
   const props = propLayer(timeline, episode, lib, viewport);
   const decor = decorLayer(episode, lib, viewport);

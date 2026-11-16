@@ -9,7 +9,7 @@ description: Render the final MP4s (16:9 YouTube, 9:16 Reels/Shorts) of a Çizgi
 CLI="node ${CLAUDE_PLUGIN_ROOT}/engine/src/cli.mjs"
 $CLI render <bolum.json>                    # final, both formats (needs storyboard approval)
 $CLI render <bolum.json> --format 9:16      # final, one format
-$CLI render <bolum.json> --taslak           # draft quality, always allowed
+$CLI render <bolum.json> --taslak           # draft quality, always allowed: no approval needed, lines not spoken yet are silent
 ```
 
 Output files: `cikti/<episode>-16x9.mp4` and `cikti/<episode>-9x16.mp4`. Drafts get a `-taslak` suffix.
@@ -47,7 +47,7 @@ Open every page and check each item. Write down what you see for each shot.
 Fix the cause in the library or episode, render again and run `qa` again. Show the video only when every page passes, and tell the person which checks you ran.
 
 ## Verify before delivering
-For each file, check duration, resolution and that an audio stream exists:
+For each file, check duration, resolution and that an audio stream exists (an episode with no sound at all gets a silent track, so it has one too):
 
 ```bash
 ffprobe -v error -show_entries format=duration:stream=codec_type,width,height -of compact <file>

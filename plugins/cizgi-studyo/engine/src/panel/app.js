@@ -5,6 +5,7 @@ import { createStageEditor } from "./duzen.js";
 import { createProduction } from "./uretim.js";
 import { createLibrary } from "./kutuphane.js";
 import { installDrops } from "./birak.js";
+import { tr } from "./tr.js";
 import { createStage, shotOfMessage } from "./sahne.js";
 import { createInspector, renameMember } from "./denetleyici.js";
 import { createProjects } from "./projeler.js";
@@ -349,6 +350,7 @@ function select(kind, index = -1, seg = undefined) {
 /* ---------- what a library click changes ---------- */
 let sticky = ""; // a message about the last edit, kept over the "preparing preview" notes
 function say(text) {
+  text = tr(text); // an engine message the panel knows, in Turkish
   $("state").textContent = text;
   $("state").title = text; // cut short on a narrow window: the whole of it on hover
 }
