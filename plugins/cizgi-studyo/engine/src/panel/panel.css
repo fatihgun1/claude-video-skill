@@ -724,12 +724,14 @@ div.pitem { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
 .projects .kanal-soru h3, .psih .kanal-soru h3 { font-size: 15px; font-weight: 600; text-transform: none; letter-spacing: normal; color: var(--text); margin: 0; }
 /* narrow: steps become a strip, Claude goes beside, then under the form */
 @media (max-width: 1100px) {
-  .psih-alan { grid-template-columns: minmax(0, 1fr) 320px; grid-template-rows: auto minmax(0, 1fr); }
+  .psih-alan { grid-template-columns: minmax(0, 1fr) clamp(260px, 34vw, 320px); grid-template-rows: auto minmax(0, 1fr); }
   .psih-adimlar { grid-column: 1 / -1; border-right: 0; border-bottom: 1px solid var(--line); padding: 8px 16px; }
   .psih-adimlar ol { flex-direction: row; overflow-x: auto; }
   .psih-adimlar button { white-space: nowrap; }
 }
-@media (max-width: 760px) {
+@media (max-width: 640px) {
+  /* stacked: a question from Claude is a sheet at the bottom edge, never lost below the form */
+  .psih-claude .kanal-soru.docked { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; max-height: 60vh; overflow: auto; border-radius: 12px 12px 0 0; box-shadow: 0 -12px 32px rgba(0, 0, 0, .5); }
   .psih-alan { display: flex; flex-direction: column; overflow: auto; }
   .psih-form, .psih-claude, .psih-adimlar { flex: none; }
   .psih-form { overflow: visible; }
@@ -749,3 +751,18 @@ div.pitem { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
 .onay-sor-dugmeler { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .btn.tehlike { background: var(--err); border-color: var(--err); color: #2a0b08; font-weight: 600; }
 .btn.tehlike:hover { filter: brightness(1.08); }
+
+/* The wizard's scenes: tiles on top, the picked scene in its own section below (proje-sihirbaz.js) */
+.pkaro-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 8px; }
+.pkaro { display: flex; flex-direction: column; align-items: stretch; gap: 4px; min-height: 88px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--pane); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.pkaro:hover { border-color: var(--muted); }
+.pkaro:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pkaro.secili { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--pane)); }
+.pkaro-ust { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pkaro-ust b { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pkaro-satir { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pkaro-ekle { align-items: center; justify-content: center; border-style: dashed; color: var(--muted); }
+.pkaro-ekle:hover { color: var(--text); border-color: var(--accent); }
+.psahne { margin-top: 8px; border-color: var(--accent); }
+.psahne h4 { margin: 0; font-size: 16px; font-weight: 600; }
+.psahne .pitem-ust { flex-wrap: wrap; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }

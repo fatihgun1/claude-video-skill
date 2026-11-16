@@ -36,7 +36,7 @@ export function createProjectWizard(ctx) {
   dialog.addEventListener("cancel", (e) => { e.preventDefault(); close(); }); // Escape saves first, like Kapat
   dialog.addEventListener("input", () => showSaved());
   dialog.addEventListener("change", () => showSaved());
-  let s = null; // {id, idFixed, story, version, bolum, step, choices, error, info, tried, open:Set}
+  let s = null; // {id, idFixed, story, version, bolum, step, choices, error, info, tried, sel}
 
   const choiceList = (key) => s.choices?.[key] || [];
   const w = () => s.story.istekler;
@@ -63,7 +63,7 @@ export function createProjectWizard(ctx) {
     const same = s && dialog.open && id && s.id === id && s.idFixed;
     if (!same) {
       const res = await ctx.api("/api/bolumler").catch(() => ({}));
-      s = { id: id || "", idFixed: !!id, story: newStory(), version: null, bolum: null, step: 0, choices: res.secenekler || {}, error: "", info: "", tried: false, open: new Set() };
+      s = { id: id || "", idFixed: !!id, story: newStory(), version: null, bolum: null, step: 0, choices: res.secenekler || {}, error: "", info: "", tried: false, sel: undefined };
       if (id) {
         try {
           take(await ctx.api(`/api/yapim/oku?${new URLSearchParams({ id })}`));
@@ -364,69 +364,86 @@ export function createProjectWizard(ctx) {
       suggest);
   }
 
+  /**
+   * Scenes: tiles on top (one per scene: number, title, place, time, who), and below them, in its
+   * own section, the one scene picked. A list of open forms one under another was hard to follow.
+   */
   function stepScenes() {
+    const list = s.story.kartlar;
     const places = [["", "Seç…"], ...choiceList("backgrounds").map((b) => [b.id, b.label || b.id]), [NEW_PLACE, "Yeni mekân çizilecek…"]];
     const isLib = (m) => choiceList("backgrounds").some((b) => b.id === m);
     const placeName = (m) => choiceList("backgrounds").find((b) => b.id === m)?.label || m;
-    const cards = s.story.kartlar.map((k, i) => {
-      const custom = k.mekan !== undefined && !isLib(k.mekan);
-      const placeText = textIn(custom ? k.mekan : "", (v) => { k.mekan = v; }, { maxlength: "200", placeholder: "Yeni mekânı tarif et: ör. yağmurlu eski bir ara sokak" });
-      placeText.hidden = !custom;
-      const summary = [k.baslik || k.olay?.slice(0, 50) || "Başlıksız", k.mekan ? placeName(k.mekan) : null, k.kim?.length ? k.kim.join(", ") : null].filter(Boolean).join(" · ");
-      const box = el("details", { class: "pitem pkart", open: s.open.has(k.id) },
-        el("summary", {},
-          el("span", { class: "pkart-no", text: String(i + 1) }),
-          el("span", { class: "pkart-ozet", text: summary }),
-          el("span", { class: "pkart-arac" },
-            el("button", { class: "btn small ghost", type: "button", disabled: i === 0, text: "↑", "aria-label": `Sahne ${i + 1} yukarı`, on: { click: (e) => { e.preventDefault(); move(i, -1); } } }),
-            el("button", { class: "btn small ghost", type: "button", disabled: i === s.story.kartlar.length - 1, text: "↓", "aria-label": `Sahne ${i + 1} aşağı`, on: { click: (e) => { e.preventDefault(); move(i, 1); } } }),
-            el("button", { class: "btn small ghost danger", type: "button", text: "Sil", on: { click: async (e) => {
-              e.preventDefault();
-              if (!(await confirmInPage(`Sahne ${i + 1} (“${k.baslik || "başlıksız"}”) silinsin mi?`, { yes: "Sahneyi sil" }))) return;
-              s.story.kartlar.splice(i, 1); render();
-            } } }))),
-        el("div", { class: "pkart-govde" },
-          field("Başlık", textIn(k.baslik, (v) => { k.baslik = v; }, { maxlength: "80", placeholder: "Örnek: Soğuk gece" }), { alan: `kartlar.${k.id}.baslik`, ask: false }),
-          field("Ne olur", textIn(k.olay, (v) => { k.olay = v; }, { rows: 3, maxlength: "1000", placeholder: "Bu sahnede ne oluyor? Kim ne yapıyor, ne söylüyor?" }), { alan: `kartlar.${k.id}.olay` }),
-          field("Kim var", s.story.karakterler.length
-            ? el("div", { class: "psegment coklu" }, s.story.karakterler.map((c) => {
-              const on = (k.kim || []).includes(c.ad);
-              return el("button", { type: "button", role: "checkbox", "aria-checked": String(on), class: on ? "secili" : "", text: c.ad, on: { click: () => {
-                const list = new Set(k.kim || []);
-                if (on) list.delete(c.ad); else list.add(c.ad);
-                k.kim = [...list];
-                render();
-              } } });
-            }))
-            : el("p", { class: "muted small", text: "Önce Karakterler adımında karakter ekle." }), { alan: `kartlar.${k.id}.kim`, ask: false }),
-          el("div", { class: "pikili" },
-            field("Mekân", el("div", { class: "pyigin" }, select(custom ? NEW_PLACE : k.mekan, places, (v) => {
-              placeText.hidden = v !== NEW_PLACE;
-              if (v === NEW_PLACE) k.mekan = placeText.value;
-              else if (v) k.mekan = v;
-              else delete k.mekan;
-            }, "Mekân"), placeText), { alan: `kartlar.${k.id}.mekan` }),
-            field("Saat", select(k.saat, TIMES, (v) => { if (v) k.saat = v; else delete k.saat; }, "Saat"), { alan: `kartlar.${k.id}.saat`, ask: false, optional: true })),
-          field("Nesneler", propsPicker(k), { alan: `kartlar.${k.id}.nesneler`, optional: true, hint: "Kütüphanede olmayan bir nesneyi yazarsan yeni çizilir." }),
-          field("Süre (saniye)", numberIn(k.sure, (v) => { if (v === undefined) delete k.sure; else k.sure = v; }, { min: "1", max: "120", placeholder: "10" }), { alan: `kartlar.${k.id}.sure`, ask: false, optional: true })));
-      box.addEventListener("toggle", () => { if (box.open) s.open.add(k.id); else s.open.delete(k.id); });
-      return box;
-    });
+    const timeName = (t) => TIMES.find(([v]) => v === t)?.[1];
+    if (!list.some((k) => k.id === s.sel)) s.sel = list[0]?.id;
+    const tiles = el("div", { class: "pkaro-liste", role: "listbox", "aria-label": "Sahneler" },
+      list.map((k, i) => el("button", {
+        type: "button", role: "option", "aria-selected": String(k.id === s.sel), class: `pkaro${k.id === s.sel ? " secili" : ""}`,
+        on: { click: () => { s.sel = k.id; render(); } },
+      },
+      el("span", { class: "pkaro-ust" }, el("span", { class: "pkart-no", text: String(i + 1) }), el("b", { text: k.baslik || "Başlıksız" })),
+      el("span", { class: "pkaro-satir", text: [k.mekan ? placeName(k.mekan) : "mekân yok", timeName(k.saat)].filter(Boolean).join(" · ") }),
+      el("span", { class: "pkaro-satir muted", text: k.kim?.length ? k.kim.join(", ") : "kimse seçilmedi" }))),
+      el("button", { type: "button", class: "pkaro pkaro-ekle", disabled: list.length >= 40, on: { click: addCard } }, el("span", { text: "+ Sahne ekle" })));
+    const i = list.findIndex((k) => k.id === s.sel);
     return [
-      ...(cards.length ? cards : [el("div", { class: "pbos", "data-alan": "kartlar" },
-        el("p", { text: "Henüz sahne yok." }),
-        errorOf("kartlar") ? el("p", { class: "pfield-hata", role: "alert", text: errorOf("kartlar") }) : null)]),
-      el("div", { class: "row pekle" },
-        el("button", { class: "btn", type: "button", disabled: s.story.kartlar.length >= 40, text: "+ Sahne ekle", on: { click: addCard } }),
-        askButton("kartlar", "Sahneler", "Claude sahne önersin")),
+      list.length ? tiles : el("div", { class: "pbos", "data-alan": "kartlar" },
+        el("p", { text: "Henüz sahne yok. Kendin ekle ya da Claude'a önerdir." }),
+        errorOf("kartlar") ? el("p", { class: "pfield-hata", role: "alert", text: errorOf("kartlar") }) : null,
+        el("button", { class: "btn", type: "button", text: "+ Sahne ekle", on: { click: addCard } })),
+      el("div", { class: "row pekle" }, askButton("kartlar", "Sahneler", "Claude sahne önersin")),
+      i >= 0 ? sceneEditor(list[i], i, { places, isLib }) : null,
     ];
+  }
+
+  /** The picked scene, in its own section under the tiles. */
+  function sceneEditor(k, i, { places, isLib }) {
+    const list = s.story.kartlar;
+    const custom = k.mekan !== undefined && !isLib(k.mekan);
+    const placeText = textIn(custom ? k.mekan : "", (v) => { k.mekan = v; }, { maxlength: "200", placeholder: "Yeni mekânı tarif et: ör. yağmurlu eski bir ara sokak" });
+    placeText.hidden = !custom;
+    return el("section", { class: "pitem psahne", "aria-label": `Sahne ${i + 1}` },
+      el("div", { class: "pitem-ust" },
+        el("h4", { text: `Sahne ${i + 1}${k.baslik ? `: ${k.baslik}` : ""}` }),
+        el("span", { class: "pkart-arac" },
+          el("button", { class: "btn small ghost", type: "button", disabled: i === 0, text: "← Öne al", on: { click: () => move(i, -1) } }),
+          el("button", { class: "btn small ghost", type: "button", disabled: i === list.length - 1, text: "Sona al →", on: { click: () => move(i, 1) } }),
+          el("button", { class: "btn small ghost danger", type: "button", text: "Sil", on: { click: async () => {
+            if (!(await confirmInPage(`Sahne ${i + 1} (“${k.baslik || "başlıksız"}”) silinsin mi?`, { yes: "Sahneyi sil" }))) return;
+            list.splice(i, 1);
+            s.sel = list[Math.min(i, list.length - 1)]?.id;
+            render();
+          } } }))),
+      field("Başlık", textIn(k.baslik, (v) => { k.baslik = v; }, { maxlength: "80", placeholder: "Örnek: Soğuk gece" }), { alan: `kartlar.${k.id}.baslik`, ask: false }),
+      field("Ne olur", textIn(k.olay, (v) => { k.olay = v; }, { rows: 3, maxlength: "1000", placeholder: "Bu sahnede ne oluyor? Kim ne yapıyor, ne söylüyor?" }), { alan: `kartlar.${k.id}.olay` }),
+      field("Kim var", s.story.karakterler.length
+        ? el("div", { class: "psegment coklu" }, s.story.karakterler.map((c) => {
+          const on = (k.kim || []).includes(c.ad);
+          return el("button", { type: "button", role: "checkbox", "aria-checked": String(on), class: on ? "secili" : "", text: c.ad, on: { click: () => {
+            const who = new Set(k.kim || []);
+            if (on) who.delete(c.ad); else who.add(c.ad);
+            k.kim = [...who];
+            render();
+          } } });
+        }))
+        : el("p", { class: "muted small", text: "Önce Karakterler adımında karakter ekle." }), { alan: `kartlar.${k.id}.kim`, ask: false }),
+      el("div", { class: "pikili" },
+        field("Mekân", el("div", { class: "pyigin" }, select(custom ? NEW_PLACE : k.mekan, places, (v) => {
+          placeText.hidden = v !== NEW_PLACE;
+          if (v === NEW_PLACE) k.mekan = placeText.value;
+          else if (v) k.mekan = v;
+          else delete k.mekan;
+          render(); // the tile above shows the place
+        }, "Mekân"), placeText), { alan: `kartlar.${k.id}.mekan` }),
+        field("Saat", select(k.saat, TIMES, (v) => { if (v) k.saat = v; else delete k.saat; render(); }, "Saat"), { alan: `kartlar.${k.id}.saat`, ask: false, optional: true })),
+      field("Nesneler", propsPicker(k), { alan: `kartlar.${k.id}.nesneler`, optional: true, hint: "Kütüphanede olmayan bir nesneyi yazarsan yeni çizilir." }),
+      field("Süre (saniye)", numberIn(k.sure, (v) => { if (v === undefined) delete k.sure; else k.sure = v; }, { min: "1", max: "120", placeholder: "10" }), { alan: `kartlar.${k.id}.sure`, ask: false, optional: true }));
   }
   function addCard() {
     const taken = new Set(s.story.kartlar.map((k) => k.id));
     let n = s.story.kartlar.length + 1;
     while (taken.has(`k${n}`)) n++;
     s.story.kartlar.push({ id: `k${n}`, baslik: "", olay: "" });
-    s.open = new Set([`k${n}`]); // the new scene opens, the others fold
+    s.sel = `k${n}`; // the new scene is the one shown
     render();
   }
   function move(i, by) {
