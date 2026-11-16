@@ -17,6 +17,7 @@ The plugin's MCP server (`cizgi-studyo`) starts with the session and hosts the e
 2. Open the returned `url` for them: in the Claude desktop app, in the built-in browser. Elsewhere, give the URL.
 3. List the episodes in chat as a short table: title, shots, length (`duration` in seconds), state. State comes from `gates` (`senaryo`, `storyboard`: `onayli` / `eskimis` / `yok`), from `valid: false` ("hatalı, N hata"; `gates` and `next` are then null), and from `next`. An entry with `ok: false` could not be read: show its `path` and `error`. Then ask which one to work on, or whether to start a new one (`cizgi-proje`).
 4. When they pick one, call `panel_ac` again with `bolum` set to its `path` and open that URL.
+5. A new video or story (picked here, or in the request itself): follow **cizgi-proje** from its step 2, with the panel already open.
 
 ## Requests from the panel
 At the top of its properties the panel has **Claude'a yaz**: the person selects something (a character on the stage, a prop, an effect, a line, a shot, a scene, or the whole episode), writes what they want, and sends it. It lands in the queue of this project folder's sessions (`~/.cizgi-studyo/istekler/<hash>.jsonl`, outside the project, so a queue file shipped with a project cannot pose as the person).
@@ -70,5 +71,6 @@ Effects come only from the library: the plugin's `library/sfx` and the project's
 - If the MCP server is not connected (no `panel_ac` tool), start the panel from the CLI in the background instead: `node "${CLAUDE_PLUGIN_ROOT}/engine/src/cli.mjs" panel <folder>`. It prints the URL. That panel lives until it is stopped, not with the session.
 
 ## Rules
+- Never suggest characters the person did not name. Offer the library's characters only when they ask what exists.
 - The panel only edits; it never approves. Gate approvals (`cizgi onayla …`) come from the person in chat, as in the other skills.
 - Panel details (what each part does) are in the `cizgi-panel` skill.

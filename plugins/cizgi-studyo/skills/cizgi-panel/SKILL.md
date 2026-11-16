@@ -1,6 +1,6 @@
 ---
 name: cizgi-panel
-description: Open the Çizgi Stüdyo editor panel — a local web page laid out like a video editor (library on the left, stage in the middle, properties on the right, shot strip at the bottom) where the person picks characters, actions, places, props, sounds and camera shots from visual cards, sees the change in a live preview and saves it to bolum.json. Use when the person wants to adjust shots themselves, says the panel / editör / kontrol paneli, or asks for a change that is easier to try by eye than to describe.
+description: Open the Çizgi Stüdyo editor panel — a local web page laid out like a video editor (library on the left, stage in the middle, properties on the right, shot strip at the bottom) where the person picks characters, actions, places, props, sounds and camera shots from visual cards, sees the change in a live preview and saves it to bolum.json. Use when the person wants to make or adjust a video in the panel, wants to adjust shots themselves, says the panel / editör / kontrol paneli, or asks for a change that is easier to try by eye than to describe.
 ---
 
 # Editor panel
@@ -13,6 +13,11 @@ $CLI panel <klasör>                  # every bolum.json under the folder; http:
 $CLI panel <bolum.json>              # that episode's folder, with that episode open
 $CLI panel <klasör> --port 4900
 ```
+
+## Steps
+1. Open the panel at once, before anything else, even when the request already describes a video: `panel_ac` (or the CLI below when the MCP server is missing), then open the URL in the built-in browser.
+2. If the request is a new video or story, follow the **cizgi-proje** steps from step 2: the episode is made with the person, question by question, and every step shows in the panel. If it names an existing episode, open it (`panel_ac` with `bolum`) and ask what they want to change.
+3. While the panel is open, show every change there: after you edit `bolum.json` or `hikaye.json`, tell the person what to look at (a scene, a shot, **İncele**).
 
 Open the project root (the folder holding `ornekler/` and `bolumler/`) when the person works on several episodes: the panel then lists them all and switches between them without a restart. Run it in the background (it keeps serving until stopped) and give the person the printed URL. In the Claude desktop app, open it in the built-in browser. The layout needs a window at least 1180 px wide; narrower windows stack the panes.
 
@@ -74,7 +79,7 @@ Lines can be edited, added and deleted in the panel (a line's details and the fo
 
 ## Rules for you
 - The panel never approves anything. A saved change makes the storyboard approval stale (the top bar shows it); the person approves again through **cizgi-storyboard**.
-- Do not edit `bolum.json` while the panel is open. If you must, tell the person to reload the panel: a save over a file that changed on disk is refused.
+- You may edit `bolum.json` and `hikaye.json` while the panel is open: it reloads them, and asks the person first when they have unsaved edits there. Tell the person what you changed, so they do not lose edits of their own.
 - New actions, rigs, backgrounds, props or sounds go into the library (the panel reloads it on every request). The panel only chooses among what exists.
 - The preview is the composition, not a render. Before showing anyone a video of the result, render a draft and check it with `cizgi qa` (**cizgi-render**).
 - The server listens on 127.0.0.1 only. Stop it when the person is done.

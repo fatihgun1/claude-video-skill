@@ -19,9 +19,12 @@ CLI="node ${CLAUDE_PLUGIN_ROOT}/engine/src/cli.mjs"
    | Shot | Background | Who speaks | Line | Action | Camera | Hold |
    |---|---|---|---|---|---|---|
 
+   Fill every column for every shot (Action: each character's action; Camera: framing and move). Above the table name the episode's format, 2D or 3D (and `stil3d`), music and captions.
+
    Under the table, list:
    - every **warning** from `dogrula` (profile rules such as sentence length or counting)
-   - every `new_assets` entry (things the library does not have yet)
+   - every `new_assets` entry (things the library does not have yet) with what the person decided for it
+   - anything the engine cannot show that the story asks for (for example a smile outside speech)
 3. Ask for approval with **AskUserQuestion**: approve / change something. Describe the changes in your own words; do not quote the JSON.
 4. **On changes**: edit `bolum.json`, run `dogrula` again and show the changed rows. Repeat until the person approves.
 5. **Only after an explicit yes from the person in this conversation**, run:
