@@ -1,12 +1,13 @@
 # Third-party notices
 
-Çizgi Stüdyo bundles one npm package and a set of CC0 sound effects. Everything else
+Çizgi Stüdyo bundles two npm packages and a set of CC0 sound effects. Everything else
 is an external tool that you install yourself; it is listed here so you know its license.
 
 ## Bundled
 | Component | License | Use |
 |---|---|---|
 | [Ajv](https://github.com/ajv-validator/ajv) 8.18.0 | MIT | Episode schema validation (npm dependency of the engine) |
+| [three.js](https://github.com/mrdoob/three.js) 0.187.0 | MIT | 3D rendering for `render --3b` (npm dependency of the engine) |
 | [Kenney](https://www.kenney.nl) Impact Sounds, RPG Audio, Interface Sounds | CC0 1.0 | 20 sound effects in `library/sfx/` |
 
 ## Used, not bundled
