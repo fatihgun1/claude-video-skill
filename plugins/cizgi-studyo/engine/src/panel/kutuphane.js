@@ -127,7 +127,8 @@ function attachActionPreview(card, thumb, q, onFit) {
 /* ---------- the browser ---------- */
 /**
  * @param {{cards:HTMLElement, search:HTMLInputElement, hint:HTMLElement}} els
- * @param {{vocab:() => object, context:() => object, pick:(kind:string, id:string, how?:string) => void}} ctx
+ * @param {{vocab:() => object, context:() => object, pick:(kind:string, id:string, how?:string) => void,
+ *          drag?:(node:HTMLElement, kind:string, id:string) => void}} ctx  drag: make a card draggable onto the timeline or stage
  */
 export function createLibrary(els, ctx) {
   let tab = "karakter";
@@ -141,10 +142,16 @@ export function createLibrary(els, ctx) {
 
   const matches = (o) => !query || `${o.label} ${o.id}`.toLocaleLowerCase("tr").includes(query);
 
-  function card(o, { thumb, current, onClick, extra, wide }) {
+  /** A card that can also be dragged onto the timeline or the stage as [kind, id]. */
+  const draggable = (node, drag) => {
+    if (drag && ctx.drag) ctx.drag(node, ...drag);
+    return node;
+  };
+
+  function card(o, { thumb, current, onClick, extra, wide, drag }) {
     const t = el("div", { class: `thumb${wide ? " wide" : ""}` }, thumb);
-    const c = el("button", { class: `card${current ? " current" : ""}`, title: o.id, "aria-pressed": String(!!current), on: { click: onClick } },
-      t, el("span", { class: "name", text: o.label }), extra);
+    const c = draggable(el("button", { class: `card${current ? " current" : ""}`, title: o.id, "aria-pressed": String(!!current), on: { click: onClick } },
+      t, el("span", { class: "name", text: o.label }), extra), drag);
     return { c, t };
   }
 
@@ -160,7 +167,7 @@ export function createLibrary(els, ctx) {
         out.push(card(r, {
           thumb: img, current: cx.member && cx.rigOf(cx.member.id) === r.id,
           extra: el("span", { class: "meta", text: VIEW_TEXT[r.view] || r.view }),
-          onClick: () => ctx.pick("karakter", r.id),
+          onClick: () => ctx.pick("karakter", r.id), drag: ["karakter", r.id],
         }).c);
       }
     }
@@ -188,7 +195,7 @@ export function createLibrary(els, ctx) {
         thumb: [img, el("span", { class: "badge", text: `${a.duration}s${a.loop ? " ↻" : ""}` })],
         current: cx.actor && segmentActions(cx.actor).includes(a.id),
         extra: why,
-        onClick: () => ctx.pick("hareket", a.id),
+        onClick: () => ctx.pick("hareket", a.id), drag: ["hareket", a.id],
       });
       const wrap = el("div", { class: "card-wrap" }, c, add); // a button cannot sit inside the card's button
       if (fit && !fit.ok) c.classList.add("unfit");
@@ -212,7 +219,7 @@ export function createLibrary(els, ctx) {
       thumb: el("img", { alt: "", loading: "lazy", src: `/kutuphane/mekan/${b.id}.svg` }),
       current: cx.scene?.bg === b.id,
       extra: el("span", { class: "meta", text: b.depth ? "derinlikli (ileri dolly)" : "yandan" }),
-      onClick: () => ctx.pick("mekan", b.id),
+      onClick: () => ctx.pick("mekan", b.id), drag: ["mekan", b.id],
     }).c);
   }
 
@@ -222,7 +229,7 @@ export function createLibrary(els, ctx) {
         thumb: el("img", { alt: "", loading: "lazy", src: `/kutuphane/nesne/${p.id}.svg` }),
         current: cx.prop?.prop === p.id,
         extra: el("span", { class: "meta", text: p.holdable ? "elde tutulabilir" : "dekor" }),
-        onClick: () => ctx.pick("nesne", p.id),
+        onClick: () => ctx.pick("nesne", p.id), drag: ["nesne", p.id],
       });
       // decor: stands in the scene for all its shots, behind the characters
       const add = el("button", {
@@ -257,18 +264,18 @@ export function createLibrary(els, ctx) {
   }
 
   function sounds(v, cx) {
-    return v.sfx.filter(matches).map((s) => el("div", { class: "card sound" },
+    return v.sfx.filter(matches).map((s) => draggable(el("div", { class: "card sound" },
       playButton(soundUrl(s.id), s.label),
       el("div", {}, el("div", { class: "name", text: s.label }), el("div", { class: "meta", text: `${s.id} · ${s.duration}s` })),
-      el("button", { class: "btn small", disabled: !cx.shot, title: "Oynatma kafasının olduğu ana ekle", on: { click: () => ctx.pick("ses", s.id) } }, "+ Ekle")));
+      el("button", { class: "btn small", disabled: !cx.shot, title: "Oynatma kafasının olduğu ana ekle", on: { click: () => ctx.pick("ses", s.id) } }, "+ Ekle")), ["ses", s.id]));
   }
 
   function music(v, cx) {
     const current = cx.musicTrack;
-    const list = v.music.filter(matches).map((m) => el("div", { class: `card sound${current === m.id ? " current" : ""}` },
+    const list = v.music.filter(matches).map((m) => draggable(el("div", { class: `card sound${current === m.id ? " current" : ""}` },
       playButton(`/kutuphane/muzik/${m.id}.wav`, m.label),
       el("div", {}, el("div", { class: "name", text: m.label }), el("div", { class: "meta", text: `müzik · ${m.duration}s` })),
-      el("button", { class: "btn small", title: "Bölümün arka plan müziği yap", disabled: current === m.id, on: { click: () => ctx.pick("muzik", m.id) } }, current === m.id ? "Kullanılıyor" : "Kullan")));
+      el("button", { class: "btn small", title: "Bölümün arka plan müziği yap", disabled: current === m.id, on: { click: () => ctx.pick("muzik", m.id) } }, current === m.id ? "Kullanılıyor" : "Kullan")), ["muzik", m.id]));
     return list.length || query ? list : [el("p", { class: "muted small", text: "Kütüphanede müzik yok (library/muzik)." })];
   }
 
@@ -279,12 +286,12 @@ export function createLibrary(els, ctx) {
       ...v.framings.filter(matches).map((f) => card(f, {
         wide: true, thumb: framingDiagram(f), current: cam.framing === f.id,
         extra: el("span", { class: "meta", text: `yakınlık ${f.zoom}×` }),
-        onClick: () => ctx.pick("kamera-plan", f.id),
+        onClick: () => ctx.pick("kamera-plan", f.id), drag: ["kamera-plan", f.id],
       }).c),
       el("div", { class: "group-title", text: "Hareket" }),
       ...v.moves.filter(matches).map((m) => card(m, {
         wide: true, thumb: moveDiagram(m), current: (cam.move || "static") === m.id,
-        onClick: () => ctx.pick("kamera-hareket", m.id),
+        onClick: () => ctx.pick("kamera-hareket", m.id), drag: ["kamera-hareket", m.id],
       }).c),
     ];
   }

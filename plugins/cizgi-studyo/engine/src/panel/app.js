@@ -4,6 +4,7 @@ import { $, el, setKey } from "./dom.js";
 import { createStageEditor } from "./duzen.js";
 import { createProduction } from "./uretim.js";
 import { createLibrary } from "./kutuphane.js";
+import { installDrops } from "./birak.js";
 import { createStage, shotOfMessage } from "./sahne.js";
 import { createInspector, renameMember } from "./denetleyici.js";
 import { createProjects } from "./projeler.js";
@@ -19,7 +20,7 @@ import { decorId } from "./dekor.js";
 import {
   addShotAfter, duplicateShot, deleteShot, moveShot, createHistory, rowOfMessage,
   moveSegmentStart, insertSegment, replaceSegmentAction, removeSegment, segmentIndexAt,
-  delayFirstSegment, standingAction,
+  delayFirstSegment, standingAction, placeAt, sfxAtAfterDrag,
 } from "./kurgu.js";
 
 const PREVIEW_DELAY_MS = 350;
@@ -182,6 +183,7 @@ const timeline = createTimeline(
     },
   },
 );
+let drops = null; // made once the stage editor exists; cards ask for it only when the library draws
 const library = createLibrary(
   { cards: $("lib-cards"), search: $("lib-search"), hint: $("lib-hint") },
   {
@@ -192,6 +194,7 @@ const library = createLibrary(
     },
     pick,
     extra: (tab) => drafts.section(tab),
+    drag: (node, kind, id) => drops?.source(node, kind, id),
   },
 );
 /* ---------- drafts of the project library (Claude's drawings waiting for the person) ---------- */
@@ -291,6 +294,42 @@ editor = createStageEditor({ stage: $("stage"), layer: $("edit") }, {
   },
 });
 
+/* ---------- library cards dragged onto the timeline or the stage (birak.js) ---------- */
+/** Do what a click on the card does, at the place it was dropped: its shot, moment and character. */
+function dropFromLibrary(kind, id, action, shotId) {
+  if (action.pick === "muzik") return pick("muzik", id);
+  const was = { sel: state.sel, now: stage.now(), episode: JSON.stringify(state.draft) };
+  state.sel = { shot: shotId, kind: action.castIndex == null ? null : "cast", index: action.castIndex ?? -1, ...(action.seg !== undefined ? { seg: action.seg } : {}) };
+  // an action starts at the playhead: put it where the card was let go (an effect takes its time directly)
+  if (action.seek !== undefined && action.pick !== "ses") {
+    const t = stage.shotTime(shotId);
+    if (t) {
+      stage.toggle(false);
+      stage.seek(t.start + action.seek);
+    }
+  }
+  pick(action.pick, id, { at: action.pick === "ses" ? action.seek : undefined, worldX: action.worldX });
+  if (JSON.stringify(state.draft) !== was.episode) return undefined;
+  // refused (pick said why): the selection and the playhead go back to where they were
+  state.sel = was.sel;
+  stage.seek(was.now);
+  return renderAll();
+}
+drops = installDrops({
+  timeline: $("tl-scroll"),
+  stage: $("stage"),
+  timelineAt: (x, y) => timeline.at(x, y),
+  showTimelineDrop: (x, text) => timeline.showDrop(x, text),
+  stageAt: (x, y) => {
+    // the stage shows the shot under the playhead: a card lands there only when that is the selected one
+    const t = state.sel.shot && stage.shotTime(state.sel.shot);
+    const now = stage.now();
+    const shown = t && now >= t.start && now < t.end ? state.sel.shot : null;
+    return { shotId: shown, castIndex: editor.castAt(x, y), worldX: editor.groundXAt(x) ?? undefined };
+  },
+  apply: dropFromLibrary,
+});
+
 /* ---------- selection ---------- */
 function choose(id) {
   state.sel = { shot: id, kind: null, index: -1 };
@@ -336,7 +375,11 @@ function pruneCharacters() {
   const kept = state.draft.characters.filter((c) => used.has(c.id) || !addedHere.has(c.id));
   if (kept.length !== state.draft.characters.length) state.draft.characters = kept;
 }
-function pick(kind, id) {
+/**
+ * What a library card does (a click, or a drop: opts carries where it landed).
+ * @param {{at?:number, worldX?:number}} [opts] at: an effect's time in the shot; worldX: where a character stands
+ */
+function pick(kind, id, opts = {}) {
   if (kind === "muzik") {
     // music is the whole film's: no shot needed; the other settings stay
     state.draft.music = { ...(state.draft.music || {}), track: id };
@@ -356,9 +399,12 @@ function pick(kind, id) {
       } else {
         if (shot.cast.some((m) => m.id === cid)) return say(`${labelOf(cid)} bu shot'ta zaten var.`);
         const used = new Set(shot.cast.map((m) => m.mark));
-        const mark = MARKS.find((k) => !used.has(k)) || "orta";
+        const lay = stageLayout();
+        // dropped on the stage: the nearest free mark to where it was let go, or off it
+        const spot = opts.worldX != null ? placeAt(opts.worldX, lay.marks, used, lay.ratio) : null;
+        const mark = spot?.mark || MARKS.find((k) => !used.has(k)) || "orta";
         const action = state.vocab.actions.some((a) => a.id === "bekle") ? "bekle" : state.vocab.actions[0].id;
-        shot.cast.push({ id: cid, action, mark });
+        shot.cast.push({ id: cid, action, mark, ...(spot?.dx ? { dx: spot.dx } : {}) });
         state.sel = { ...state.sel, kind: "cast", index: shot.cast.length - 1 };
       }
       break;
@@ -404,7 +450,10 @@ function pick(kind, id) {
     case "ses": {
       const t = stage.shotTime(shot.shot_id);
       const now = stage.now();
-      const at = t && now >= t.start && now < t.end ? Math.round((now - t.start) * 100) / 100 : 0;
+      // dropped: where it was let go (within the shot as last compiled); clicked: the playhead
+      const at = opts.at !== undefined
+        ? (t ? sfxAtAfterDrag(0, opts.at, t.end - t.start) : Math.round(opts.at * 100) / 100)
+        : t && now >= t.start && now < t.end ? Math.round((now - t.start) * 100) / 100 : 0;
       shot.sfx = [...(shot.sfx || []), { sfx: id, at }];
       state.sel = { ...state.sel, kind: "sfx", index: shot.sfx.length - 1 };
       break;

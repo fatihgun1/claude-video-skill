@@ -444,7 +444,7 @@ export function createTimeline(els, ctx) {
     );
     els.tracks.replaceChildren(
       row("t-shots", places.map((p) => shotBlock(p, problems))),
-      ...actors.map((c) => row("t-actor", places.flatMap((p) => actionClips(p, c.id)))),
+      ...actors.map((c) => el("div", { class: "track t-actor", "data-actor": c.id }, places.flatMap((p) => actionClips(p, c.id)))),
       row("t-lines", places.flatMap(lineBlocks)),
       row("t-captions", places.flatMap(captionBlocks)),
       row("t-fx", places.flatMap(sfxBlocks)),
@@ -492,9 +492,37 @@ export function createTimeline(els, ctx) {
   // the names column scrolls up and down with the tracks
   els.scroll.addEventListener("scroll", () => { els.labels.scrollTop = els.scroll.scrollTop; });
 
+  /** A library card over the timeline: the shot and moment under a page point, and whose track it is. */
+  function at(clientX, clientY) {
+    const box = els.tracks.getBoundingClientRect();
+    if (clientX < box.left || clientX > box.right || clientY > box.bottom) return null;
+    const t = (clientX - box.left) / PX;
+    const p = places.find((q) => t >= q.start && t < q.start + q.len) || null;
+    // the sticky shot row is drawn over the rows scrolled under it: the first row that holds y is the one on top
+    const row = [...els.tracks.querySelectorAll(".track")].find((r) => {
+      const b = r.getBoundingClientRect();
+      return clientY >= b.top && clientY < b.bottom;
+    });
+    const castIndex = p && row?.dataset.actor ? p.shot.cast.findIndex((m) => m.id === row.dataset.actor) : -1;
+    return { shotId: p?.shot.shot_id ?? null, local: p ? Math.max(0, t - p.start) : 0, castIndex: castIndex >= 0 ? castIndex : null };
+  }
+
+  /** Where a dragged card would land: a line at page x with its time, or none. */
+  let dropLine = null;
+  function showDrop(clientX, text = "") {
+    if (clientX === null) return dropLine?.remove();
+    dropLine ||= el("div", { class: "drop-line", "aria-hidden": "true" }, el("span"));
+    if (!dropLine.isConnected) els.tracks.append(dropLine);
+    dropLine.style.left = `${clientX - els.tracks.getBoundingClientRect().left}px`;
+    dropLine.firstChild.textContent = text;
+    dropLine.firstChild.hidden = !text;
+  }
+
   return {
     render,
     place,
+    at,
+    showDrop,
     view: () => view,
     setView(v) {
       view = v;

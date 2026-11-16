@@ -50,6 +50,8 @@ export function createStageEditor(els, ctx) {
       k,
       perWorld: ctm.a * k, // page pixels per world unit along x
       at: (x, y) => [(ctm.a * x + ctm.c * y + ctm.e) * k, (ctm.b * x + ctm.d * y + ctm.f) * k],
+      /** The world x drawn at layer pixel px on the line at world height y (the inverse of at). */
+      xAt: (px, y) => (px / k - ctm.c * y - ctm.e) / ctm.a,
     };
   }
 
@@ -392,6 +394,18 @@ export function createStageEditor(els, ctx) {
 
   return {
     draw,
+    /** Where on the ground line a page x falls, in the layout's units (a card dropped there), or null. */
+    groundXAt(clientX) {
+      const doc = ctx.doc();
+      const map = doc && mapper(doc);
+      if (!map) return null;
+      return map.xAt(clientX - els.layer.getBoundingClientRect().left, ctx.layout().ground);
+    },
+    /** The cast member whose frame is under a page point (frames show while paused in the shot), or null. */
+    castAt(clientX, clientY) {
+      const node = document.elementsFromPoint(clientX, clientY).find((n) => n.classList?.contains("ebox") && n.dataset.key?.startsWith("cast:"));
+      return node ? Number(node.dataset.key.slice(5)) : null;
+    },
     applyLayers,
     setSafe(on) {
       view.safe = on;

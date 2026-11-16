@@ -45,7 +45,13 @@ Open the project root (the folder holding `ornekler/` and `bolumler/`) when the 
   - When paused inside the selected shot, every cast member and prop has a frame. Click selects it. Drag sideways to move it: it lands on the nearest free mark (sol / orta / sağ) when close, otherwise off it by `dx` (stored as `cast[].dx` / `props[].dx`). Drag a character up to put it further back (higher and smaller, behind the others; `cast[].back` 0..1), down to bring it to the front; with the frame focused, ←/→ and ↑/↓ do the same in small steps. ⇆ turns the selected character around. A walking character shows its path as an arrow; drag the free end to change `walk.dx`.
   - **16:9 / 9:16** compiles the preview for that frame (the episode does not change). **Güvenli alan** shows the action and title safe areas and the caption zone. **Katmanlar** hides background, characters, props or captions in the preview only.
 - **Undo** ↶ / **redo** ↷ (Ctrl+Z, Ctrl+Y or Ctrl+Shift+Z) step through every change since the episode was opened.
-- **Library** (the other rail panels), one per kind. A click applies to the selection:
+- **Library** (the other rail panels), one per kind. A click applies to the selection; a card can also be **dragged** onto the timeline or the stage, and then it applies where it lands (the places it can land light up, a line on the timeline shows the moment):
+  - an effect: at the moment it is let go (on the stage: at the playhead);
+  - an action: onto a character's track, starting where it is let go (at the very start of a shot it replaces the first action), or onto a character on the stage (from the playhead);
+  - a character onto the stage: it stands where it is let go (the nearest free mark, or off it); onto a shot: added to it;
+  - a prop, a place (the whole scene) or a camera card: onto a shot block or the stage;
+  - music: anywhere on the timeline.
+  What a click does:
   - **Karakter:** cards with the drawing; the views of one person sit together. With a cast member selected, a click swaps them; with nothing selected, it adds the character to the shot.
   - **Hareket:** only the actions drawn for the selected (or the only) cast member's view; hovering plays the action with that character. Actions that break that character's joint limits are dimmed and say why.
   - **Mekân:** background pictures; a click changes the scene's background (every shot of that scene).
