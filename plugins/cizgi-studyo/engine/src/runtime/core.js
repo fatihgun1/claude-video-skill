@@ -138,6 +138,42 @@
     return "mouth_rest";
   }
 
+  /**
+   * A cast member's face at shot-local time t (cast[].ifade): one expression for the whole shot,
+   * or a list of {ifade, at} moments (neutral before the first). "notr" when none is given.
+   */
+  function expressionAt(member, t) {
+    const f = member && member.ifade;
+    if (!f) return "notr";
+    if (typeof f === "string") return f;
+    let face = "notr";
+    let latest = -Infinity;
+    for (const m of f) {
+      if (m.at <= t && m.at >= latest) {
+        face = m.ifade;
+        latest = m.at;
+      }
+    }
+    return face;
+  }
+
+  /**
+   * Whether a part of a drawing shows in a costume variant (cast[].varyant, "" for the drawing as it is):
+   * data-varyant="a b" shows it only in those variants, data-varyant-yok="a b" hides it in them.
+   * @param {{varyant?:string, yok?:string}} attrs
+   */
+  function partShown(attrs, variant) {
+    const names = (s) => String(s || "").split(/\s+/).filter(Boolean);
+    if (attrs.varyant != null && !names(attrs.varyant).includes(variant)) return false;
+    if (attrs.yok != null && names(attrs.yok).includes(variant)) return false;
+    return true;
+  }
+
+  /** The mouth to show: speech wins; in its silences (and outside lines) the expression shows. */
+  function mouthAt(viseme, face) {
+    return viseme === "mouth_rest" && face === "gulumse" ? "mouth_smile" : viseme;
+  }
+
   /** Index of the word being spoken at local time t, or -1. Words: [{start,end}]. */
   function wordIndexAt(words, t) {
     let idx = -1;
@@ -527,6 +563,9 @@
     blinkClosed,
     phaseFor,
     visemeAt,
+    expressionAt,
+    partShown,
+    mouthAt,
     wordIndexAt,
     cameraAt,
     cameraTransform,

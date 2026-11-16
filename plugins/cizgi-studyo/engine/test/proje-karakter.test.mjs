@@ -128,3 +128,26 @@ test("a draft named like an existing character is refused", () => {
   assert.equal(d.ok, false);
   assert.ok(d.taken);
 });
+
+test("a character draft with a detail that slides on a bending limb cannot be taken in", () => {
+  const kut = project();
+  putCharacter(join(kut, "taslak", "characters"), "yamali");
+  const rigFile = join(kut, "taslak", "characters", "yamali", "rig.svg");
+  writeFileSync(rigFile, readFileSync(rigFile, "utf8").replace(/(<g id="arm_L"[^>]*>)/, '$1<rect x="515" y="420" width="18" height="18" fill="#863"/>'));
+  const lib = loadLibrary(LIB, { project: kut });
+  const [d] = listDrafts(kut, lib);
+  assert.equal(d.ok, false);
+  assert.ok(d.errors.some((e) => /arm_L/.test(e) && /slide/.test(e)), d.errors.join("; "));
+});
+
+test("an episode whose character has such a detail is valid, with a warning", () => {
+  const kut = project();
+  putCharacter(join(kut, "characters"), "yamali");
+  const rigFile = join(kut, "characters", "yamali", "rig.svg");
+  writeFileSync(rigFile, readFileSync(rigFile, "utf8").replace(/(<g id="arm_L"[^>]*>)/, '$1<rect x="515" y="420" width="18" height="18" fill="#863"/>'));
+  const lib = loadLibrary(LIB, { project: kut });
+  assert.ok(lib.characters.has("yamali"), "it still loads");
+  const res = validateEpisode(episode("yamali", "bak"), lib);
+  assert.equal(res.ok, true);
+  assert.ok(res.warnings.some((w) => /yamali/.test(w) && /slide/.test(w)), res.warnings.join("\n"));
+});

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { checkRig, parseGroups, prefixIds, svgInner } from "../src/rigspec.mjs";
+import { checkRig, parseGroups, prefixIds, svgInner, slidingDetails } from "../src/rigspec.mjs";
 
 const rig = readFileSync(new URL("../../library/characters/pamuk/rig.svg", import.meta.url), "utf8");
 
@@ -51,4 +51,27 @@ test("prefixIds rewrites ids and references", () => {
 test("svgInner strips the outer element and rejects non-SVG", () => {
   assert.equal(svgInner(`<svg a="1"><g/></svg>\n`), "<g/>");
   assert.throws(() => svgInner("<div></div>"), /not an <svg>/);
+});
+
+// A shape inside a bending limb (a hose: arm, or a leg with a knee) that is not its redrawn
+// outline or fill stays where it was drawn while the limb bends: a patch on a knee slides off.
+test("a loose shape on a bending limb is reported", () => {
+  const genc = readFileSync(new URL("../../library/characters/genc/rig.svg", import.meta.url), "utf8");
+  assert.deepEqual(slidingDetails(genc), [], "the library's own rigs have none (a joint cap at the shoulder is fine)");
+  const patched = genc.replace(/(<g id="arm_L"[^>]*>)/, '$1<rect x="520" y="400" width="20" height="20" fill="#863"/>');
+  assert.deepEqual(checkRig(patched), [], "a rig with it still loads: an episode warns, a draft is refused");
+  const errors = slidingDetails(patched);
+  assert.ok(errors.some((e) => e.includes("#arm_L") && /bend/.test(e)), errors.join("\n"));
+});
+
+test("shapes inside the hand or foot group of a limb are fine: those groups follow the limb", () => {
+  const genc = readFileSync(new URL("../../library/characters/genc/rig.svg", import.meta.url), "utf8");
+  const ringed = genc.replace(/(<g id="hand_L"[^>]*>)/, '$1<circle cx="530" cy="560" r="4" fill="#fc0"/>');
+  assert.deepEqual(slidingDetails(ringed), []);
+});
+
+test("every character of the plugin's library is free of sliding details", async () => {
+  const { readdirSync } = await import("node:fs");
+  const dir = new URL("../../library/characters/", import.meta.url);
+  for (const id of readdirSync(dir)) assert.deepEqual(slidingDetails(readFileSync(new URL(`${id}/rig.svg`, dir), "utf8")), [], id);
 });

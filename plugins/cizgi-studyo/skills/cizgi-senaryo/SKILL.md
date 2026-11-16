@@ -19,7 +19,7 @@ CLI="node ${CLAUDE_PLUGIN_ROOT}/engine/src/cli.mjs"
    Under the table, list:
    - every **warning** from `dogrula` (profile rules such as sentence length or counting)
    - every `new_assets` entry (things the library does not have yet) with what the person decided for it
-   - anything the engine cannot show that the story asks for (for example a smile outside speech)
+   - anything the engine cannot show that the story asks for (for example an angry or crying face: the engine shows only a smile, `cast[].ifade`)
 3. Ask for approval in the panel: `panel_git {sekme: "uretim"}` opens the Üretim wizard at the senaryo step (the same table, the open decisions, and the **Senaryoyu onayla** button), and say in one line that they approve there or tell you what to change. Without the panel, ask with AskUserQuestion: approve / change something. Describe changes in your own words; do not quote the JSON.
 4. **On changes**: edit `bolum.json`, run `dogrula` again and show the changed rows. Repeat until the person approves.
 5. The approval is recorded when the person presses **Senaryoyu onayla** in Üretim (check with `cli.mjs durum`). **Only after an explicit yes from the person in this conversation** you may record it yourself instead:

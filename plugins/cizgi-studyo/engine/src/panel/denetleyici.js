@@ -181,6 +181,17 @@ export function createInspector(box, ctx) {
       field("Konum", select(m.mark, v.marks.map((k) => ({ id: k, label: MARK_TEXT[k] || k })), (val) => { m.mark = val; ctx.changed(); })),
       field("Kaydırma dx", number(m.dx, (val) => { setKey(m, "dx", val || undefined); ctx.changed(true); }, { min: -900, max: 900, step: 10 })),
       field("Yön", select(m.facing, v.facings.map((k) => ({ id: k, label: FACING_TEXT[k] })), (val) => { setKey(m, "facing", val); ctx.changed(); }, { empty: "çizimdeki yön" })),
+      // a costume variant of the drawing for this shot (cast[].varyant), when the drawing has any
+      (() => {
+        const variants = v.rigs.find((r) => r.id === ctx.episode().characters.find((c) => c.id === m.id)?.rig)?.varyantlar || [];
+        return variants.length
+          ? field("Kıyafet", select(m.varyant, variants, (val) => { setKey(m, "varyant", val || undefined); ctx.changed(); }, { empty: "çizimdeki gibi" }))
+          : null;
+      })(),
+      // the face outside speech (cast[].ifade); moments within the shot are edited in bolum.json
+      field("İfade", Array.isArray(m.ifade)
+        ? el("span", { class: "muted small", text: `shot içinde değişiyor: ${m.ifade.map((f) => `${f.at} sn ${f.ifade === "gulumse" ? "gülümser" : "nötr"}`).join(", ")}` })
+        : select(m.ifade === "gulumse" ? "gulumse" : undefined, [{ id: "gulumse", label: "Gülümsüyor" }], (val) => { setKey(m, "ifade", val || undefined); ctx.changed(); }, { empty: "nötr (çizimdeki gibi)" })),
       field("Derinlik", depth(m)),
       field("Yürüme dx", number(walk?.dx, (val) => {
         if (val === undefined) delete m.walk;
@@ -475,7 +486,7 @@ export function createInspector(box, ctx) {
     const hadFocus = box.contains(document.activeElement);
     if (shown === "shot") shotScroll = scroller().scrollTop;
     if (sel.kind === "mix") {
-      box.replaceChildren(episodeSettings({ episode: ctx.episode, vocab: ctx.vocab, labelOf: ctx.labelOf, changed: ctx.changed, select: ctx.select }));
+      box.replaceChildren(episodeSettings({ episode: ctx.episode, vocab: ctx.vocab, labelOf: ctx.labelOf, changed: ctx.changed, select: ctx.select, sample: ctx.sample }));
       return settle("mix", hadFocus);
     }
     const found = sel.shot && ctx.find(sel.shot);

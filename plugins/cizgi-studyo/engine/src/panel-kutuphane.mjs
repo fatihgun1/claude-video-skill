@@ -41,6 +41,8 @@ export function vocabulary(lib) {
     rigs: [...lib.characters].map(([id, c]) => ({
       id, label: label(c.meta, id), view: c.meta.view || "front", person: c.meta.same_as || id,
       palette: paletteOf(c),
+      // costume variants (cast[].varyant)
+      varyantlar: Object.entries(c.meta.varyantlar || {}).map(([vid, d]) => ({ id: vid, label: d?.ad?.tr || vid })),
     })),
     // views: the rig views an action is drawn for (null = every view); the Hareket tab offers only those that fit.
     actions: [...lib.actions].map(([id, a]) => ({ id, label: label(a, id), duration: a.duration, loop: !!a.loop, grab: !!a.grab, views: a.views || null })),

@@ -106,9 +106,20 @@ A hand can carry three optional parts, in this order:
 | `limits` | `[min, max]` degrees per channel. An action that bends a joint past its limit is an **error**: anatomy is checked before anything is rendered. |
 | `temporary` | `true` while the drawing is a placeholder; starter-pack characters drop it. |
 
+## Costume variants
+
+One drawing can carry several costumes. Mark a part with `data-varyant="temiz"` to show it only in that variant, or with `data-varyant-yok="temiz"` to hide it there (both take a space-separated list). Declare the variants in `character.json`:
+
+```json
+"varyantlar": { "temiz": { "ad": { "tr": "Temiz kıyafet", "en": "Clean clothes" }, "palette": { "top": "#3a5f8a" } } }
+```
+
+`palette` may only name the drawing's `palette_vars`. An episode picks a variant per shot with `cast[].varyant`; without it the drawing shows as drawn. Do not put variant parts on a bending limb (see Hoses).
+
 ## Motion conventions
 Action files (`library/actions/*.json`) give rotation angles in degrees around each pivot. In SVG, positive angles turn clockwise. A hanging `_R` arm swings outward with a positive angle; a hanging `_L` arm swings outward with a negative angle. Special channels:
 - `root_y`: lift, in rig units; negative is up.
+- `root_x`: sideways, in rig units; positive is where the character faces (sitting down, the hips go back so the feet stay put).
 - `root_sx` / `root_sy`: squash and stretch around the feet; 1 is neutral.
 
 ## Backgrounds and props

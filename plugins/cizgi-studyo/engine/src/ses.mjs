@@ -207,3 +207,46 @@ export function acceptLine(episodePath, key) {
   writeFileSync(join(dirname(resolve(episodePath)), MANIFEST), `${JSON.stringify(next, null, 2)}\n`);
   return next.lines[key];
 }
+
+/** What a character says in a sample when it has no line yet. */
+export const SAMPLE_TEXT = Object.freeze({
+  tr: "Merhaba. Bugün hava çok güzel, biraz yürüyelim mi?",
+  en: "Hello. It is a lovely day, shall we take a walk?",
+});
+
+/**
+ * A voice sample: one sentence in a character's voice settings (characters[].voice, or the
+ * narrator's), slowed to the profile tempo, written to cikti/ses-ornegi-<id>.wav. It is for choosing
+ * a voice before the lines are spoken: no script approval, no listening check, no mouth shapes, and
+ * the episode's own audio (ses/) is left alone.
+ * @param {{karakter: string, metin?: string}} what  metin: the sentence (default: its first line, else SAMPLE_TEXT)
+ * @returns {{karakter: string, metin: string, dosya: string}}
+ */
+export function voiceSample(episodePath, lib, tools, deps, { karakter, metin } = {}) {
+  const episode = readJson(episodePath);
+  const { ok, errors } = validateEpisode(episode, lib);
+  if (!ok) throw new Error(`episode is invalid:\n- ${errors.join("\n- ")}`);
+  const voices = Object.fromEntries(episode.characters.map((c) => [c.id, c.voice || {}]));
+  voices[NARRATOR] = episode.narrator_voice || {};
+  if (!Object.hasOwn(voices, karakter)) throw new Error(`no character "${karakter}" in this episode (${Object.keys(voices).join(", ")})`);
+  const first = linesOf(episode).find((l) => l.speaker === karakter);
+  const text = (typeof metin === "string" && metin.trim()) || first?.text || SAMPLE_TEXT[episode.language] || SAMPLE_TEXT.en;
+  requireTools(tools, ["pythonTts"]);
+  const dir = dirname(resolve(episodePath));
+  const work = join(dir, ".cizgi", "ses-ornek");
+  mkdirSync(work, { recursive: true });
+  const raw = join(work, `${karakter}.raw.wav`);
+  const voice = voices[karakter];
+  writeFileSync(join(work, "tts.json"), JSON.stringify([{
+    id: `ornek-${karakter}`, text, lang: episode.language, out: raw, seed: seedFor(`ornek-${karakter}`, 0),
+    voice: { ...voice, ...(voice.ref ? { ref: safeJoin(dir, voice.ref) } : {}) },
+  }], null, 2));
+  (deps.log || (() => {}))(`ilerleme ${JSON.stringify({ adim: "seslendirme", bitti: 0, toplam: 1 })}`);
+  deps.run(tools.pythonTts, [join(PYTHON_DIR, "tts_batch.py"), join(work, "tts.json")], { liveStderr: true });
+  const dosya = `cikti/ses-ornegi-${karakter}.wav`;
+  mkdirSync(join(dir, "cikti"), { recursive: true });
+  const tempo = profileOf(episode, lib).speech.tempo;
+  if (tempo === 1) copyFileSync(raw, join(dir, dosya));
+  else deps.run(tools.ffmpeg || "ffmpeg", ["-y", "-v", "error", "-i", raw, "-filter:a", `atempo=${tempo}`, join(dir, dosya)]);
+  return { karakter, metin: text, dosya };
+}

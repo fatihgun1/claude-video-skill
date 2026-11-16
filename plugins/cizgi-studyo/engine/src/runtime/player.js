@@ -57,8 +57,26 @@
     }
     const visemes = {};
     for (const v of VISEMES) visemes[v] = part(v);
+    // costume variants (cast[].varyant): parts shown or hidden per variant, and each variant's colours
+    const wrap = byId("kar-" + ch.id);
+    const variantParts = wrap
+      ? Array.prototype.slice.call(wrap.querySelectorAll("[data-varyant],[data-varyant-yok]")).map((el) => ({
+        el, attrs: { varyant: el.getAttribute("data-varyant"), yok: el.getAttribute("data-varyant-yok") },
+      }))
+      : [];
+    const readJson = (name) => {
+      try {
+        return JSON.parse((wrap && wrap.getAttribute(name)) || "{}");
+      } catch (e) {
+        return {};
+      }
+    };
     rigs[ch.id] = {
-      wrap: byId("kar-" + ch.id),
+      wrap,
+      variantParts,
+      variantColours: readJson("data-varyant-renk"),
+      baseColours: readJson("data-renk"),
+      shownVariant: null,
       root: part("root"),
       joints,
       hoses,
@@ -142,11 +160,28 @@
     return C.blendPose(before, pose, C.ease("inOutSine", since / BLEND));
   }
 
+  /** Show the parts and colours of a costume variant ("" = the drawing as it is) when it changes. */
+  function applyVariant(rig, variant) {
+    if (rig.shownVariant === variant) return;
+    rig.shownVariant = variant;
+    for (const p of rig.variantParts) setShown(p.el, C.partShown(p.attrs, variant));
+    if (!rig.wrap) return;
+    const keys = {};
+    for (const v in rig.variantColours) for (const k in rig.variantColours[v]) keys[k] = true;
+    for (const k in keys) {
+      const value = (rig.variantColours[variant] || {})[k] || rig.baseColours[k];
+      if (value) rig.wrap.style.setProperty("--" + k, value);
+      else rig.wrap.style.removeProperty("--" + k);
+    }
+  }
+
   function drawCharacter(rig, member, pose, t, speaking, local, duration) {
-    const x = C.memberX(member, layout, local, duration);
+    applyVariant(rig, member.varyant || "");
     const flip = member.facing === "sol" ? -1 : 1;
     const depth = C.depthOf(member, layout); // cast.back: higher up the ground, smaller
     const k = rigScale * depth.shrink;
+    // root_x moves the whole figure sideways within its action (forward is where it faces): sitting down, the hips go back
+    const x = C.memberX(member, layout, local, duration) + (pose.root_x || 0) * k * flip;
     const sx = (pose.root_sx == null ? 1 : pose.root_sx) * k * flip;
     const sy = (pose.root_sy == null ? 1 : pose.root_sy) * k;
     const y = D.world.ground_y - depth.rise + (pose.root_y || 0) * k;
@@ -187,7 +222,8 @@
       for (const el of pair) if (el) el.setAttribute("transform", gaze);
     }
 
-    const viseme = speaking ? C.visemeAt(speaking.cues, t - speaking.start) : "mouth_rest";
+    // speech first; in its silences and outside lines the face shows the expression (cast[].ifade)
+    const viseme = C.mouthAt(speaking ? C.visemeAt(speaking.cues, t - speaking.start) : "mouth_rest", C.expressionAt(member, local));
     if (viseme !== rig.shownViseme) {
       setShown(rig.visemes[rig.shownViseme], false);
       setShown(rig.visemes[viseme], true);

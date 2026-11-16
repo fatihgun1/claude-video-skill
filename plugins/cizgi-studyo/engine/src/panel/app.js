@@ -6,6 +6,7 @@ import { createProduction } from "./uretim.js";
 import { createLibrary } from "./kutuphane.js";
 import { installDrops } from "./birak.js";
 import { tr } from "./tr.js";
+import { listen } from "./dinle.js";
 import { createStage, shotOfMessage } from "./sahne.js";
 import { createInspector, renameMember } from "./denetleyici.js";
 import { createProjects } from "./projeler.js";
@@ -217,6 +218,25 @@ const drafts = createDrafts({
   note: (text) => note(text),
 });
 const inspector = createInspector($("inspector"), {
+  // a voice sample (cizgi ses-ornek) of one character, from the saved file: save first, then listen
+  sample: async (id, report) => {
+    try {
+      if (dirty()) await save();
+      if (dirty()) return report("Önce kaydet: örnek kayıtlı ses ayarlarıyla yapılır.");
+      report("Ses örneği hazırlanıyor (ses modeli yüklenirken 1-2 dakika sürebilir)…");
+      await api("/api/is", { b: state.path, kind: "ornek", format: state.format, sahne: id });
+      for (;;) {
+        await new Promise((r) => setTimeout(r, 1500));
+        const { job } = await api(`/api/is?${new URLSearchParams({ b: state.path })}`);
+        if (!job || job.status === "running") continue;
+        if (job.status !== "done") return report(`Örnek olmadı: ${tr(job.error || "bilinmeyen hata")}`);
+        report("Çalıyor.");
+        return listen(`${state.outputsUrl || ""}${job.result.dosya}?v=${Date.now()}`);
+      }
+    } catch (err) {
+      return report(`Örnek olmadı: ${err.message}`);
+    }
+  },
   episode: () => state.draft,
   format: () => state.format,
   vocab: () => state.vocab,

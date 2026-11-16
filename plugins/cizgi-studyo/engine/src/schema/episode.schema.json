@@ -354,6 +354,23 @@
                 "maximum": 1,
                 "description": "How far back the character stands: 0 on the front ground line, 1 as far back as it goes (higher up and smaller, drawn behind those in front)."
               },
+              "varyant": {
+                "description": "A costume variant of the character's drawing for this shot (character.json varyantlar): parts marked for it show or hide, and its colours apply. Leave it out for the drawing as it is.",
+                "type": "string", "pattern": "^[a-z0-9]+([_-][a-z0-9]+)*$"
+              },
+              "ifade": {
+                "description": "The face outside speech: gulumse (smile) or notr, for the whole shot, or a list of moments [{ifade, at}] in seconds from the shot start (neutral before the first). While the character speaks the mouth follows the speech.",
+                "oneOf": [
+                  { "enum": ["notr", "gulumse"] },
+                  {
+                    "type": "array", "minItems": 1, "maxItems": 8,
+                    "items": {
+                      "type": "object", "additionalProperties": false, "required": ["ifade", "at"],
+                      "properties": { "ifade": { "enum": ["notr", "gulumse"] }, "at": { "type": "number", "minimum": 0 } }
+                    }
+                  }
+                ]
+              },
               "facing": {
                 "enum": [
                   "sag",

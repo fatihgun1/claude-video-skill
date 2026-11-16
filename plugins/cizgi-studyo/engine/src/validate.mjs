@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import Ajv from "ajv";
 import { has } from "./util.mjs";
 import { filmWarnings } from "./sinema.mjs";
+import { slidingDetails } from "./rigspec.mjs";
 import "./runtime/core.js"; // CizgiCore.segmentsOf: the same reading of cast actions as the player
 
 const schema = JSON.parse(readFileSync(new URL("./schema/episode.schema.json", import.meta.url), "utf8"));
@@ -171,6 +172,11 @@ export function ruleWarnings(episode, rules) {
  */
 export function viewWarnings(episode, lib) {
   const warnings = [];
+  // details drawn on a bending limb slide when it bends (a patch on a knee): the drawing needs a fix
+  for (const rig of new Set(episode.characters.map((c) => c.rig))) {
+    const svg = lib.characters.get(rig)?.svg;
+    for (const msg of svg ? slidingDetails(svg) : []) warnings.push(`character ${rig}: ${msg}`);
+  }
   const rigOf = (id) => episode.characters.find((c) => c.id === id)?.rig;
   for (const scene of episode.scenes) {
     for (const shot of scene.shots) {
@@ -215,6 +221,16 @@ export function validateEpisode(episode, lib) {
       continue;
     }
     const allowed = rig.meta.palette_vars || [];
+    // costume variants picked by the shots must be the drawing's own
+    const variants = Object.keys(rig.meta.varyantlar || {});
+    for (const scene of episode.scenes) {
+      for (const shot of scene.shots) {
+        for (const m of shot.cast) {
+          if (m.id !== c.id || m.varyant === undefined || variants.includes(m.varyant)) continue;
+          errors.push(`shot ${shot.shot_id}: "${c.id}" has no costume variant "${m.varyant}" (rig ${c.rig}: ${variants.length ? list(variants) : "none"})`);
+        }
+      }
+    }
     for (const key of Object.keys(c.palette || {})) {
       if (!allowed.includes(key)) {
         errors.push(`character "${c.id}": palette "${key}" is not a colour of rig ${c.rig} (${list(allowed)})`);

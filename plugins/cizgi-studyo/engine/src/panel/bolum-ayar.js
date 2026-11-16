@@ -13,6 +13,40 @@ const LOOKS_3D = [
   { id: "pastel", label: "Pastel" }, { id: "golge", label: "Toon + gölge, kontursuz" },
 ];
 
+/** A slider for a voice setting (chatterbox): its value beside it; onSet when let go. */
+function voiceSlider(value, min, max, label, onSet) {
+  const r = el("input", { type: "range", min, max, step: 0.05, value, "aria-label": label });
+  const out = el("span", { class: "muted small", text: Number(value).toFixed(2) });
+  r.addEventListener("input", () => { out.textContent = Number(r.value).toFixed(2); });
+  r.addEventListener("change", () => onSet(Number(r.value)));
+  return el("div", { class: "row-inline" }, r, out);
+}
+
+/** Each speaker's voice settings (characters[].voice, narrator_voice) and a sample to hear them. */
+function voices(ep, ctx) {
+  const speakers = [...ep.characters.map((c) => ({ id: c.id, label: ctx.labelOf(c.id), obj: c, key: "voice" }))];
+  const narrates = ep.scenes.some((s) => s.shots.some((sh) => (sh.utterances || []).some((u) => u.speaker === "anlatici")));
+  if (narrates || ep.narrator_voice) speakers.push({ id: "anlatici", label: "Anlatıcı", obj: ep, key: "narrator_voice" });
+  return speakers.map((sp) => {
+    const v = sp.obj[sp.key] || {};
+    const set = (k, x, def) => {
+      const next = { ...(sp.obj[sp.key] || {}), [k]: x };
+      if (x === def) delete next[k];
+      setKey(sp.obj, sp.key, Object.keys(next).length ? next : undefined);
+      ctx.changed(true);
+    };
+    const status = el("span", { class: "muted small" });
+    return el("div", { class: "voice-row" },
+      el("b", { text: sp.label }),
+      field("İfade", voiceSlider(v.exaggeration ?? 0.5, 0.25, 1.5, `${sp.label}: ifade gücü`, (x) => set("exaggeration", x, 0.5))),
+      field("Düzgünlük", voiceSlider(v.cfg ?? 0.5, 0.4, 1, `${sp.label}: cfg`, (x) => set("cfg", x, 0.5))),
+      v.ref ? el("p", { class: "muted small", text: `Örnek kayıt: ${v.ref}` }) : null,
+      el("div", { class: "row-inline" },
+        el("button", { class: "btn small", type: "button", disabled: !ctx.sample, on: { click: () => ctx.sample(sp.id, (t) => { status.textContent = t; }) } }, "▶ Örnek dinle"),
+        status));
+  });
+}
+
 /** A 0..1 slider with its percentage; onSet when let go. */
 function slider(value, label, onSet) {
   const r = el("input", { type: "range", min: 0, max: 1, step: 0.05, value, "aria-label": label });
@@ -64,6 +98,9 @@ export function episodeSettings(ctx) {
     field("Efektler", slider(ep.mix?.sfx ?? 1, "Efektlerin düzeyi", (x) => setMix("sfx", x))),
     el("h3", { text: "Müzik" }),
     musicPart,
+    el("h3", { text: "Sesler", title: "Değişen ses ayarı o karakterin repliklerini yeniden seslendirmeyi gerektirir" }),
+    el("p", { class: "muted small", text: "İfade: sesin canlılığı. Düzgünlük: düşükse kelimeler bozulabilir. Örnek, kayıtlı ayarlarla tek bir cümle seslendirir; onay gerekmez." }),
+    voices(ep, ctx),
     el("h3", { text: "Altyazı" }),
     episodeCaption(ep, ctx.labelOf, () => ctx.changed(true)),
     el("h3", { text: "3B görünüm", title: "Yalnız 3B render ve 3B önizleme için; 2B'yi etkilemez" }),

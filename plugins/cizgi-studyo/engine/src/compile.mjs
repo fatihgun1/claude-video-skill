@@ -276,6 +276,11 @@ function characterMarkup(ch, lib, heldProps = []) {
   const rig = lib.characters.get(ch.rig);
   const vars = Object.entries(ch.palette || {}).map(([k, v]) => `--${k}:${v}`).join(";");
   const style = vars ? ` style="${escapeHtml(vars)}"` : "";
+  // costume variants: each variant's colours and the episode's own, for the player to switch per shot
+  const variantColours = Object.fromEntries(Object.entries(rig.meta.varyantlar || {}).filter(([, d]) => d.palette).map(([k, d]) => [k, d.palette]));
+  const colours = Object.keys(variantColours).length
+    ? ` data-varyant-renk="${escapeHtml(JSON.stringify(variantColours))}" data-renk="${escapeHtml(JSON.stringify(ch.palette || {}))}"`
+    : "";
   let markup = prefixIds(svgInner(rig.svg), ch.id);
   for (const { hand, markup: prop } of heldProps) {
     // In the hand's slot if it has one (palm behind, fingers in front), else as its first child.
@@ -287,7 +292,7 @@ function characterMarkup(ch, lib, heldProps = []) {
     const open = new RegExp(`<g\\b[^>]*\\bid="${ch.id}--hand_${hand}"[^>]*>`);
     markup = markup.replace(open, (tag) => tag + prop);
   }
-  return `<g id="kar-${ch.id}"${style}>${markup}</g>`;
+  return `<g id="kar-${ch.id}"${style}${colours}>${markup}</g>`;
 }
 
 /**

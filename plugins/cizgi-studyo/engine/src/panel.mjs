@@ -408,7 +408,9 @@ export function createPanel(opts) {
       const dir = episodeDirs.get(made[1]);
       if (!dir) throw new HttpError(404, "open the episode first");
       const rel = decode(made[2]);
-      if (!OUTPUT_DIRS.includes(rel.split("/")[0]) || !/\.(png|jpg|mp4)$/.test(rel)) throw new HttpError(404, "not found");
+      // production files, and the voice samples (cizgi ses-ornek) the person listens to
+      const sample = /^cikti\/ses-ornegi-[a-z0-9_-]+\.wav$/.test(rel);
+      if (!OUTPUT_DIRS.includes(rel.split("/")[0]) || (!/\.(png|jpg|mp4)$/.test(rel) && !sample)) throw new HttpError(404, "not found");
       const file = safeJoin(dir, rel);
       if (!existsSync(file) || !statSync(file).isFile()) throw new HttpError(404, "not found");
       insideReally(dir, file); // a link under storyboard/ or cikti/ must not lead elsewhere

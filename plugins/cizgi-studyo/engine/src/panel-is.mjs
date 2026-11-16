@@ -10,8 +10,8 @@ import { join, relative, sep, dirname } from "node:path";
 
 // sahne: stills of one scene for review (its scene id follows --sahne); ses: speak the lines
 // (no format: the audio is the same for both)
-export const JOB_KINDS = Object.freeze({ storyboard: ["storyboard"], render: ["render"], taslak: ["render", "--taslak"], taslak3b: ["render", "--taslak", "--3b"], sahne: ["storyboard", "--sahne"], ses: ["ses"] });
-const NO_FORMAT = new Set(["ses"]);
+export const JOB_KINDS = Object.freeze({ storyboard: ["storyboard"], render: ["render"], taslak: ["render", "--taslak"], taslak3b: ["render", "--taslak", "--3b"], sahne: ["storyboard", "--sahne"], ses: ["ses"], ornek: ["ses-ornek"] });
+const NO_FORMAT = new Set(["ses", "ornek"]);
 // `cizgi ses` exits 3 when some lines failed the listening check: still a finished job
 const DONE_CODES = { ses: [0, 3] };
 // "ilerleme {json}" lines on stderr: how far a step is (see ses.mjs)
@@ -85,12 +85,14 @@ export function createJobs(opts) {
       if (!Object.hasOwn(JOB_KINDS, kind)) throw Object.assign(new Error(`unknown job "${kind}"`), { code: 400 });
       if (!JOB_FORMATS.has(format)) throw Object.assign(new Error(`format must be ${[...JOB_FORMATS].join(" or ")}`), { code: 400 });
       if (kind === "sahne" && !SCENE_ID.test(scene || "")) throw Object.assign(new Error("a scene id is needed"), { code: 400 });
+      // a voice sample: the character id goes after the episode (cizgi ses-ornek <bolum.json> <karakter>)
+      if (kind === "ornek" && !SCENE_ID.test(scene || "")) throw Object.assign(new Error("a character id is needed"), { code: 400 });
       if (jobs.get(episodePath)?.status === "running") throw Object.assign(new Error("a job is already running for this episode"), { code: 409 });
       // the panel's own project library, so a job sees exactly the drawings the panel validated against
-      const args = [opts.cli, ...JOB_KINDS[kind], ...(kind === "sahne" ? [scene] : []), episodePath,
+      const args = [opts.cli, ...JOB_KINDS[kind], ...(kind === "sahne" ? [scene] : []), episodePath, ...(kind === "ornek" ? [scene] : []),
         ...(NO_FORMAT.has(kind) ? [] : ["--format", format]),
         ...(opts.library ? ["--kutuphane", opts.library] : []), ...(opts.project ? ["--proje-kutuphane", opts.project] : [])];
-      const job = { kind, format, ...(kind === "sahne" ? { scene } : {}), status: "running", started: now(), log: "", out: "", partial: "", progress: null };
+      const job = { kind, format, ...(kind === "sahne" || kind === "ornek" ? { scene } : {}), status: "running", started: now(), log: "", out: "", partial: "", progress: null };
       jobs.set(episodePath, job);
       const child = spawn(process.execPath, args, { cwd: dirname(episodePath), windowsHide: true });
       job.child = child;
@@ -180,6 +182,7 @@ export function outputsOf(episodePath) {
   return {
     sheets: list("storyboard", (n) => /^contact-sheet.*\.(png|jpg)$/.test(n)),
     videos: list("cikti", (n) => n.endsWith(".mp4")),
+    samples: list("cikti", (n) => /^ses-ornegi-[a-z0-9_-]+\.wav$/.test(n)), // voice samples (cizgi ses-ornek)
     review: list("inceleme", (n) => /^contact-sheet.*\.(png|jpg)$/.test(n)), // inceleme/<scene>/<format>/…
   };
 }

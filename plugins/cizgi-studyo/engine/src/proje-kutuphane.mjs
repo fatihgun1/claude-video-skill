@@ -19,7 +19,7 @@ import { homedir } from "node:os";
 import { createHash } from "node:crypto";
 import { checkProp, readCharacter, readAction } from "./library.mjs";
 import { loadLayered } from "./mekan.mjs";
-import { checkSvgSafety } from "./rigspec.mjs";
+import { checkSvgSafety, slidingDetails } from "./rigspec.mjs";
 import { ID_PATTERN } from "./util.mjs";
 
 export const PROJECT_LIBRARY = "kutuphane";
@@ -108,6 +108,7 @@ function inspect(proj, tur, id, lib) {
   if (tur === "karakter") {
     const c = readCharacter(where.path);
     out.errors.push(...c.errors);
+    if (c.svg) out.errors.push(...slidingDetails(c.svg)); // a new drawing is fixed before it is taken in
     out.name = c.meta?.name?.tr ?? null;
     out.svg = c.errors.length ? null : c.svg;
   } else if (tur === "hareket") {

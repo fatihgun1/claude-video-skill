@@ -7,6 +7,7 @@
  *   cizgi senaryo    <bolum.json>                    the script table to show at the senaryo gate
  *   cizgi onayla     senaryo|storyboard <bolum.json> record a human approval (only after a yes)
  *   cizgi ses        <bolum.json> [--hepsi]          speak, check and time changed lines
+ *   cizgi ses-ornek  <bolum.json> <karakter> [--metin "…"]  one sentence in that voice (cikti/ses-ornegi-<id>.wav), no approval
  *   cizgi kabul      <bolum.json> <line-key>         keep a take that failed the listening check (only after a yes)
  *   cizgi storyboard <bolum.json> [--format 16:9]    stills of every shot for review
  *   cizgi storyboard <bolum.json> --sahne <id>        stills of one scene (panel's scene review; no gate)
@@ -27,7 +28,7 @@ import { validateEpisode, profileOf } from "./validate.mjs";
 import { compileEpisode, safeJoin } from "./compile.mjs";
 import { readJson } from "./util.mjs";
 import { GATES, readApprovals, gateStatus, scriptFingerprint, storyboardFingerprint, libraryFingerprint } from "./onay.mjs";
-import { runAudio, readManifest, linesOf, planAudio, lineFingerprint, failedLines, acceptLine } from "./ses.mjs";
+import { runAudio, readManifest, linesOf, planAudio, lineFingerprint, failedLines, acceptLine, voiceSample } from "./ses.mjs";
 import { storyboard, sceneStills, render, qaPages } from "./uretim.mjs";
 import { loadTools, run } from "./tools.mjs";
 import { openPanel } from "./panel-baslat.mjs";
@@ -39,7 +40,7 @@ import { checkLibrary, integrityErrors } from "./icerik.mjs";
 
 const DEFAULT_LIBRARY = fileURLToPath(new URL("../../library", import.meta.url));
 const FLAGS = new Set(["--hepsi", "--taslak", "--3b"]);
-const NEEDS = { dogrula: 1, durum: 1, senaryo: 1, ses: 1, storyboard: 1, render: 1, onayla: 2, derle: 2, kabul: 2, qa: 1, panel: 1, taslaklar: 1 };
+const NEEDS = { "ses-ornek": 2, dogrula: 1, durum: 1, senaryo: 1, ses: 1, storyboard: 1, render: 1, onayla: 2, derle: 2, kabul: 2, qa: 1, panel: 1, taslaklar: 1 };
 const USAGE =
   "usage: cizgi dogrula|durum|senaryo|ses|storyboard|render <bolum.json> · cizgi panel <klasör|bolum.json> · cizgi onayla senaryo|storyboard <bolum.json> · cizgi kabul <bolum.json> <line> · cizgi derle <bolum.json> <dir> [format]\n";
 
@@ -55,12 +56,14 @@ export function parseArgs(argv) {
   let port;
   let scene;
   let project;
+  let text;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === "--kutuphane" || a === "--format" || a === "--port" || a === "--sahne" || a === "--proje-kutuphane") {
+    if (a === "--kutuphane" || a === "--format" || a === "--port" || a === "--sahne" || a === "--proje-kutuphane" || a === "--metin") {
       const value = argv[++i];
       if (!value) throw new Error(`${a} needs a value`);
       if (a === "--sahne") scene = value;
+      else if (a === "--metin") text = value;
       else if (a === "--proje-kutuphane") project = value;
       else if (a === "--port") {
         port = Number(value);
@@ -71,7 +74,7 @@ export function parseArgs(argv) {
     else if (a.startsWith("--")) throw new Error(`unknown option ${a}`);
     else args.push(a);
   }
-  return { args, flags, library, port, scene, project, formats: formats.length ? formats : undefined };
+  return { args, flags, library, port, scene, project, text, formats: formats.length ? formats : undefined };
 }
 
 /**
@@ -110,7 +113,7 @@ function print(value) {
 }
 
 function main(argv) {
-  const { args, flags, library, formats, port, scene, project } = parseArgs(argv);
+  const { args, flags, library, formats, port, scene, project, text } = parseArgs(argv);
   const [command, a1, a2, a3] = args;
   if (!NEEDS[command] || args.length - 1 < NEEDS[command] || (command === "onayla" && !GATES.includes(a1))) {
     process.stderr.write(USAGE);
@@ -156,6 +159,9 @@ function main(argv) {
       print(res);
       return res.failed.length ? 3 : 0;
     }
+    case "ses-ornek":
+      print(voiceSample(a1, lib, loadTools(), deps, { karakter: a2, metin: text }));
+      return 0;
     case "kabul":
       print({ accepted: a2, line: acceptLine(a1, a2) });
       return 0;

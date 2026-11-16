@@ -30,6 +30,7 @@ The command prints `{generated, kept, failed}` and exits with **3** when some li
 Do not hide a failed line and do not move on silently.
 
 ## Voices
+- **Let the person hear a voice before the lines are spoken.** `$CLI ses-ornek <bolum.json> <character id or anlatici> [--metin "…"]` speaks one sentence (its first line, else a sample sentence) with that voice into `cikti/ses-ornegi-<id>.wav`: no script approval, no listening check, the episode's audio untouched (about a minute while the model loads; run it in the background). In the panel the person does the same in **Bölüm ayarları → Sesler** (sliders for `exaggeration` and `cfg`, **▶ Örnek dinle**). Offer this when choosing voices instead of guessing settings.
 - `voice.exaggeration` is 0.25–1.5 (default 0.5) and controls expressiveness.
 - `voice.cfg` is 0.4–1 (default 0.5). Lower values made Chatterbox add or mangle words in testing.
 - `voice.ref` is an optional ~10 s reference clip (episode-relative) for voice cloning. Only use recordings the person has the right to use.

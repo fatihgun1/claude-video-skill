@@ -20,6 +20,8 @@ const RULES = [
   [/^(\S+) exited with (\d+):$/, (_, cmd, code) => `${cmd} hata verdi (çıkış kodu ${code}):`],
   [/^(.*)EPERM: operation not permitted, rename .*$/, (_, pre) => `${pre}Dosyanın üzerine yazılamadı: başka bir program onu açık tutuyor (EPERM).`],
   [/^(.*?)no 3D recipe for: (.*)$/, (_, pre, list) => `${pre}3B tarifi yok: ${list} (3B önizleme ve render bu karakter ve mekânların library/3d tarifini ister).`],
+  [/^(?:character (\S+): )?(#\S+) bends, but (\d+) shape\(s\) in it \(([^)]*)\) do not bend with it and will slide.*$/,
+    (_, who, limb, n, kinds) => `${who ? `${who}: ` : ""}${limb} bükülüyor ama içindeki ${n} şekil (${kinds}) onunla bükülmüyor, kayacak: ayrıntıyı gövdeye, ele ya da ayağa çiz ya da çıkar.`],
   [/^(.*?)episode is invalid:$/, (_, pre) => `${pre}Bölümde hata var:`],
 ];
 

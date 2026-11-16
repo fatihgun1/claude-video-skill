@@ -50,7 +50,7 @@ export const POSE_CHANNELS = Object.freeze([
   "leg_L_lift", "leg_R_lift",
   "gaze_x", "gaze_y",
   "grip_L", "grip_R",
-  "root_y", "root_sx", "root_sy",
+  "root_x", "root_y", "root_sx", "root_sy", // root_x: sideways in rig units, toward where the character faces
 ]);
 
 /**
@@ -149,6 +149,63 @@ function hoseBody(svg, id) {
   const rest = stripComments(svg).slice(start.index + start[0].length);
   const stop = rest.search(/<\/?g\b/);
   return stop < 0 ? rest : rest.slice(0, stop);
+}
+
+/**
+ * Shapes drawn directly in a hose group (not in a nested group such as the hand or foot) other
+ * than its two redrawn paths. The player redraws only hose-line and hose-fill as the limb bends;
+ * anything else stays where it was drawn, so a patch on a knee or a stripe on a sleeve slides off.
+ * A round cap centred on the limb's root (the shoulder or hip, which does not move) is fine.
+ */
+const ROOT_EPS = 3;
+function looseShapes(svg, id, root) {
+  const src = stripComments(svg);
+  const open = new RegExp(`<g\\b[^>]*\\bid=["']${id}["'][^>]*>`).exec(src);
+  if (!open) return [];
+  const tag = /<(\/?)(g|path|rect|circle|ellipse|polygon|polyline|line|use|text|image)\b[^>]*?(\/?)>/g;
+  tag.lastIndex = open.index + open[0].length;
+  const loose = [];
+  let depth = 0;
+  for (let t = tag.exec(src); t; t = tag.exec(src)) {
+    const [whole, closing, name, selfClosing] = t;
+    if (name === "g") {
+      if (closing) {
+        if (depth === 0) break; // the hose group itself ends
+        depth--;
+      } else if (!selfClosing) depth++;
+      continue;
+    }
+    if (closing || depth > 0) continue;
+    if (name === "path" && /\bclass=["']hose-(line|fill)["']/.test(whole)) continue;
+    if ((name === "circle" || name === "ellipse") && root) {
+      const cx = Number(/\bcx=["']([-\d.]+)/.exec(whole)?.[1]);
+      const cy = Number(/\bcy=["']([-\d.]+)/.exec(whole)?.[1]);
+      if (Math.hypot(cx - root[0], cy - root[1]) <= ROOT_EPS) continue; // a joint cap at the shoulder or hip
+    }
+    loose.push(name);
+  }
+  return loose;
+}
+
+/**
+ * Details drawn on a bending limb that will slide when it bends (see looseShapes). Not part of
+ * checkRig: a drawing already in a library keeps working (an episode warns), while a new draft
+ * cannot be taken in with them (proje-kutuphane.mjs).
+ * @returns {string[]} one message per limb
+ */
+export function slidingDetails(svg) {
+  const groups = parseGroups(svg);
+  const out = [];
+  for (const id of [...HOSES, ...LEGS]) {
+    const g = groups.get(id);
+    if (!g || g.attrs["data-hose"] === undefined) continue;
+    const root = g.attrs["data-hose"].trim().split(/\s+/)[0]?.split(",").map(Number);
+    const loose = looseShapes(svg, id, root?.length === 2 ? root : null);
+    if (loose.length) {
+      out.push(`#${id} bends, but ${loose.length} shape(s) in it (${[...new Set(loose)].join(", ")}) do not bend with it and will slide: draw details on the body, the hand or the foot, or leave them out`);
+    }
+  }
+  return out;
 }
 
 /**

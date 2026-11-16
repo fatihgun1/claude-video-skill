@@ -27,3 +27,9 @@ test("project library problems read as Turkish; an unknown message stays as it i
 test("a message the panel put a prefix on is translated behind it", () => {
   assert.equal(tr('açılamadı: gate "senaryo" has not been approved. Show it to the person and run: …'), "açılamadı: Senaryo onayı verilmedi: Claude'a göster, beğenirsen onay ver.");
 });
+
+test("a detail that slides on a bending limb reads as Turkish, with the character when named", () => {
+  assert.equal(tr("character nazim: #arm_L bends, but 1 shape(s) in it (path) do not bend with it and will slide: draw details on the body, the hand or the foot, or leave them out"),
+    "nazim: #arm_L bükülüyor ama içindeki 1 şekil (path) onunla bükülmüyor, kayacak: ayrıntıyı gövdeye, ele ya da ayağa çiz ya da çıkar.");
+  assert.match(tr("#leg_L bends, but 2 shape(s) in it (rect) do not bend with it and will slide: draw details on the body, the hand or the foot, or leave them out"), /^#leg_L bükülüyor ama içindeki 2 şekil/);
+});

@@ -624,3 +624,6 @@ body.at-home .editor, body.at-home .bar > :not(.brand):not(.state), body.at-home
 .ptablo td { padding: 6px 8px; border-top: 1px solid var(--line); vertical-align: top; }
 .ptablo tbody tr { cursor: pointer; }
 .ptablo tbody tr:hover, .ptablo tbody tr:focus-visible { background: var(--pane-2); }
+
+/* Bölüm ayarları → Sesler: a voice per speaker, with a sample (bolum-ayar.js) */
+.voice-row { padding: 8px 10px; margin: 6px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--pane-2); }

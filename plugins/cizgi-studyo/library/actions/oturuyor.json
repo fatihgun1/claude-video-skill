@@ -1,0 +1,82 @@
+{
+  "label": {
+    "tr": "Oturuyor (yandan)",
+    "en": "Sitting (profile)"
+  },
+  "views": [
+    "profile-right"
+  ],
+  "notes": "Profile knee-leg rigs (genc, nazim): thigh 198, shin 174 rig units. The ankles stay where they stood: root_y lowers the hips and root_x moves them back as the knees come forward; feet stay flat (foot = -(upper+lower)). Seated: thigh level, shin upright, hands on the thighs, hips 198 lower and 198 back. Put a bench behind the mark with scene.dekor (seat about 110 world units high), or use it without one (sitting on a step). Loops: a slow breath while seated.",
+  "duration": 2.4,
+  "loop": true,
+  "keys": [
+    {
+      "t": 0,
+      "pose": {
+        "leg_L_upper": -90,
+        "leg_L_lower": 90,
+        "leg_R_upper": -90,
+        "leg_R_lower": 90,
+        "foot_L": 0,
+        "foot_R": 0,
+        "root_y": 198,
+        "root_x": -198,
+        "body": 4,
+        "head": 0,
+        "arm_L_upper": -14,
+        "arm_L_lower": -30,
+        "hand_L": 8,
+        "arm_R_upper": -8,
+        "arm_R_lower": -26,
+        "hand_R": 8,
+        "root_sy": 1
+      }
+    },
+    {
+      "t": 1.2,
+      "ease": "inOutSine",
+      "pose": {
+        "leg_L_upper": -90,
+        "leg_L_lower": 90,
+        "leg_R_upper": -90,
+        "leg_R_lower": 90,
+        "foot_L": 0,
+        "foot_R": 0,
+        "root_y": 198,
+        "root_x": -198,
+        "body": 6,
+        "head": 2,
+        "arm_L_upper": -14,
+        "arm_L_lower": -30,
+        "hand_L": 8,
+        "arm_R_upper": -8,
+        "arm_R_lower": -26,
+        "hand_R": 8,
+        "root_sy": 1.01
+      }
+    },
+    {
+      "t": 2.4,
+      "ease": "inOutSine",
+      "pose": {
+        "leg_L_upper": -90,
+        "leg_L_lower": 90,
+        "leg_R_upper": -90,
+        "leg_R_lower": 90,
+        "foot_L": 0,
+        "foot_R": 0,
+        "root_y": 198,
+        "root_x": -198,
+        "body": 4,
+        "head": 0,
+        "arm_L_upper": -14,
+        "arm_L_lower": -30,
+        "hand_L": 8,
+        "arm_R_upper": -8,
+        "arm_R_lower": -26,
+        "hand_R": 8,
+        "root_sy": 1
+      }
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "label": {
+    "tr": "Otur (yandan)",
+    "en": "Sit down (profile)"
+  },
+  "views": [
+    "profile-right"
+  ],
+  "notes": "Profile knee-leg rigs (genc, nazim): thigh 198, shin 174 rig units. The ankles stay where they stood: root_y lowers the hips and root_x moves them back as the knees come forward; feet stay flat (foot = -(upper+lower)). Seated: thigh level, shin upright, hands on the thighs, hips 198 lower and 198 back. Put a bench behind the mark with scene.dekor (seat about 110 world units high), or use it without one (sitting on a step).",
+  "duration": 1.4,
+  "loop": false,
+  "keys": [
+    {
+      "t": 0,
+      "pose": {
+        "leg_L_upper": 0,
+        "leg_L_lower": 0,
+        "leg_R_upper": 0,
+        "leg_R_lower": 0,
+        "foot_L": 0,
+        "foot_R": 0,
+        "root_y": 0,
+        "root_x": 0,
+        "body": 0,
+        "head": 0,
+        "arm_L_upper": 0,
+        "arm_L_lower": 0,
+        "hand_L": 0,
+        "arm_R_upper": 0,
+        "arm_R_lower": 0,
+        "hand_R": 0
+      }
+    },
+    {
+      "t": 0.5,
+      "ease": "inOutSine",
+      "pose": {
+        "leg_L_upper": -45,
+        "leg_L_lower": 50,
+        "leg_R_upper": -45,
+        "leg_R_lower": 50,
+        "foot_L": -5,
+        "foot_R": -5,
+        "root_y": 58.7,
+        "root_x": -124.8,
+        "body": 28,
+        "head": 6,
+        "arm_L_upper": -18,
+        "arm_L_lower": -24,
+        "hand_L": 2,
+        "arm_R_upper": -12,
+        "arm_R_lower": -20,
+        "hand_R": 2
+      }
+    },
+    {
+      "t": 1,
+      "ease": "inOutSine",
+      "pose": {
+        "leg_L_upper": -80,
+        "leg_L_lower": 82,
+        "leg_R_upper": -80,
+        "leg_R_lower": 82,
+        "foot_L": -2,
+        "foot_R": -2,
+        "root_y": 163.7,
+        "root_x": -188.9,
+        "body": 14,
+        "head": 3,
+        "arm_L_upper": -16,
+        "arm_L_lower": -28,
+        "hand_L": 6,
+        "arm_R_upper": -10,
+        "arm_R_lower": -24,
+        "hand_R": 6
+      }
+    },
+    {
+      "t": 1.4,
+      "ease": "outSine",
+      "pose": {
+        "leg_L_upper": -90,
+        "leg_L_lower": 90,
+        "leg_R_upper": -90,
+        "leg_R_lower": 90,
+        "foot_L": 0,
+        "foot_R": 0,
+        "root_y": 198,
+        "root_x": -198,
+        "body": 4,
+        "head": 0,
+        "arm_L_upper": -14,
+        "arm_L_lower": -30,
+        "hand_L": 8,
+        "arm_R_upper": -8,
+        "arm_R_lower": -26,
+        "hand_R": 8
+      }
+    }
+  ]
+}

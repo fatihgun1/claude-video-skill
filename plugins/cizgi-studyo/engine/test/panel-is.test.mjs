@@ -126,11 +126,12 @@ test("the outputs of the production steps are listed relative to the episode", (
     writeFileSync(join(dir, "cikti", "b-16x9-taslak.mp4"), "x");
     mkdirSync(join(dir, "inceleme", "s1", "16x9"), { recursive: true });
     writeFileSync(join(dir, "inceleme", "s1", "16x9", "contact-sheet-1.jpg"), "x");
-    // scene review stills are listed apart: they are not the storyboard to approve
+    writeFileSync(join(dir, "cikti", "ses-ornegi-genc.wav"), "x");
+    // scene review stills are listed apart: they are not the storyboard to approve; voice samples too
     assert.deepEqual(outputsOf(join(dir, "bolum.json")), {
-      sheets: ["storyboard/16x9/contact-sheet-1.png"], videos: ["cikti/b-16x9-taslak.mp4"], review: ["inceleme/s1/16x9/contact-sheet-1.jpg"],
+      sheets: ["storyboard/16x9/contact-sheet-1.png"], videos: ["cikti/b-16x9-taslak.mp4"], samples: ["cikti/ses-ornegi-genc.wav"], review: ["inceleme/s1/16x9/contact-sheet-1.jpg"],
     });
-    assert.deepEqual(outputsOf(join(dir, "yok", "bolum.json")), { sheets: [], videos: [], review: [] });
+    assert.deepEqual(outputsOf(join(dir, "yok", "bolum.json")), { sheets: [], videos: [], samples: [], review: [] });
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -171,4 +172,13 @@ test("a 3D draft job asks the CLI for a 3D draft render", () => {
   const jobs = createJobs({ cli: "/x/cli.mjs", spawn: fakeSpawn(calls) });
   jobs.start("/e/bolum.json", "taslak3b", "16:9");
   assert.deepEqual(calls[0].args, ["/x/cli.mjs", "render", "--taslak", "--3b", "/e/bolum.json", "--format", "16:9"]);
+});
+
+test("a voice sample job runs cizgi ses-ornek for one character, with no format", () => {
+  const calls = [];
+  const jobs = createJobs({ cli: "/x/cli.mjs", library: "/x/lib", spawn: fakeSpawn(calls), now: () => 5 });
+  jobs.start("/e/bolum.json", "ornek", "16:9", "nazim");
+  assert.deepEqual(calls[0].args.slice(0, 4), ["/x/cli.mjs", "ses-ornek", "/e/bolum.json", "nazim"]);
+  assert.ok(!calls[0].args.includes("--format"));
+  assert.throws(() => jobs.start("/f/bolum.json", "ornek", "16:9", "../x"), /character/);
 });

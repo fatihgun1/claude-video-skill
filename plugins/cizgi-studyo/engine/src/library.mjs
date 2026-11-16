@@ -239,6 +239,31 @@ export function loadPropsFrom(folder, into, errors, where = "") {
 }
 
 /**
+ * A drawing's costume variants (character.json "varyantlar": {<id>: {ad?: {tr, en}, palette?: {<colour>: "#rrggbb"}}}):
+ * ids as everywhere, colours only the drawing's own (palette_vars).
+ * @returns {string[]}
+ */
+export function variantErrors(meta) {
+  const v = meta.varyantlar;
+  if (v === undefined) return [];
+  if (!v || typeof v !== "object" || Array.isArray(v)) return ["varyantlar must be an object"];
+  const errors = [];
+  const colours = meta.palette_vars || [];
+  for (const [id, def] of Object.entries(v)) {
+    if (!ID_PATTERN.test(id)) errors.push(`variant "${id}": name must be lowercase letters, digits, - or _`);
+    if (!def || typeof def !== "object") {
+      errors.push(`variant ${id}: must be an object`);
+      continue;
+    }
+    for (const [k, c] of Object.entries(def.palette || {})) {
+      if (!colours.includes(k)) errors.push(`variant ${id}: "${k}" is not one of the drawing's colours (${colours.join(", ")})`);
+      if (typeof c !== "string" || !/^#[0-9a-fA-F]{3,8}$/.test(c)) errors.push(`variant ${id}: colour ${k} must be like #3a5f8a`);
+    }
+  }
+  return errors;
+}
+
+/**
  * One character folder (rig.svg + character.json) read without throwing: a project or draft
  * character that is broken is reported, not fatal.
  * @returns {{meta: object|null, svg: string|null, errors: string[]}}
@@ -257,6 +282,7 @@ export function readCharacter(folder) {
     try {
       meta = JSON.parse(readText(join(folder, "character.json")));
       if (!meta || typeof meta !== "object" || typeof meta.view !== "string") errors.push('character.json needs a "view"');
+      else errors.push(...variantErrors(meta));
     } catch (err) {
       errors.push(`character.json: ${err.message}`);
     }
@@ -320,6 +346,7 @@ export function loadLibrary(dir, opts = {}) {
     const svg = readText(join(dir, "characters", id, "rig.svg"));
     const meta = readJson(join(dir, "characters", id, "character.json"));
     for (const e of checkRig(svg)) errors.push(`character ${id}: ${e}`);
+    for (const e of variantErrors(meta)) errors.push(`character ${id}: ${e}`);
     characters.set(id, { meta, svg });
   }
 
