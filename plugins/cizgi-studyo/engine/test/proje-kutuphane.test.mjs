@@ -149,7 +149,7 @@ test("a broken draft, a taken name or an unknown draft cannot be taken in", () =
   draftBackground(proj, "park");
   assert.throws(() => approveDraft(proj, "mekan", "park", base), /zaten/);
   assert.throws(() => approveDraft(proj, "mekan", "yok", base), /taslak yok/);
-  assert.throws(() => approveDraft(proj, "karakter", "x", base), /tür/);
+  assert.throws(() => approveDraft(proj, "ses", "x", base), /tür/);
   assert.throws(() => approveDraft(proj, "mekan", "../../etc", base), /taslak yok|geçersiz/);
 });
 

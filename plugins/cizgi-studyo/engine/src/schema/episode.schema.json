@@ -39,6 +39,17 @@
         "9:16"
       ]
     },
+    "kararlar": {
+      "description": "Choices the person made before the script approval (cizgi onayla senaryo refuses until all are set and the episode agrees with them): boyut 2b|3b (3b also needs stil3d), muzik var|yok (var: music is set), efekt var|yok (yok: no shot has sfx), altyazi var|yok (yok: altyazi.kapali).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "boyut": { "enum": ["2b", "3b"] },
+        "muzik": { "enum": ["var", "yok"] },
+        "efekt": { "enum": ["var", "yok"] },
+        "altyazi": { "enum": ["var", "yok"] }
+      }
+    },
     "stil3d": {
       "description": "The look of a 3D render (the 2D render ignores it): toon (flat bands of light and an outline, the default), yumusak (smooth shading and soft shadows), pastel (soft colours, a thin outline, a light shadow), golge (toon bands with a shadow, no outline).",
       "enum": ["toon", "yumusak", "pastel", "golge"]

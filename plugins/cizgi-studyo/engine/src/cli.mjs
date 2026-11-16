@@ -4,6 +4,7 @@
  *
  *   cizgi dogrula    <bolum.json>                    schema + library + profile warnings
  *   cizgi durum      <bolum.json>                    gates, audio state, next step
+ *   cizgi senaryo    <bolum.json>                    the script table to show at the senaryo gate
  *   cizgi onayla     senaryo|storyboard <bolum.json> record a human approval (only after a yes)
  *   cizgi ses        <bolum.json> [--hepsi]          speak, check and time changed lines
  *   cizgi kabul      <bolum.json> <line-key>         keep a take that failed the listening check (only after a yes)
@@ -31,12 +32,15 @@ import { storyboard, sceneStills, render, qaPages } from "./uretim.mjs";
 import { loadTools, run } from "./tools.mjs";
 import { openPanel } from "./panel-baslat.mjs";
 import { projectLibraryOf, listDrafts } from "./proje-kutuphane.mjs";
+import { decisionProblems, requireDecisions } from "./kararlar.mjs";
+import { scriptTable } from "./senaryo-tablo.mjs";
+import { checkLibrary, integrityErrors } from "./icerik.mjs";
 
 const DEFAULT_LIBRARY = fileURLToPath(new URL("../../library", import.meta.url));
 const FLAGS = new Set(["--hepsi", "--taslak", "--3b"]);
-const NEEDS = { dogrula: 1, durum: 1, ses: 1, storyboard: 1, render: 1, onayla: 2, derle: 2, kabul: 2, qa: 1, panel: 1, taslaklar: 1 };
+const NEEDS = { dogrula: 1, durum: 1, senaryo: 1, ses: 1, storyboard: 1, render: 1, onayla: 2, derle: 2, kabul: 2, qa: 1, panel: 1, taslaklar: 1 };
 const USAGE =
-  "usage: cizgi dogrula|durum|ses|storyboard|render <bolum.json> · cizgi panel <klasör|bolum.json> · cizgi onayla senaryo|storyboard <bolum.json> · cizgi kabul <bolum.json> <line> · cizgi derle <bolum.json> <dir> [format]\n";
+  "usage: cizgi dogrula|durum|senaryo|ses|storyboard|render <bolum.json> · cizgi panel <klasör|bolum.json> · cizgi onayla senaryo|storyboard <bolum.json> · cizgi kabul <bolum.json> <line> · cizgi derle <bolum.json> <dir> [format]\n";
 
 /**
  * @param {string[]} argv
@@ -91,11 +95,13 @@ export function status(episodePath, lib) {
     storyboard: gateStatus(approvals, "storyboard", storyboardFingerprint(episode, manifest, libraryFingerprint(episode, lib))),
   };
   let next;
-  if (gates.senaryo !== "onayli") next = "show the script to the person, then: cizgi onayla senaryo";
+  const kararlar = decisionProblems(episode, lib);
+  if (gates.senaryo !== "onayli" && kararlar.eksik.length) next = `ask the person the open decisions (kararlar: ${kararlar.eksik.length}), record them in bolum.json, show the script, then: cizgi onayla senaryo`;
+  else if (gates.senaryo !== "onayli") next = "show the script to the person, then: cizgi onayla senaryo";
   else if (plan.todo.length) next = `cizgi ses (${plan.todo.length} line(s) to speak)`;
   else if (gates.storyboard !== "onayli") next = "cizgi storyboard, show the stills, then: cizgi onayla storyboard";
   else next = "cizgi render";
-  return { valid: true, warnings, gates, audio: { lines: lines.length, todo: plan.todo.map((l) => l.key), failed }, next };
+  return { valid: true, warnings, kararlar, gates, audio: { lines: lines.length, todo: plan.todo.map((l) => l.key), failed }, next };
 }
 
 function print(value) {
@@ -117,17 +123,36 @@ function main(argv) {
 
   switch (command) {
     case "dogrula": {
-      const res = validateEpisode(readJson(a1), lib);
-      print(res);
-      return res.ok ? 0 : 1;
+      const episode = readJson(a1);
+      const res = validateEpisode(episode, lib);
+      if (!res.ok) {
+        print(res);
+        return 1;
+      }
+      // files added to or changed in this installed copy of the plugin library: lost on the next update
+      const check = checkLibrary(library);
+      const errors = integrityErrors(episode, check);
+      const local = check.eklenen.length || check.degisen.length ? { eklenti_kutuphanesi: { eklenen: check.eklenen, degisen: check.degisen } } : {};
+      print({ ...res, ok: !errors.length, errors, ...local, kararlar: decisionProblems(episode, lib) });
+      return errors.length ? 1 : 0;
     }
     case "durum":
       print(status(a1, lib));
       return 0;
+    case "senaryo": {
+      const episode = readJson(a1);
+      const { ok, errors } = validateEpisode(episode, lib);
+      if (!ok) throw new Error(`episode is invalid:\n- ${errors.join("\n- ")}`);
+      print(scriptTable(episode));
+      return 0;
+    }
     case "onayla": {
       const episode = readJson(a2);
       const { ok, errors } = validateEpisode(episode, lib);
       if (!ok) throw new Error(`episode is invalid:\n- ${errors.join("\n- ")}`);
+      const local = integrityErrors(episode, checkLibrary(library));
+      if (local.length) throw new Error(`episode uses library files that are not part of the plugin:\n- ${local.join("\n- ")}`);
+      if (a1 === "senaryo") requireDecisions(episode, lib);
       const fp = a1 === "senaryo" ? scriptFingerprint(episode) : storyboardFingerprint(episode, readManifest(a2), libraryFingerprint(episode, lib));
       approve(a2, a1, fp);
       print({ approved: a1, fingerprint: fp });

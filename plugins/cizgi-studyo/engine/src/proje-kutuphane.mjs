@@ -5,7 +5,9 @@
  *
  *   kutuphane/backgrounds/<id>.svg | <id>/mekan.json + layers     usable mekânlar
  *   kutuphane/props/<id>.svg                                        usable nesneler
- *   kutuphane/taslak/backgrounds/…, kutuphane/taslak/props/…        drafts: not usable yet
+ *   kutuphane/characters/<id>/rig.svg + character.json              usable karakterler
+ *   kutuphane/actions/<id>.json                                     usable hareketler
+ *   kutuphane/taslak/<backgrounds|props|characters|actions>/…       drafts: not usable yet
  *   kutuphane/taslak/_reddedilen/                                   rejected drafts, kept aside
  *
  * A draft becomes usable only when the person takes it in ("Kütüphaneye al" in the panel):
@@ -15,13 +17,17 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync 
 import { dirname, join, resolve, sep } from "node:path";
 import { homedir } from "node:os";
 import { createHash } from "node:crypto";
-import { checkProp } from "./library.mjs";
+import { checkProp, readCharacter, readAction } from "./library.mjs";
 import { loadLayered } from "./mekan.mjs";
 import { checkSvgSafety } from "./rigspec.mjs";
 import { ID_PATTERN } from "./util.mjs";
 
 export const PROJECT_LIBRARY = "kutuphane";
-const KIND = Object.freeze({ mekan: "backgrounds", nesne: "props" });
+const KIND = Object.freeze({ mekan: "backgrounds", nesne: "props", karakter: "characters", hareket: "actions" });
+// a draft is a folder (layered background, character) and/or one file with this extension
+const FOLDER = new Set(["mekan", "karakter"]);
+const EXT = Object.freeze({ mekan: ".svg", nesne: ".svg", karakter: null, hareket: ".json" });
+const existing = (lib, tur) => ({ mekan: lib.backgrounds, nesne: lib.props, karakter: lib.characters, hareket: lib.actions })[tur];
 const ASIDE = "_reddedilen";
 
 /**
@@ -44,17 +50,18 @@ export function projectLibraryOf(start) {
 }
 
 const folderOf = (tur) => {
-  if (!Object.hasOwn(KIND, tur)) throw new Error(`tür mekan ya da nesne olmalı: ${tur}`);
+  if (!Object.hasOwn(KIND, tur)) throw new Error(`tür mekan, nesne, karakter ya da hareket olmalı: ${tur}`);
   return KIND[tur];
 };
 const draftsDir = (proj, tur) => join(proj, "taslak", folderOf(tur));
 
-/** Where a draft is: a layered background folder or one SVG file; null when there is none. */
+/** Where a draft is: a folder (layered background, character) or one file; null when there is none. */
 function draftPath(proj, tur, id) {
   if (!ID_PATTERN.test(id || "")) return null;
   const base = draftsDir(proj, tur);
-  if (tur === "mekan" && existsSync(join(base, id)) && statSync(join(base, id)).isDirectory()) return { path: join(base, id), folder: true };
-  if (existsSync(join(base, `${id}.svg`))) return { path: join(base, `${id}.svg`), folder: false };
+  if (FOLDER.has(tur) && existsSync(join(base, id)) && statSync(join(base, id)).isDirectory()) return { path: join(base, id), folder: true, ext: "" };
+  const ext = EXT[tur];
+  if (ext && existsSync(join(base, `${id}${ext}`))) return { path: join(base, `${id}${ext}`), folder: false, ext };
   return null;
 }
 
@@ -62,8 +69,17 @@ function draftPath(proj, tur, id) {
 function inspect(proj, tur, id, lib) {
   const where = draftPath(proj, tur, id);
   if (!where) return null;
-  const out = { tur, id, ok: false, errors: [], name: null, layers: [], svg: null, taken: tur === "mekan" ? lib.backgrounds.has(id) : lib.props.has(id) };
-  if (tur === "mekan" && where.folder) {
+  const out = { tur, id, ok: false, errors: [], name: null, layers: [], svg: null, taken: existing(lib, tur).has(id) };
+  if (tur === "karakter") {
+    const c = readCharacter(where.path);
+    out.errors.push(...c.errors);
+    out.name = c.meta?.name?.tr ?? null;
+    out.svg = c.errors.length ? null : c.svg;
+  } else if (tur === "hareket") {
+    const a = readAction(where.path);
+    out.errors.push(...a.errors);
+    out.name = a.action?.label?.tr ?? null;
+  } else if (tur === "mekan" && where.folder) {
     if (!existsSync(join(where.path, "mekan.json"))) out.errors.push("mekan.json yok");
     else {
       const bg = loadLayered(where.path, id, lib.world);
@@ -86,7 +102,7 @@ function inspect(proj, tur, id, lib) {
 
 /**
  * Every draft with what is wrong with it (nothing, when ok).
- * @returns {{tur:"mekan"|"nesne", id:string, ok:boolean, errors:string[], name:string|null, layers:{id:string, derinlik:number}[], taken:boolean}[]}
+ * @returns {{tur:"mekan"|"nesne"|"karakter"|"hareket", id:string, ok:boolean, errors:string[], name:string|null, layers:{id:string, derinlik:number}[], taken:boolean}[]}
  */
 export function listDrafts(proj, lib) {
   if (!proj) return [];
@@ -97,8 +113,9 @@ export function listDrafts(proj, lib) {
     const ids = new Set();
     for (const e of readdirSync(base, { withFileTypes: true })) {
       if (e.name === ASIDE) continue;
-      if (e.isFile() && e.name.endsWith(".svg")) ids.add(e.name.slice(0, -4));
-      else if (e.isDirectory() && tur === "mekan") ids.add(e.name);
+      const ext = EXT[tur];
+      if (e.isFile() && ext && e.name.endsWith(ext)) ids.add(e.name.slice(0, -ext.length));
+      else if (e.isDirectory() && FOLDER.has(tur)) ids.add(e.name);
     }
     for (const id of [...ids].sort()) {
       if (!ID_PATTERN.test(id)) {
@@ -127,7 +144,7 @@ export function approveDraft(proj, tur, id, lib) {
   if (!d) throw new Error(`taslak yok: ${tur} ${id}`);
   if (!d.ok) throw new Error(d.errors.join("; "));
   const from = draftPath(proj, tur, id);
-  const target = join(proj, folderOf(tur), from.folder ? id : `${id}.svg`);
+  const target = join(proj, folderOf(tur), `${id}${from.ext}`);
   if (existsSync(target)) throw new Error(`"${id}" adında bir ${tur} zaten var`);
   mkdirSync(dirname(target), { recursive: true });
   move(from.path, target);
@@ -154,7 +171,7 @@ export function rejectDraft(proj, tur, id) {
   const aside = join(proj, "taslak", ASIDE);
   mkdirSync(aside, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  move(from.path, join(aside, `${tur}-${id}-${stamp}${from.folder ? "" : ".svg"}`));
+  move(from.path, join(aside, `${tur}-${id}-${stamp}${from.ext}`));
   return { tur, id };
 }
 

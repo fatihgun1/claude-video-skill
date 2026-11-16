@@ -1,4 +1,4 @@
-// Drafts of the project library, under the library's Mekân and Nesne panels: what Claude drew and
+// Drafts of the project library, under the library's Mekân, Nesne, Karakter and Hareket panels: what Claude drew and
 // is waiting for the person. A good draft can be looked at and taken in ("Kütüphaneye al"), after
 // which it is an ordinary card; one the person does not want is put aside ("Reddet", kept in
 // kutuphane/taslak/_reddedilen). Below them, a form to ask Claude for a new drawing. Under Ses:
@@ -7,8 +7,23 @@
 import { el } from "./dom.js";
 import { tr } from "./tr.js";
 
-const KIND_TEXT = { mekan: "mekân", nesne: "nesne", ses: "efekt" };
-const PLACEHOLDER = { mekan: "Örnek: akşamüstü bir sahil; uzakta ada, önde kumdan kale", nesne: "Örnek: kırmızı bir top (elde tutulur)", ses: "Örnek: kuş cıvıltısı, kısa" };
+const KIND_TEXT = { mekan: "mekân", nesne: "nesne", karakter: "karakter", hareket: "hareket", ses: "efekt" };
+const PLACEHOLDER = {
+  mekan: "Örnek: akşamüstü bir sahil; uzakta ada, önde kumdan kale",
+  nesne: "Örnek: kırmızı bir top (elde tutulur)",
+  karakter: "Örnek: iri yapılı, sakallı, bereli bir sokak adamı; yandan görünüş",
+  hareket: "Örnek: bankta oturur, sonra kalkar (yandan görünüş için)",
+  ses: "Örnek: kuş cıvıltısı, kısa",
+};
+const TABS = Object.keys(KIND_TEXT);
+const blank = () => Object.fromEntries(TABS.map((t) => [t, ""]));
+// where Claude writes each kind of draft, and what it is made of
+const DRAFT_AT = {
+  mekan: { dir: "backgrounds\\<ad>\\", what: "mekan.json ve her katman için bir SVG" },
+  nesne: { dir: "props\\<ad>.svg", what: "data-grip ve data-base ile" },
+  karakter: { dir: "characters\\<ad>\\", what: "rig.svg ve character.json, docs/RIG-SPEC.md'ye göre; önce bana bir konsept göster" },
+  hareket: { dir: "actions\\<ad>.json", what: "karakterin görünüşüne uygun views ile, eklem sınırları içinde" },
+};
 
 /**
  * @param {{api:(path:string, body?:object) => Promise<any>, path:() => string|null, title:() => string,
@@ -20,10 +35,10 @@ export function createDrafts(ctx) {
   let project = null;
   let signature = null;
   let error = "";
-  const sent = { mekan: "", nesne: "", ses: "" }; // what the last request of each tab did
-  const askError = { mekan: "", nesne: "", ses: "" };
+  const sent = blank(); // what the last request of each tab did
+  const askError = blank();
   let loaded = false;
-  const asks = { mekan: "", nesne: "", ses: "" }; // what was typed, kept across redraws
+  const asks = blank(); // what was typed, kept across redraws
 
   async function refresh() {
     try {
@@ -58,14 +73,14 @@ export function createDrafts(ctx) {
     const what = asks[tur].trim();
     if (!what) return;
     const lib = project || "<proje>\\kutuphane";
-    const where = tur === "mekan" ? `${lib}\\taslak\\backgrounds\\<ad>\\` : `${lib}\\taslak\\props\\<ad>.svg`;
+    const at = DRAFT_AT[tur];
     const metin = tur === "ses" ? [
       `Kütüphanede bu efekt yok: ${what}`,
       "CC0 (kamu malı) bir kaynak öner: bağlantısı ve lisansıyla. İndirmeden önce bana sor.",
       `Onaylarsam ${lib}\\sfx\\<ad>.wav olarak koy (44.1 kHz mono WAV) ve kaynağını ${lib}\\sfx\\KAYNAKLAR.md'ye yaz (cizgi-studyo skill'indeki “Yeni efekt” bölümü). Bitince panel_yanitla ile yaz.`,
     ].join("\n") : [
-      tur === "mekan" ? `Yeni bir katmanlı mekân çiz (taslak): ${what}` : `Yeni bir nesne çiz (taslak): ${what}`,
-      `Taslak olarak ${where} yaz${tur === "mekan" ? ": mekan.json ve her katman için bir SVG" : ": data-grip ve data-base ile"} (cizgi-studyo skill'indeki “Taslak çizim” bölümü).`,
+      `Yeni bir ${tur === "mekan" ? "katmanlı mekân" : KIND_TEXT[tur]} çiz (taslak): ${what}`,
+      `Taslak olarak ${lib}\\taslak\\${at.dir} yaz: ${at.what} (cizgi-studyo skill'indeki “Taslak çizim” bölümü).`,
       "Kütüphaneye kendin alma: panelde ben bakıp alacağım. Bitince adını ve neyi çizdiğini panel_yanitla ile yaz.",
     ].join("\n");
     askError[tur] = "";
@@ -82,7 +97,9 @@ export function createDrafts(ctx) {
 
   function draftCard(d) {
     const tur = d.tur;
-    const thumb = d.ok
+    const thumb = d.ok && tur === "hareket"
+      ? el("span", { class: "why", text: "kütüphaneye alınca kartında denenir" })
+      : d.ok
       ? el("img", { alt: "", loading: "lazy", src: `/kutuphane-taslak/${tur}/${d.id}.svg?v=${signature || ""}` })
       : el("span", { class: "why", text: "önizleme yok: hatalı" });
     return el("div", { class: "card draft" },
@@ -107,9 +124,9 @@ export function createDrafts(ctx) {
   }
 
   return {
-    /** The drafts part of the Mekân or Nesne panel; under Ses, the project's sound problems and the ask form. */
+    /** The drafts part of the Mekân, Nesne, Karakter or Hareket panel; under Ses, the project's sound problems and the ask form. */
     section(tab) {
-      if (tab !== "mekan" && tab !== "nesne" && tab !== "ses") return [];
+      if (!TABS.includes(tab)) return [];
       if (!loaded) {
         refresh();
         return [];

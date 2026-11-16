@@ -13,13 +13,8 @@ CLI="node ${CLAUDE_PLUGIN_ROOT}/engine/src/cli.mjs"
 
 ## Steps
 
-1. Run `$CLI dogrula <bolum.json>`. There must be no errors.
-2. **Show the script** as one table, one row per shot:
-
-   | Shot | Background | Who speaks | Line | Action | Camera | Hold |
-   |---|---|---|---|---|---|---|
-
-   Fill every column for every shot (Action: each character's action; Camera: framing and move). Above the table name the episode's format, 2D or 3D (and `stil3d`), music and captions.
+1. Run `$CLI dogrula <bolum.json>`. There must be no errors, and `kararlar.eksik` must be empty: each entry is a choice the person has not made yet (format, 2D/3D, music, effects, captions) or one the episode contradicts. Ask them, record the answer, run it again. `onayla senaryo` refuses until it is empty.
+2. **Show the script**: run `$CLI senaryo <bolum.json>` and paste its `tablo` as it is: the decisions on top, then one row per shot with the place, speakers, lines, actions (with props and effects), camera and hold. Do not drop or merge columns; explain a row in your own words under the table if it helps.
 
    Under the table, list:
    - every **warning** from `dogrula` (profile rules such as sentence length or counting)

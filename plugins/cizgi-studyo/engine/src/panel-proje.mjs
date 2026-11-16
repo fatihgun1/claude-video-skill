@@ -145,17 +145,30 @@ export function summarize(root, rel, lib, status) {
   };
 }
 
-const firstOf = (map, preferred) => (map.has(preferred) ? preferred : [...map.keys()][0]);
+/** A standing action drawn for the rig's view: "bekle", else another "bekle…", else any loop that fits. */
+function standingFor(lib, rig) {
+  const view = lib.characters.get(rig).meta.view || "front";
+  const fits = [...lib.actions].filter(([, a]) => !a.views || a.views.includes(view));
+  return (fits.find(([id]) => id === "bekle") || fits.find(([id]) => id.startsWith("bekle")) || fits.find(([, a]) => a.loop))?.[0];
+}
+
+/** What a new episode may start with: the person picks one character and one place. */
+export function newEpisodeChoices(lib) {
+  return {
+    rigs: [...lib.characters].map(([id, c]) => ({ id, label: c.meta?.name?.tr || id })),
+    backgrounds: [...lib.backgrounds.keys()].map((id) => ({ id, label: lib.backgroundNames?.get(id) || id })),
+  };
+}
 
 /**
- * A minimal valid episode: one scene, one shot, one character standing in the middle.
- * Every word comes from the library.
+ * A minimal valid episode: one scene in the chosen place, one shot, the chosen character standing
+ * in the middle. Every word comes from the library; nothing is picked for the person.
  * @param {object} lib
- * @param {{id:string, title:string}} q
+ * @param {{id:string, title:string, rig:string, bg:string}} q
  */
-export function episodeTemplate(lib, { id, title }) {
-  const rig = lib.characters.has("ela") ? "ela" : [...lib.characters].find(([, c]) => (c.meta.view || "front") === "front")?.[0];
-  if (!rig || !lib.backgrounds.size || !lib.actions.size) throw new HttpError(422, "kütüphanede önden çizilmiş karakter, mekân ya da hareket yok");
+export function episodeTemplate(lib, { id, title, rig, bg }) {
+  const standing = standingFor(lib, rig);
+  if (!standing) throw new HttpError(422, "bu karakterin görünüşü için kütüphanede duran bir hareket yok");
   const meta = lib.characters.get(rig)?.meta;
   const who = meta?.same_as || rig;
   const name = (meta?.name?.tr || meta?.label?.tr || who).replace(/\s*\(.*\)$/, "");
@@ -167,10 +180,10 @@ export function episodeTemplate(lib, { id, title }) {
     characters: [{ id: who, name, rig }],
     scenes: [{
       scene_id: "s1",
-      bg: firstOf(lib.backgrounds, "park"),
+      bg,
       shots: [{
         shot_id: "s1_sh1",
-        cast: [{ id: who, action: firstOf(lib.actions, "bekle"), mark: "orta" }],
+        cast: [{ id: who, action: standing, mark: "orta" }],
         camera: { framing: "wide", move: "static", target: who },
         hold: 2,
       }],
@@ -187,11 +200,15 @@ export function createEpisode(root, lib, body, serialize) {
   if (!EPISODE_ID.test(id)) throw new HttpError(400, "kimlik yalnızca küçük harf, rakam ve tire olabilir (örnek: park-gunu)");
   const title = typeof body?.title === "string" ? body.title.trim() : "";
   if (!title || title.length > MAX_TITLE) throw new HttpError(400, `başlık 1-${MAX_TITLE} karakter olmalı`);
+  const rig = typeof body?.rig === "string" ? body.rig : "";
+  if (!lib.characters.has(rig)) throw new HttpError(400, "bir karakter seç (kütüphanedeki karakterlerden)");
+  const bg = typeof body?.bg === "string" ? body.bg : "";
+  if (!lib.backgrounds.has(bg)) throw new HttpError(400, "bir mekân seç (kütüphanedeki mekânlardan)");
   const rel = `${NEW_EPISODE_DIR}/${id}/${EPISODE_FILE}`;
   const file = inside(root, rel);
   const dir = dirname(file);
   if (existsSync(dir)) throw new HttpError(409, `${NEW_EPISODE_DIR}/${id} zaten var`);
-  const episode = episodeTemplate(lib, { id, title });
+  const episode = episodeTemplate(lib, { id, title, rig, bg });
   const validation = validateEpisode(episode, lib);
   if (!validation.ok) throw new HttpError(500, `şablon geçersiz: ${validation.errors.join("; ")}`);
   mkdirSync(dirname(dir), { recursive: true });

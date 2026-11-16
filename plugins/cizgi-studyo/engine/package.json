@@ -13,7 +13,8 @@
   },
   "scripts": {
     "test": "node --test \"test/**/*.test.mjs\"",
-    "coverage": "node --test --experimental-test-coverage --test-coverage-include=\"src/**\" \"test/**/*.test.mjs\""
+    "coverage": "node --test --experimental-test-coverage --test-coverage-include=\"src/**\" \"test/**/*.test.mjs\"",
+    "icerik": "node -e \"import('./src/icerik.mjs').then(m=>m.writeManifest('../library'))\""
   },
   "dependencies": {
     "ajv": "8.18.0",

@@ -38,7 +38,7 @@ import { reviewScene } from "./inceleme.mjs";
 import { vocabulary, libraryFile, actionPreview } from "./panel-kutuphane.mjs";
 import { readManifest, failedLines } from "./ses.mjs";
 import { outputsOf, OUTPUT_DIRS } from "./panel-is.mjs";
-import { HttpError, MAX_EPISODES, findEpisodes, episodePathOf, summarize, createEpisode, workspaceOf, insideReally } from "./panel-proje.mjs";
+import { HttpError, MAX_EPISODES, findEpisodes, episodePathOf, summarize, createEpisode, newEpisodeChoices, workspaceOf, insideReally } from "./panel-proje.mjs";
 import { requestRoutes } from "./panel-istek.mjs";
 import { storyRoutes } from "./panel-hikaye.mjs";
 import { draftRoutes, draftFile } from "./panel-taslak.mjs";
@@ -183,6 +183,7 @@ export function createPanel(opts) {
         initial: space.initial,
         truncated: list.length >= MAX_EPISODES, // the picker says so instead of silently dropping episodes
         episodes: list.map((rel) => summarize(root, rel, lib, opts.status)),
+        secenekler: newEpisodeChoices(lib), // "Yeni bölüm": the person picks its character and place
       };
     },
     "POST /api/yeni": (body) => ({ path: createEpisode(root, opts.loadLib(), body, serialize) }),

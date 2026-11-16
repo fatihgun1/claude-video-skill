@@ -169,13 +169,18 @@ test("episode names must stay inside the folder and point at a bolum.json", asyn
 });
 
 test("a new episode is written from a valid template under bolumler/<id>/ and listed", async () => {
-  const res = await call("POST", "/api/yeni", { body: { id: "park-gunu", title: "Park günü" } });
+  const res = await call("POST", "/api/yeni", { body: { id: "park-gunu", title: "Park günü", rig: "genc", bg: "sokak" } });
   assert.equal(res.status, 200, res.text);
   assert.equal(res.json.path, "bolumler/park-gunu/bolum.json");
   const ep = read("bolumler/park-gunu/bolum.json");
   assert.equal(ep.episode, "park-gunu");
   assert.equal(ep.title, "Park günü");
   assert.equal(validateEpisode(ep, lib).ok, true);
+  // the person chose who and where: the template picks neither
+  assert.deepEqual(ep.characters.map((c) => c.rig), ["genc"]);
+  assert.equal(ep.scenes[0].bg, "sokak");
+  const standing = lib.actions.get(ep.scenes[0].shots[0].cast[0].action);
+  assert.ok(!standing.views || standing.views.includes(lib.characters.get("genc").meta.view), "a standing action drawn for that view");
   assert.equal(readFileSync(join(root, "bolumler", "park-gunu", "bolum.json"), "utf8"), serialize(ep));
   const { json } = await call("GET", "/api/bolumler");
   const listed = json.episodes.find((e) => e.path === "bolumler/park-gunu/bolum.json");
@@ -186,17 +191,27 @@ test("a new episode is written from a valid template under bolumler/<id>/ and li
 });
 
 test("a new episode never overwrites, and its id and title are checked", async () => {
-  await call("POST", "/api/yeni", { body: { id: "tek", title: "Tek" } });
+  await call("POST", "/api/yeni", { body: { id: "tek", title: "Tek", rig: "genc", bg: "sokak" } });
   const before = readFileSync(join(root, "bolumler", "tek", "bolum.json"), "utf8");
-  const again = await call("POST", "/api/yeni", { body: { id: "tek", title: "Başka" } });
+  const again = await call("POST", "/api/yeni", { body: { id: "tek", title: "Başka", rig: "genc", bg: "sokak" } });
   assert.equal(again.status, 409);
   assert.equal(readFileSync(join(root, "bolumler", "tek", "bolum.json"), "utf8"), before);
-  for (const body of [{ id: "../kacak", title: "x" }, { id: "Büyük", title: "x" }, { id: "a_b", title: "x" }, { id: "", title: "x" },
-    { id: "bos-baslik", title: "  " }, { id: "uzun", title: "x".repeat(121) }, { id: 5, title: "x" }, {}]) {
+  const ok = { rig: "genc", bg: "sokak" };
+  for (const body of [{ ...ok, id: "../kacak", title: "x" }, { ...ok, id: "Büyük", title: "x" }, { ...ok, id: "a_b", title: "x" }, { ...ok, id: "", title: "x" },
+    { ...ok, id: "bos-baslik", title: "  " }, { ...ok, id: "uzun", title: "x".repeat(121) }, { ...ok, id: 5, title: "x" }, {},
+    { id: "karaktersiz", title: "x", bg: "sokak" }, { id: "mekansiz", title: "x", rig: "genc" },
+    { id: "bilinmeyen", title: "x", rig: "yok-boyle", bg: "sokak" }, { id: "bilinmeyen-yer", title: "x", rig: "genc", bg: "ay" }]) {
     assert.equal((await call("POST", "/api/yeni", { body })).status, 400, JSON.stringify(body));
   }
   assert.equal(existsSync(join(root, "kacak")), false);
   assert.equal(existsSync(join(root, "bolumler", "bos-baslik")), false);
+  assert.equal(existsSync(join(root, "bolumler", "karaktersiz")), false);
+});
+
+test("the episode list offers the characters and places a new episode can start with", async () => {
+  const { json } = await call("GET", "/api/bolumler");
+  assert.ok(json.secenekler.rigs.some((r) => r.id === "genc" && r.label));
+  assert.ok(json.secenekler.backgrounds.some((b) => b.id === "sokak" && b.label));
 });
 
 test("a link inside the folder that leads out of it is refused", async (t) => {
@@ -212,7 +227,7 @@ test("a link inside the folder that leads out of it is refused", async (t) => {
     // bolumler/ as a link out of the folder: no new episode is written there.
     rmSync(join(root, "bolumler"), { recursive: true, force: true });
     symlinkSync(outside, join(root, "bolumler"), "junction");
-    const res = await call("POST", "/api/yeni", { body: { id: "kacak", title: "x" } });
+    const res = await call("POST", "/api/yeni", { body: { id: "kacak", title: "x", rig: "genc", bg: "sokak" } });
     assert.equal(res.status, 403);
     assert.equal(existsSync(join(outside, "kacak")), false);
   } finally {

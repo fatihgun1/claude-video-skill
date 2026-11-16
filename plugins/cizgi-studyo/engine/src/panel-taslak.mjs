@@ -35,7 +35,7 @@ export function draftRoutes({ project, loadLib }) {
 
 /** /kutuphane-taslak/<tur>/<id>.svg → the drawing, or undefined when the path is not one of these. */
 export function draftFile(path, { project, loadLib }) {
-  const m = /^\/kutuphane-taslak\/(mekan|nesne)\/([a-z0-9_-]+)\.svg$/.exec(path);
+  const m = /^\/kutuphane-taslak\/(mekan|nesne|karakter)\/([a-z0-9_-]+)\.svg$/.exec(path);
   if (!m) return undefined;
   const svg = draftSvg(project, m[1], m[2], loadLib());
   if (!svg) throw new HttpError(404, "taslak yok ya da hatalı");

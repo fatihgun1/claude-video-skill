@@ -239,6 +239,70 @@ export function loadPropsFrom(folder, into, errors, where = "") {
 }
 
 /**
+ * One character folder (rig.svg + character.json) read without throwing: a project or draft
+ * character that is broken is reported, not fatal.
+ * @returns {{meta: object|null, svg: string|null, errors: string[]}}
+ */
+export function readCharacter(folder) {
+  const errors = [];
+  let svg = null;
+  let meta = null;
+  if (!existsSync(join(folder, "rig.svg"))) errors.push("rig.svg is missing");
+  else {
+    svg = readText(join(folder, "rig.svg"));
+    errors.push(...checkRig(svg));
+  }
+  if (!existsSync(join(folder, "character.json"))) errors.push("character.json is missing");
+  else {
+    try {
+      meta = JSON.parse(readText(join(folder, "character.json")));
+      if (!meta || typeof meta !== "object" || typeof meta.view !== "string") errors.push('character.json needs a "view"');
+    } catch (err) {
+      errors.push(`character.json: ${err.message}`);
+    }
+  }
+  return { meta, svg, errors };
+}
+
+/**
+ * One action file read without throwing.
+ * @returns {{action: object|null, errors: string[]}}
+ */
+export function readAction(file) {
+  try {
+    const action = JSON.parse(readText(file));
+    return { action, errors: checkAction(action, basename(file)) };
+  } catch (err) {
+    return { action: null, errors: [err.message] };
+  }
+}
+
+/** The project's characters and actions (<project>/kutuphane/characters, /actions) next to the plugin's. */
+function loadProjectRigs(project, characters, actions, errors) {
+  for (const id of entries(join(project, "characters"))) {
+    const where = `project character ${id}`;
+    if (!ID_PATTERN.test(id)) errors.push(`${where}: name must be lowercase letters, digits, - or _`);
+    else if (characters.has(id)) errors.push(`${where}: the plugin's library already has a character "${id}"`);
+    else {
+      const c = readCharacter(join(project, "characters", id));
+      if (c.errors.length) errors.push(...c.errors.map((e) => `${where}: ${e}`));
+      else characters.set(id, { meta: c.meta, svg: c.svg });
+    }
+  }
+  for (const file of entries(join(project, "actions"), ".json")) {
+    const id = basename(file, ".json");
+    const where = `project action ${id}`;
+    if (!ID_PATTERN.test(id)) errors.push(`${where}: name must be lowercase letters, digits, - or _`);
+    else if (actions.has(id)) errors.push(`${where}: the plugin's library already has an action "${id}"`);
+    else {
+      const a = readAction(join(project, "actions", file));
+      if (a.errors.length) errors.push(...a.errors.map((e) => `${where}: ${e}`));
+      else actions.set(id, a.action);
+    }
+  }
+}
+
+/**
  * Load and verify a library folder.
  * @param {string} dir
  * @param {{project?: string|null}} [opts] project: the project's own library folder (<project>/kutuphane)
@@ -268,16 +332,19 @@ export function loadLibrary(dir, opts = {}) {
     actions.set(id, action);
   }
 
+  // The project's own library (<project>/kutuphane): drawn for this project, next to the plugin's.
+  // A broken drawing there (or one with a name the plugin already uses) is left out and reported in
+  // projectErrors, instead of stopping everything: the panel must still open to fix it.
+  const projectErrors = [];
+  if (opts.project && existsSync(opts.project)) loadProjectRigs(opts.project, characters, actions, projectErrors);
+
   // Backgrounds: one SVG, or a folder of layers (mekan.mjs). backgrounds holds one drawing per
   // background (the layers drawn together); layers holds what the player moves one by one.
   const bg = { backgrounds: new Map(), layers: new Map(), names: new Map() };
   const props = new Map();
   loadBackgroundsFrom(join(dir, "backgrounds"), world, bg, errors);
   loadPropsFrom(join(dir, "props"), props, errors);
-  // The project's own library (<project>/kutuphane): drawn for this project, next to the plugin's.
-  // A broken drawing there (or one with a name the plugin already uses) is left out and reported in
-  // projectErrors, instead of stopping everything: the panel must still open to fix it.
-  const projectErrors = [];
+  // the project's backgrounds and props, as its characters and actions above
   if (opts.project && existsSync(opts.project)) {
     const mine = { backgrounds: new Map(), layers: new Map(), names: new Map() };
     const myProps = new Map();

@@ -137,6 +137,22 @@ export function createProjects(page, ctx) {
   function newForm() {
     const title = el("input", { type: "text", maxlength: "120", placeholder: "Örnek: Park günü", required: true, "aria-label": "Başlık" });
     const id = el("input", { type: "text", maxlength: "60", placeholder: "park-gunu", required: true, pattern: "[a-z0-9]+(-[a-z0-9]+)*", "aria-label": "Kimlik" });
+    // who and where: the person picks them; nothing is chosen for them. The options come with the list.
+    const rig = el("select", { required: true, "aria-label": "Karakter" });
+    const bg = el("select", { required: true, "aria-label": "Mekân" });
+    let filledFrom = null;
+    const fill = (select, items, none) => {
+      const keep = select.value;
+      select.replaceChildren(el("option", { value: "", text: none }),
+        ...(items || []).map((o) => el("option", { value: o.id, text: o.label === o.id ? o.id : `${o.label} (${o.id})` })));
+      select.value = (items || []).some((o) => o.id === keep) ? keep : "";
+    };
+    const setChoices = (choices) => {
+      if (!choices || choices === filledFrom) return;
+      filledFrom = choices;
+      fill(rig, choices.rigs, "Karakter seç…");
+      fill(bg, choices.backgrounds, "Mekân seç…");
+    };
     let idTouched = false;
     title.addEventListener("input", () => { if (!idTouched) id.value = slug(title.value); });
     id.addEventListener("input", () => { idTouched = true; });
@@ -145,7 +161,7 @@ export function createProjects(page, ctx) {
       ev.preventDefault();
       msg.textContent = "";
       try {
-        const res = await ctx.api("/api/yeni", { id: id.value.trim(), title: title.value.trim() });
+        const res = await ctx.api("/api/yeni", { id: id.value.trim(), title: title.value.trim(), rig: rig.value, bg: bg.value });
         f.reset();
         idTouched = false;
         creating = false;
@@ -158,12 +174,14 @@ export function createProjects(page, ctx) {
     el("h3", { text: "Yeni bölüm" }),
     el("label", { class: "field" }, el("span", { text: "Başlık" }), title),
     el("label", { class: "field" }, el("span", { text: "Kimlik" }), id),
-    el("p", { class: "muted small", text: "bolumler/<kimlik>/bolum.json olarak yazılır: bir sahne, bir shot, ortada duran bir karakter. Sonra panelde düzenlersin." }),
+    el("label", { class: "field" }, el("span", { text: "İlk karakter" }), rig),
+    el("label", { class: "field" }, el("span", { text: "İlk mekân" }), bg),
+    el("p", { class: "muted small", text: "bolumler/<kimlik>/bolum.json olarak yazılır: seçtiğin mekânda bir sahne, bir shot, ortada duran seçtiğin karakter. Sonra panelde düzenlersin." }),
     el("div", { class: "row" },
       el("button", { class: "btn primary", type: "submit", text: "Oluştur ve aç" }),
       el("button", { class: "btn", type: "button", text: "Vazgeç", on: { click: () => { creating = false; render(); } } }),
       msg));
-    return { form: f, focus: () => title.focus() };
+    return { form: f, focus: () => title.focus(), setChoices };
   }
 
   const grid = el("div", { class: "hframe" });
@@ -195,6 +213,7 @@ export function createProjects(page, ctx) {
       ? el("p", { class: "warn small", text: `İlk ${list.episodes.length} bölüm gösteriliyor; daha fazlası için paneli daha dar bir klasörle aç.` })
       : null;
     renderGrid();
+    newEp.setChoices(list?.secenekler);
     const parts = [head, creating ? newEp.form : null, confirmBar(), error ? el("p", { class: "err", text: error }) : null, tools, grid, more];
     page.replaceChildren(el("div", { class: "hpage" }, parts.filter(Boolean)));
   }
