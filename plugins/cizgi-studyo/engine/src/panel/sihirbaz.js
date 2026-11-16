@@ -51,6 +51,47 @@ export function createWizard() {
           : null));
   }
 
+  const closeButton = (w) => (w.bitti
+    ? el("button", { class: "btn", type: "button", text: "Kapat", on: { click: () => { dismissed = w.id; render(); } } })
+    : el("button", { class: "btn", type: "button", text: "Küçült", title: "Panelde çalışmaya devam et; alttaki düğmeyle geri gelir", on: { click: () => { small = true; render(); } } }));
+
+  /**
+   * Over the editor the wizard is a full work page, like the project wizard: the steps on the left,
+   * the current step with its pictures large in the middle, Claude's question on the right (where
+   * the person picks). A narrow drawer over the page hid the list and cramped the pictures.
+   */
+  function page(w, active) {
+    const pos = position(w);
+    return [
+      el("header", { class: "psih-bas" },
+        el("div", { class: "psih-baslik" },
+          el("h2", { id: "sihirbaz-baslik", text: w.baslik }),
+          el("span", { class: "muted small", text: w.bitti ? "Bütün adımlar bitti" : `Claude ile birlikte · Adım ${pos} / ${w.adimlar.length}` })),
+        closeButton(w)),
+      el("div", { class: "psih-alan" },
+        el("nav", { class: "psih-adimlar", "aria-label": "Adımlar" }, el("ol", {}, w.adimlar.map((a, i) => el("li", {},
+          el("div", { class: `sadim-satir ${a.durum}${a.id === w.aktif ? " simdi" : ""}`, "aria-current": a.id === w.aktif ? "step" : null },
+            el("span", { class: "padim-no", "aria-hidden": "true", text: MARK[a.durum] || String(i + 1) }),
+            el("span", {}, el("span", { class: "sadim-ad", text: a.baslik }), el("small", { text: STATE_TEXT[a.durum] || a.durum }))))))),
+        el("main", { class: "psih-form" },
+          el("div", { class: "psih-sutun" },
+            active
+              ? [el("h3", { text: active.baslik }),
+                el("p", { class: `sihirbaz-durum ${active.durum}`, text: STATE_TEXT[active.durum] || active.durum }),
+                active.aciklama ? el("p", { class: "psih-aciklama", text: active.aciklama }) : null,
+                active.gorsel.length
+                  ? el("div", { class: "sihirbaz-resimler" }, active.gorsel.map((src, n) => el("figure", {},
+                    el("img", { src, alt: `${active.baslik}: görsel ${n + 1}`, loading: "lazy" }),
+                    el("figcaption", { text: String(n + 1) }))))
+                  : null]
+              : el("p", { class: "psih-aciklama", text: "Claude adımları sırayla yürütüyor." }))),
+        el("aside", { class: "psih-claude", "aria-label": "Claude" },
+          el("h3", { text: "Claude" }),
+          slot, // Claude's question: the person picks here
+          el("p", { class: "muted small sihirbaz-bos", text: active?.durum === "bekliyor" ? "Claude senden bir şey bekliyor; soru gelince burada görünür." : "Claude bir şey sorarsa burada görünür." }))),
+    ];
+  }
+
   function render() {
     place();
     const w = open();
@@ -61,6 +102,12 @@ export function createWizard() {
     chip.textContent = w.bitti ? `${w.baslik}: bitti` : `${w.baslik} · ${position(w)}/${w.adimlar.length}${active ? ` · ${active.baslik}` : ""}`;
     chip.classList.toggle("bekliyor", active?.durum === "bekliyor");
     if (small) return;
+    const docked = box.classList.contains("docked");
+    box.classList.toggle("sayfa", !docked);
+    if (!docked) {
+      box.replaceChildren(...page(w, active));
+      return;
+    }
     box.replaceChildren(...[
       el("div", { class: "sust" },
         el("span", { class: "skim", text: "Claude ile birlikte" }),
