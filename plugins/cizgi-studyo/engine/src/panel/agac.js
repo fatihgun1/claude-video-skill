@@ -271,7 +271,7 @@ export function createTree(root, ctx) {
     root.replaceChildren(el("div", {},
       error ? el("p", { class: "err small", text: error }) : null,
       el("ol", { class: "tree" }, list.map(episodeRow)),
-      el("p", { class: "muted small tree-hint", text: "Yeni bölüm ve bölüm kartları: üstteki bölüm adına tıkla." })));
+      el("p", { class: "muted small tree-hint", text: "Yeni bölüm ve bütün bölümler: üstteki “← Projeler”." })));
     if (!active) return;
     // The keyboard stays where it was; if that control is gone (a deleted scene), on the selected shot.
     const all = [...root.querySelectorAll("[data-focus]")];

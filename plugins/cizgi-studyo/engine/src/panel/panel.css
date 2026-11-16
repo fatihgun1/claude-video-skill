@@ -420,12 +420,30 @@ textarea { min-height: 70px; resize: vertical; }
 .layers-menu { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 5; min-width: 170px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--pane); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
 .layers-menu label { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; }
 
-/* Episode button in the bar */
-.project { display: flex; align-items: baseline; gap: 10px; min-width: 0; max-width: 520px; border: 1px solid transparent; background: transparent; border-radius: 6px; padding: 5px 10px; cursor: pointer; text-align: left; }
-.project:hover { background: var(--pane-2); border-color: var(--line); }
-.project .ttl { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
-.project .ppath { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.project .caret { color: var(--muted); }
+/* Episode title in the bar (its file path is the tooltip) */
+.ep-title { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 360px; }
+
+/* Projeler: the home page. While it shows, the editor and its bar controls step aside. */
+body.at-home .editor, body.at-home .bar > :not(.brand):not(.state), body.at-home .home-btn { display: none; } /* the status line stays: an open that failed says why */
+.home { height: calc(100vh - 52px); overflow: auto; background: var(--bg); }
+.home[hidden] { display: none; }
+.hpage { max-width: 1180px; margin: 0 auto; padding: 32px 24px 48px; }
+.hhead { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+.htitle { flex: 1; min-width: 240px; }
+.htitle h2 { font-size: 24px; line-height: 1.2; margin: 0 0 4px; letter-spacing: -.01em; }
+.htitle p { margin: 0; }
+.home h3 { font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 8px; }
+.htools { display: flex; align-items: center; gap: 12px; margin: 22px 0 10px; }
+.hsearch-wrap { display: flex; align-items: center; gap: 8px; flex: 0 1 400px; }
+.hsearch-lab { color: var(--muted); font-size: 12px; font-weight: 600; }
+.hsearch { flex: 1; min-width: 0; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--pane); }
+.hframe { min-height: 220px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--pane); }
+.home .pgrid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.home .pcard { background: var(--pane-2); }
+.popen { margin-top: auto; padding-top: 6px; color: var(--accent); font-size: 12px; font-weight: 600; }
+.pcard:hover .popen { text-decoration: underline; text-underline-offset: 2px; }
+.home .newep { max-width: 560px; margin: 16px 0 0; padding: 14px 16px; border: 1px solid var(--accent); border-radius: 12px; background: var(--pane); }
+.home .confirm { margin: 16px 0 0; }
 
 /* Episode picker */
 .projects { width: min(980px, calc(100vw - 48px)); max-height: calc(100vh - 64px); padding: 20px 22px 22px; border: 1px solid var(--line); border-radius: 12px; background: var(--pane); color: var(--text); box-shadow: 0 24px 80px rgba(0,0,0,.6); overflow: auto; }

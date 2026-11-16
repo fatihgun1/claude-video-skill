@@ -432,9 +432,12 @@ const production = createProduction({ dialog: $("uretim"), steps: $("steps") }, 
 });
 const renderSteps = () => production.renderSteps();
 function renderHeader() {
-  $("title").textContent = state.draft.title || state.draft.episode;
-  $("path").textContent = state.path;
-  document.title = `${state.draft.title || state.draft.episode} · Çizgi Stüdyo`;
+  const atHome = document.body.classList.contains("at-home"); // the editor waits behind the home page
+  if (!atHome) {
+    $("title").textContent = state.draft.title || state.draft.episode;
+    $("title").title = state.path; // where the file is: on hover, not in the bar
+    document.title = `${state.draft.title || state.draft.episode} · Çizgi Stüdyo`;
+  }
   renderSteps();
   const d = dirty();
   $("save").disabled = !d || state.validation?.ok === false || state.previewOk === false;
@@ -593,7 +596,7 @@ async function open(rel) {
   sticky = "";
   const first = allShots()[0]?.shot.shot_id ?? null;
   state.sel = { shot: same && state.sel.shot && find(state.sel.shot) ? state.sel.shot : first, kind: null, index: -1 };
-  history.replaceState(null, "", `#b=${encodeURIComponent(res.path)}`);
+  if (!document.body.classList.contains("at-home")) history.replaceState(null, "", `#b=${encodeURIComponent(res.path)}`);
   if (!same) stage.seek(0);
   renderMessages(res.preview);
   stage.load(res.preview);
@@ -604,7 +607,27 @@ async function open(rel) {
 }
 
 // unsaved story cards count too: switching episodes would drop them
-const projects = createProjects($("projects"), { current: () => state.path, dirty: () => (!!state.draft && dirty()) || story.dirty(), open, api });
+const projects = createProjects($("projects"), {
+  current: () => state.path,
+  dirty: () => (!!state.draft && dirty()) || story.dirty(),
+  open,
+  api,
+  // the address says where the person is: in the editor it names the episode, so a reload reopens it; on the home
+  // page it names none (a reload stays there, unless the panel was started for one episode: start() opens that)
+  onView: (home) => {
+    if (home) {
+      history.replaceState(null, "", location.pathname);
+      $("title").textContent = "Çizgi Stüdyo";
+      $("title").title = "";
+      document.title = "Projeler · Çizgi Stüdyo";
+    } else if (state.path) {
+      history.replaceState(null, "", `#b=${encodeURIComponent(state.path)}`);
+      renderHeader();
+      timeline.render(); // drawn while hidden, it measured no width
+      $("home-btn").focus({ preventScroll: true }); // the home page's focus is gone with it
+    }
+  },
+});
 
 /* ---------- left pane: project tree | library ---------- */
 const tree = createTree($("proje-pane"), {
@@ -669,14 +692,13 @@ const requests = createRequests($("claude"), {
   note,
   api,
 });
-/** Start with the episode in the address, else the one the panel was started with, else the picker. */
+/** Start with the episode in the address, else the one the panel was started with, else the home page. */
 async function start() {
   const fromHash = new URLSearchParams(location.hash.slice(1)).get("b");
   let first = fromHash;
   if (!first) {
     try {
-      const { initial, episodes } = await api("/api/bolumler");
-      first = initial || (episodes.length === 1 ? episodes[0].path : null);
+      first = (await api("/api/bolumler")).initial || null;
     } catch (err) {
       say(`bölümler alınamadı: ${err.message}`);
     }
@@ -692,7 +714,7 @@ async function start() {
 }
 
 $("save").addEventListener("click", save);
-$("project").addEventListener("click", () => projects.show());
+$("home-btn").addEventListener("click", () => projects.show());
 $("revert").addEventListener("click", () => {
   state.draft = structuredClone(state.saved);
   // A row index may point at something that is gone: keep the shot, drop the row.
@@ -771,7 +793,7 @@ $("redo").addEventListener("click", () => travel(1));
 window.addEventListener("beforeunload", (e) => { if ((state.draft && dirty()) || story.dirty()) e.preventDefault(); });
 installKeys({
   // dialogs handle their own keys
-  blocked: () => ["projects", "uretim", "inceleme", "hikaye"].some((id) => $(id).open) || !state.draft,
+  blocked: () => projects.shown() || ["uretim", "inceleme", "hikaye"].some((id) => $(id).open) || !state.draft,
   save,
   canSave: () => !$("save").disabled,
   travel,

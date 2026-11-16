@@ -9,9 +9,8 @@
 <body>
 <header class="bar">
   <div class="brand"><span class="logo" aria-hidden="true"></span>
-    <h1><button id="project" class="project" type="button" title="Bölümler: başka bölüm aç ya da yeni bölüm oluştur">
-      <span id="title" class="ttl">Çizgi Stüdyo</span><span id="path" class="ppath"></span><span class="caret" aria-hidden="true">▾</span>
-    </button></h1>
+    <button id="home-btn" class="btn small home-btn" type="button" title="Bütün bölümler ve yeni bölüm">← Projeler</button>
+    <h1 class="ep-title"><span id="title">Çizgi Stüdyo</span></h1>
   </div>
   <button id="story" class="btn small" type="button" title="Hikâye kartları: fikir, karakterler, sahne sahne olaylar (taslak)">Hikâye</button>
   <ol class="steps" id="steps" aria-label="Üretim adımları"></ol>
@@ -89,7 +88,7 @@
     </div>
   </footer>
 </main>
-<dialog id="projects" class="projects" aria-label="Bölümler"></dialog>
+<section id="projects" class="home" aria-label="Projeler" hidden></section>
 <dialog id="uretim" class="projects uretim" aria-label="Üretim"></dialog>
 <dialog id="inceleme" class="projects uretim" aria-label="Sahne incelemesi"></dialog>
 <dialog id="hikaye" class="projects hikaye" aria-label="Hikâye kartları"></dialog>
