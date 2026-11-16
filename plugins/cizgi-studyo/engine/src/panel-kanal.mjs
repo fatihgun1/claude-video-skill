@@ -34,6 +34,7 @@ const MAX_ASKS = 10;
 /** sor: a field question ("Claude'a sor"); olustur: the person pressed Oluştur (build the episode from the story). */
 const ASK_KINDS = Object.freeze(["sor", "olustur"]);
 const THINKING_MAX_MS = 120_000;
+export const WATCHED_MS = 6000;
 // eslint-disable-next-line no-control-regex
 const CONTROL = new RegExp("[\\u0000-\\u001f\\u007f\\u2028\\u2029]");
 
@@ -131,6 +132,7 @@ export function createChannel({ onLateAnswer, onIdleAsk, now = () => Date.now() 
   let thinkingSince = 0; // the person answered: Claude works until its next move in the panel
   let asks = []; // "Claude'a sor" requests not handed to Claude yet
   let listener = null; // Claude's panel_dinle call: {done, timer}
+  let seenAt = 0; // when a browser tab last polled the channel: is anyone looking at the panel?
 
   function hear(list) {
     if (!listener) return false;
@@ -215,6 +217,14 @@ export function createChannel({ onLateAnswer, onIdleAsk, now = () => Date.now() 
         listener = { done, timer: setTimeout(() => hear([]), ms) };
       });
     },
+    /** A browser tab polled the channel (GET /api/kanal). */
+    gorundu() {
+      seenAt = now();
+    },
+    /** Whether a browser tab has the panel open: it polls every 1.5 s, so a few seconds of silence means none. */
+    izleniyor(ms = WATCHED_MS) {
+      return !!seenAt && now() - seenAt < ms;
+    },
     /** Start, move on or close the wizard (panel_adim). */
     sihirbaz(cmd) {
       wizard = applyWizard(wizard, cmd, ++seq);
@@ -280,7 +290,10 @@ function applyWizard(wizard, cmd, seq) {
 /** The panel's routes of the channel. */
 export function channelRoutes(channel) {
   return {
-    "GET /api/kanal": () => channel.durum(),
+    "GET /api/kanal": () => {
+      channel.gorundu();
+      return channel.durum();
+    },
     "POST /api/kanal/cevap": (body) => {
       try {
         channel.cevapla(String(body?.id ?? ""), { secim: body?.secim, metin: body?.metin });

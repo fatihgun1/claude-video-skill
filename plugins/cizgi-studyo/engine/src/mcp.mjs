@@ -22,7 +22,7 @@ import { queueOf, takeRequests, updateRequest, describe, episodeFile, ANSWERS, M
 
 // The Claude session this server belongs to: requests from its panel are for it alone (istekler.mjs).
 const SESSION_ID = process.env.CLAUDE_CODE_SESSION_ID || null;
-const SERVER_INFO = { name: "cizgi-studyo", version: "2.4.7" };
+const SERVER_INFO = { name: "cizgi-studyo", version: "2.4.8" };
 // panel-kanal.mjs PANELS (not imported: engine modules load on first use)
 const PANEL_TABS = ["projeler", "uretim", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"];
 const WAIT_DEFAULT_S = 600;
@@ -246,9 +246,11 @@ async function panelAc({ klasor, bolum } = {}) {
   const uyari = wanted && port !== wanted
     ? `Port ${wanted} başka bir panelde (büyük ihtimalle başka bir Claude oturumunun, belki eski sürüm) açık; bu oturumun paneli ${panel.url} adresinde. Kişiye söyle: eski panel sekmesini kapatsın, yalnız bu adresi kullansın (isteklerini ancak bu panel bu oturuma iletir).`
     : undefined;
+  const url = first ? `${panel.url}#b=${encodeURIComponent(first)}` : panel.url;
   return {
     ...(uyari ? { uyari } : {}),
-    url: first ? `${panel.url}#b=${encodeURIComponent(first)}` : panel.url,
+    simdi: `Şimdi bu adresi kişiye aç: Claude masaüstü uygulamasında uygulama içi tarayıcıda (mcp__Claude_Browser__preview_start {url: "${url}"}), başka yerde adresi ver. Açılana kadar kişi hiçbir şey görmez; panel_sor, panel_git ve panel_adim bunu bekler.`,
+    url,
     klasor: panel.root,
     bolumler: paths.map((p) => e.summarize(panel.root, p, lib, e.status)),
   };
@@ -287,7 +289,8 @@ async function checkEpisode(p, bolum) {
 async function panelGit(args = {}) {
   const p = openPanelOrThrow();
   await checkEpisode(p, args.bolum);
-  return { yon: p.channel.yonlendir(args), not: "Panel birkaç saniye içinde oraya gider." };
+  const yon = p.channel.yonlendir(args);
+  return (await watched(p, 3000)) ? { yon, not: "Panel birkaç saniye içinde oraya gider." } : { yon, uyari: NOT_WATCHED };
 }
 
 async function panelDinle({ bekle } = {}) {
@@ -299,8 +302,16 @@ async function panelDinle({ bekle } = {}) {
     : { istekler: [], not: "Kimse sormadı. Sihirbaz açıksa panel_dinle ile dinlemeye devam et." };
 }
 
+/** Wait a little for a browser tab to show up on the panel (it was just opened); false when none came. */
+async function watched(p, ms = 8000) {
+  for (let t = 0; t < ms && !p.channel.izleniyor(); t += 250) await new Promise((r) => setTimeout(r, 250));
+  return p.channel.izleniyor();
+}
+const NOT_WATCHED = "Panel hiçbir tarayıcı sekmesinde açık değil: kişi bunu göremez. Önce panel_ac'ın verdiği url'yi kişiye aç (Claude masaüstü uygulamasında uygulama içi tarayıcı: mcp__Claude_Browser__preview_start {url}), sonra yeniden dene.";
+
 async function panelSor({ bekle, ...q } = {}) {
   const p = openPanelOrThrow();
+  if (!(await watched(p))) throw new Error(NOT_WATCHED); // a question nobody can see would wait in vain
   await checkEpisode(p, q.bolum);
   if (q.bolum) p.channel.yonlendir({ bolum: q.bolum });
   const { id } = p.channel.sor(q);
@@ -318,7 +329,11 @@ const TOOL_RUN = {
   panel_git: panelGit,
   panel_sor: panelSor,
   panel_dinle: panelDinle,
-  panel_adim: (args = {}) => ({ sihirbaz: openPanelOrThrow().channel.sihirbaz(args) }),
+  panel_adim: async (args = {}) => {
+    const p = openPanelOrThrow();
+    const sihirbaz = p.channel.sihirbaz(args);
+    return (await watched(p, 3000)) ? { sihirbaz } : { sihirbaz, uyari: NOT_WATCHED };
+  },
 };
 
 function callTool(name, args) {

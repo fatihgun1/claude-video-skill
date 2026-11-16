@@ -15,7 +15,7 @@ $CLI panel <klasör> --port 4900
 ```
 
 ## Steps
-1. Open the panel at once, before anything else, even when the request already describes a video: `panel_ac` (or the CLI below when the MCP server is missing), then open the URL in the built-in browser.
+1. Open the panel at once, before anything else, even when the request already describes a video: `panel_ac` (or the CLI below when the MCP server is missing), then **open its URL for the person right away**: in the Claude desktop app with the built-in browser (`mcp__Claude_Browser__preview_start {url}`; load the tool with ToolSearch if it is deferred). Until that tab is open the person sees nothing: `panel_sor` refuses to ask and `panel_git`/`panel_adim` warn.
 2. If the request is a new video or story, follow the **cizgi-proje** steps from step 2: the episode is made with the person, question by question, and every step shows in the panel. If it names an existing episode, open it (`panel_ac` with `bolum`) and ask what they want to change.
 3. While the panel is open, show every change there: after you edit `bolum.json` or `hikaye.json`, tell the person what to look at (a scene, a shot, **İncele**).
 

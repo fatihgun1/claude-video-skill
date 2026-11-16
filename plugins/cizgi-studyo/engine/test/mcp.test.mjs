@@ -199,6 +199,7 @@ test("an answer after panel_sor stopped waiting reaches Claude as a panel reques
   const open = textOf(await callTool("panel_ac", { klasor: root }));
   const base = open.url.replace(/\/$/, "");
   const host = new URL(open.url).host;
+  await fetch(`${base}/api/kanal`); // a browser tab has the panel open (panel_sor refuses to ask into nothing)
   const out = textOf(await callTool("panel_sor", { soru: "Müzik olsun mu?", secenekler: [{ etiket: "Evet" }, { etiket: "Hayır" }], bolum: "bolumler/bir/bolum.json", bekle: 0.05 }));
   assert.equal(out.durum, "bekliyor");
   const posted = await fetch(`${base}/api/kanal/cevap`, { method: "POST", headers: { "content-type": "application/json", origin: `http://${host}` }, body: JSON.stringify({ id: out.id, secim: ["Hayır"] }) });

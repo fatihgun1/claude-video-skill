@@ -223,3 +223,13 @@ test("asks are checked: a known step, an episode id and a field name", () => {
   assert.throws(() => routes["POST /api/kanal/iste"]({ proje: 1 }), /proje/);
   assert.deepEqual(routes["POST /api/kanal/iste"]({ proje: "a", adim: "ses", alan: "istekler.muzik" }), { dinliyor: false });
 });
+
+test("the channel knows whether a browser tab has the panel open (it polls GET /api/kanal)", () => {
+  let t = 10_000;
+  const ch = createChannel({ now: () => t });
+  assert.equal(ch.izleniyor(), false, "nobody has looked yet");
+  channelRoutes(ch)["GET /api/kanal"]();
+  assert.equal(ch.izleniyor(), true);
+  t += 7000;
+  assert.equal(ch.izleniyor(), false, "a few seconds of silence: the tab is gone");
+});
