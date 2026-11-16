@@ -55,7 +55,7 @@ export function createChannel(ctx) {
       render();
       return;
     }
-    if (cmd.shot || cmd.kaydir || cmd.vurgula) {
+    if (cmd.bolum || cmd.shot || cmd.kaydir || cmd.vurgula) { // an episode opening is something to watch too
       wizard.shrink(); // the person must see what Claude points at
       render();
     }
