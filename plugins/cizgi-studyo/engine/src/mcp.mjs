@@ -10,6 +10,7 @@
  *   panel_git   {bolum?, sekme?, shot?, kaydir?, vurgula?}  move the open panel to what the person should look at
  *   panel_sor   {soru, secenekler, coklu?, serbest?, bolum?, bekle?}  ask in the panel with option cards; waits for the answer
  *   panel_adim  {sihirbaz? | adim, durum?, aciklama?, gorsel? | kapat?}  a wizard modal in the panel whose steps Claude moves on
+ *   panel_dinle {bekle?}  wait for the person's "Claude'a sor" in the project wizard
  *
  * stdout carries only protocol messages; anything else goes to stderr.
  * Engine modules load on first use, so a missing `npm install` is a readable tool error, not a dead server.
@@ -19,7 +20,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { queueOf, takeRequests, updateRequest, describe, episodeFile, ANSWERS, MAX_TEXT } from "./istekler.mjs";
 
-const SERVER_INFO = { name: "cizgi-studyo", version: "2.2.2" };
+const SERVER_INFO = { name: "cizgi-studyo", version: "2.3.0" };
 // panel-kanal.mjs PANELS (not imported: engine modules load on first use)
 const PANEL_TABS = ["projeler", "uretim", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"];
 const WAIT_DEFAULT_S = 600;
@@ -132,6 +133,20 @@ const TOOLS = [
         bekle: { type: "number", minimum: 0, maximum: 1800, description: "Seconds to wait for the answer (default 600)." },
       },
       required: ["soru", "secenekler"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "panel_dinle",
+    description:
+      "Listen for the person's \"Claude'a sor\" clicks in the panel's project wizard. The person fills the wizard fields themselves; " +
+      "when they want your help with a field (or a whole step) they click its \"Claude'a sor\" button. This call waits (bekle seconds, default 600) " +
+      "and returns {istekler: [{proje, adim, alan?, etiket?}]}: for each, read bolumler/<proje>/hikaye.json, ask about that field with " +
+      "panel_sor (2-4 suggestion cards), write the answer into hikaye.json, then call panel_dinle again. An empty list means nobody asked: " +
+      "call it again while the wizard is open. Do not ask about fields nobody asked about.",
+    inputSchema: {
+      type: "object",
+      properties: { bekle: { type: "number", minimum: 0, maximum: 1800, description: "Seconds to wait (default 600)." } },
       additionalProperties: false,
     },
   },
@@ -271,6 +286,15 @@ async function panelGit(args = {}) {
   return { yon: p.channel.yonlendir(args), not: "Panel birkaç saniye içinde oraya gider." };
 }
 
+async function panelDinle({ bekle } = {}) {
+  const p = openPanelOrThrow();
+  const seconds = Math.min(Math.max(Number.isFinite(bekle) ? bekle : WAIT_DEFAULT_S, 0), WAIT_MAX_S);
+  const istekler = await p.channel.dinle(seconds * 1000);
+  return istekler.length
+    ? { istekler: istekler.map(({ at, ...a }) => a) }
+    : { istekler: [], not: "Kimse sormadı. Sihirbaz açıksa panel_dinle ile dinlemeye devam et." };
+}
+
 async function panelSor({ bekle, ...q } = {}) {
   const p = openPanelOrThrow();
   await checkEpisode(p, q.bolum);
@@ -289,12 +313,13 @@ const TOOL_RUN = {
   panel_yanitla: panelYanitla,
   panel_git: panelGit,
   panel_sor: panelSor,
+  panel_dinle: panelDinle,
   panel_adim: (args = {}) => ({ sihirbaz: openPanelOrThrow().channel.sihirbaz(args) }),
 };
 
 function callTool(name, args) {
   // A question waits for the person: it must not hold the other tools back (panel_git, panel_kapat…).
-  if (name === "panel_sor") return queue.then(() => TOOL_RUN[name](args));
+  if (name === "panel_sor" || name === "panel_dinle") return queue.then(() => TOOL_RUN[name](args));
   const run = () => TOOL_RUN[name](args);
   const result = queue.then(run);
   queue = result.catch(() => {}); // a failed call does not block the next one

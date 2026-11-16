@@ -16,7 +16,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
  *          home:() => Promise<void>, openEpisode:(rel:string) => Promise<void>, story:() => void,
  *          selectShot:(id:string) => boolean, note:(text:string) => void,
  *          projectWizard?:(id:string, step?:string) => Promise<void>, projectSlot?:() => HTMLElement|null,
- *          setThinking?:(on:boolean) => void}} ctx
+ *          setThinking?:(on:boolean, listening:boolean) => void}} ctx
  */
 export function createChannel(ctx) {
   let seenSeq = -1; // the last command applied
@@ -154,7 +154,7 @@ export function createChannel(ctx) {
         if (fresh) await go(nav);
       }
       started = true;
-      ctx.setThinking?.(!!res.dusunuyor);
+      ctx.setThinking?.(!!res.dusunuyor, !!res.dinliyor);
       wizard.set(res.sihirbaz || null);
       const q = res.soru;
       if ((q?.id || null) !== (question?.id || null)) {

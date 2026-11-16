@@ -184,3 +184,42 @@ test("after the person answers, Claude is thinking until its next move in the pa
   now += 121_000;
   assert.equal(ch.durum().dusunuyor, false, "the lock lets go when Claude says nothing for two minutes");
 });
+
+test("Claude'a sor reaches Claude's listening call and the panel then waits for Claude", async () => {
+  let t = 1000;
+  const ch = createChannel({ now: () => t });
+  const listening = ch.dinle(5000);
+  assert.equal(ch.durum().dinliyor, true);
+  assert.equal(ch.durum().dusunuyor, false);
+  assert.deepEqual(ch.iste({ proje: "sokak", adim: "kararlar", alan: "istekler.sure", etiket: "Süre" }), { dinliyor: true });
+  assert.deepEqual(await listening, [{ proje: "sokak", adim: "kararlar", alan: "istekler.sure", etiket: "Süre", at: 1000 }]);
+  assert.equal(ch.durum().dinliyor, false);
+  assert.equal(ch.durum().dusunuyor, true, "the wizard locks until Claude asks");
+  ch.sor(Q);
+  assert.equal(ch.durum().dusunuyor, false);
+});
+
+test("an ask while Claude does not listen goes to the idle handler (no lock), or waits for the next listen", async () => {
+  const idle = [];
+  const ch = createChannel({ onIdleAsk: (a) => idle.push(a) });
+  assert.deepEqual(ch.iste({ proje: "sokak", adim: "hikaye" }), { dinliyor: false });
+  assert.equal(idle.length, 1);
+  assert.equal(ch.durum().dusunuyor, false);
+
+  const local = createChannel();
+  local.iste({ proje: "sokak", adim: "hikaye", alan: "fikir" });
+  local.iste({ proje: "sokak", adim: "hikaye", alan: "fikir" }); // the same ask twice is one
+  const got = await local.dinle(10);
+  assert.equal(got.length, 1);
+  assert.deepEqual(await local.dinle(10), [], "nothing more: an empty list when the wait ends");
+});
+
+test("asks are checked: a known step, an episode id and a field name", () => {
+  const ch = createChannel({ onIdleAsk: () => {} });
+  for (const bad of [null, {}, { proje: "../x", adim: "hikaye" }, { proje: "a", adim: "gizli" }, { proje: "a", adim: "hikaye", alan: "a b" }, { proje: "a", adim: "hikaye", etiket: "x".repeat(121) }]) {
+    assert.throws(() => ch.iste(bad), undefined, JSON.stringify(bad));
+  }
+  const routes = channelRoutes(ch);
+  assert.throws(() => routes["POST /api/kanal/iste"]({ proje: 1 }), /proje/);
+  assert.deepEqual(routes["POST /api/kanal/iste"]({ proje: "a", adim: "ses", alan: "istekler.muzik" }), { dinliyor: false });
+});

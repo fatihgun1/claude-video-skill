@@ -12,6 +12,7 @@ The plugin's MCP server (`cizgi-studyo`) starts with the session and hosts the e
 - `panel_istekleri {hepsi?}` and `panel_yanitla {id, durum, yanit}`: requests the person writes in the panel (below).
 - `panel_git {bolum?, sekme?, shot?, kaydir?, vurgula?}`: move the open panel to what the person should look at (an episode, a left panel or `hikaye`/`projeler`, a shot, the drafts list, a button to highlight). Use it instead of telling them where to click.
 - `panel_adim {sihirbaz? | adim, durum?, aciklama?, gorsel? | kapat?}`: a wizard in the panel (a drawer with the steps of a longer job) that you move on yourself; the person follows it there instead of in chat. A `panel_sor` question shows inside it.
+- `panel_dinle {bekle?}`: wait for the person's "Claude'a sor" clicks in the project wizard (they fill the fields; you answer only what they ask about). Returns `{istekler: [{proje, adim, alan?, etiket?}]}`; call it again after each answer while the wizard is open.
 - `panel_sor {soru, secenekler, coklu?, serbest?, bolum?, bekle?}`: ask in the panel with option cards (each may show a picture the panel serves). It waits for the answer and returns it; when it runs out of time the answer comes later as a panel request. Use it for every choice about the episode instead of asking in chat; gate approvals (`cizgi onayla`) stay in chat.
 
 ## Steps

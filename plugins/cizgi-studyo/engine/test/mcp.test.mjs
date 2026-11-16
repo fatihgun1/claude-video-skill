@@ -70,7 +70,7 @@ test("initialize answers with tools capability and the asked protocol version", 
 test("tools/list names the panel and request tools with input schemas", async () => {
   const res = await rpc("tools/list", {});
   const names = res.result.tools.map((t) => t.name).sort();
-  assert.deepEqual(names, ["panel_ac", "panel_adim", "panel_git", "panel_istekleri", "panel_kapat", "panel_sor", "panel_yanitla"]);
+  assert.deepEqual(names, ["panel_ac", "panel_adim", "panel_dinle", "panel_git", "panel_istekleri", "panel_kapat", "panel_sor", "panel_yanitla"]);
   for (const t of res.result.tools) assert.equal(t.inputSchema.type, "object");
 });
 
@@ -223,6 +223,20 @@ test("panel_adim starts a wizard in the panel and moves its steps on", async () 
   const bad = await callTool("panel_adim", { adim: "yok" });
   assert.equal(bad.result.isError, true);
   assert.equal(textOf(await callTool("panel_adim", { kapat: true })).sihirbaz, null);
+});
+
+test("panel_dinle hands the person's Claude'a sor to Claude; when nobody asks it returns an empty list", async () => {
+  const open = textOf(await callTool("panel_ac", { klasor: root }));
+  const base = open.url.slice(0, -1);
+  const host = new URL(open.url).host;
+  assert.deepEqual(textOf(await callTool("panel_dinle", { bekle: 0.05 })).istekler, []);
+  const listening = callTool("panel_dinle", { bekle: 5 });
+  await new Promise((r) => setTimeout(r, 50));
+  const kanal = await (await fetch(`${base}/api/kanal`)).json();
+  assert.equal(kanal.dinliyor, true);
+  const posted = await fetch(`${base}/api/kanal/iste`, { method: "POST", headers: { "content-type": "application/json", origin: `http://${host}` }, body: JSON.stringify({ proje: "bir", adim: "kararlar", alan: "istekler.sure", etiket: "Süre" }) });
+  assert.deepEqual(await posted.json(), { dinliyor: true });
+  assert.deepEqual(textOf(await listening).istekler, [{ proje: "bir", adim: "kararlar", alan: "istekler.sure", etiket: "Süre" }]);
 });
 
 test("panel_kapat closes the panel", async () => {

@@ -780,7 +780,7 @@ createClaudeChannel({
   },
   projectWizard: (id, step) => projectWizard.open(id, step),
   projectSlot: () => projectWizard.slot(),
-  setThinking: (on) => projectWizard.setThinking(on),
+  setThinking: (on, listening) => projectWizard.setThinking(on, listening),
   note,
 }).start();
 /* ---------- İncele: scene review ---------- */

@@ -6,8 +6,13 @@
  *              to the waiting tool call, or, after it gave up waiting, to the late-answer handler
  *              (the MCP server puts it in the request queue, so the hooks hand it to Claude)
  *
- *   GET  /api/kanal         {yon, soru}: the last navigation (by seq) and the open question
+ *   iste       the person asks Claude about a field of the project wizard ("Claude'a sor"): it goes to
+ *              Claude's waiting panel_dinle call, or, when Claude is not listening, to the idle-ask handler
+ *              (the MCP server puts it in the request queue)
+ *
+ *   GET  /api/kanal         {yon, soru, sihirbaz, dusunuyor, dinliyor}
  *   POST /api/kanal/cevap   {id, secim, metin}: the person's answer
+ *   POST /api/kanal/iste    {proje, adim, alan?, etiket?}: "Claude'a sor" → {dinliyor}
  *
  * Only one question is open at a time. Everything shown is text from Claude's tool call, checked
  * here and drawn as text by the panel; pictures can only be the panel's own drawings.
@@ -24,6 +29,8 @@ const SHOT = /^[a-z0-9_-]{1,40}$/;
 // a library drawing or a draft (incl. concept sketches), as the panel serves them
 const PICTURE = /^\/(kutuphane|kutuphane-taslak)\/(karakter|mekan|nesne|konsept)\/[a-z0-9_-]{1,60}\.svg$/;
 const MAX_OPTIONS = 8;
+const FIELD = /^[a-z0-9_.-]{1,60}$/; // a wizard field: baslik, istekler.sure, kartlar.k2.mekan…
+const MAX_ASKS = 10;
 const THINKING_MAX_MS = 120_000;
 // eslint-disable-next-line no-control-regex
 const CONTROL = new RegExp("[\\u0000-\\u001f\\u007f\\u2028\\u2029]");
@@ -69,6 +76,21 @@ function cleanNav(cmd) {
   return out;
 }
 
+/** A "Claude'a sor" from the project wizard: which episode, step and field (none: the whole step). */
+function cleanAsk(a) {
+  if (!a || typeof a !== "object") throw new Error("istek bir nesne olmalı");
+  if (typeof a.proje !== "string" || !PROJECT_ID.test(a.proje)) throw new Error("proje bir bölüm kimliği olmalı");
+  if (!PROJECT_STEPS.includes(a.adim)) throw new Error(`adim şunlardan biri olmalı: ${PROJECT_STEPS.join(", ")}`);
+  const out = { proje: a.proje, adim: a.adim };
+  if (a.alan !== undefined) {
+    if (typeof a.alan !== "string" || !FIELD.test(a.alan)) throw new Error("alan bir alan adı olmalı");
+    out.alan = a.alan;
+  }
+  const etiket = text(a.etiket, "etiket", 120, { optional: true });
+  if (etiket) out.etiket = etiket;
+  return out;
+}
+
 function cleanQuestion(q) {
   if (!q || typeof q !== "object") throw new Error("soru bir nesne olmalı");
   const soru = text(q.soru, "soru", 500, { multiline: true });
@@ -94,13 +116,24 @@ function cleanQuestion(q) {
 /**
  * @param {{onLateAnswer?:(answer:{id:string, soru:string, secim:string[], metin:string}) => void}} [opts]
  */
-export function createChannel({ onLateAnswer, now = () => Date.now() } = {}) {
+export function createChannel({ onLateAnswer, onIdleAsk, now = () => Date.now() } = {}) {
   let seq = 0;
   let nav = null;
   let question = null; // {id, soru, secenekler, coklu, serbest, seq}
   let waiter = null; // {id, done}
   let wizard = null; // {id, baslik, adimlar, aktif, bitti, seq}
   let thinkingSince = 0; // the person answered: Claude works until its next move in the panel
+  let asks = []; // "Claude'a sor" requests not handed to Claude yet
+  let listener = null; // Claude's panel_dinle call: {done, timer}
+
+  function hear(list) {
+    if (!listener) return false;
+    const l = listener;
+    listener = null;
+    clearTimeout(l.timer);
+    l.done(list);
+    return true;
+  }
 
   function release(value) {
     if (!waiter) return false;
@@ -148,6 +181,34 @@ export function createChannel({ onLateAnswer, now = () => Date.now() } = {}) {
       if (!release(answer)) onLateAnswer?.(answer, about);
       return answer;
     },
+    /** The person asks Claude about a wizard field. Claude gets it now if it listens, else later through onIdleAsk. */
+    iste(a) {
+      const ask = { ...cleanAsk(a), at: now() };
+      if (hear([ask])) {
+        thinkingSince = now(); // Claude has it: the wizard waits for its question
+        return { dinliyor: true };
+      }
+      if (onIdleAsk) {
+        onIdleAsk(ask);
+        return { dinliyor: false };
+      }
+      asks = [...asks.filter((x) => x.proje !== ask.proje || x.adim !== ask.adim || x.alan !== ask.alan), ask].slice(-MAX_ASKS);
+      return { dinliyor: false };
+    },
+    /** Claude listens for "Claude'a sor" (panel_dinle): the asks waiting, or the next one within `ms`, or [] then. */
+    dinle(ms) {
+      hear([]); // one listener: an older call gives up
+      if (asks.length) {
+        const list = asks;
+        asks = [];
+        thinkingSince = now();
+        return Promise.resolve(list);
+      }
+      thinkingSince = 0; // listening: Claude is not working on anything
+      return new Promise((done) => {
+        listener = { done, timer: setTimeout(() => hear([]), ms) };
+      });
+    },
     /** Start, move on or close the wizard (panel_adim). */
     sihirbaz(cmd) {
       wizard = applyWizard(wizard, cmd, ++seq);
@@ -157,7 +218,7 @@ export function createChannel({ onLateAnswer, now = () => Date.now() } = {}) {
     durum() {
       // the panel locks its buttons and shows Claude thinking; it lets go if Claude stays silent too long
       const dusunuyor = !!thinkingSince && now() - thinkingSince < THINKING_MAX_MS;
-      return { yon: nav, soru: question ? { ...question } : null, sihirbaz: copyWizard(wizard), dusunuyor };
+      return { yon: nav, soru: question ? { ...question } : null, sihirbaz: copyWizard(wizard), dusunuyor, dinliyor: !!listener };
     },
   };
 }
@@ -221,6 +282,13 @@ export function channelRoutes(channel) {
         throw new HttpError(400, err.message);
       }
       return { ok: true };
+    },
+    "POST /api/kanal/iste": (body) => {
+      try {
+        return channel.iste(body);
+      } catch (err) {
+        throw new HttpError(400, err.message);
+      }
     },
   };
 }
