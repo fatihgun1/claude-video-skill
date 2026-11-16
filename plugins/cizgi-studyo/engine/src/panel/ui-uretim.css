@@ -126,3 +126,13 @@ p.uretim-onay { margin: 0; border-color: color-mix(in srgb, var(--ok) 40%, var(-
   .sihirbaz.sayfa .psih-claude .kanal-soru.docked { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; max-height: 60vh; overflow: auto; border-radius: 12px 12px 0 0; }
   .sihirbaz-resimler img { height: 200px; }
 }
+/* Claude's state in the step page's Claude column (sihirbaz.js claudeState) */
+.sihirbaz.sayfa .psih-claude .psih-durum { padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--pane-2); }
+.sihirbaz.sayfa .psih-claude .psih-durum.dusunuyor { border-color: var(--accent); }
+.psih-durum.bekliyor { color: var(--select); font-weight: 600; }
+.psih-durum.hata { color: var(--err); font-weight: 600; }
+.psih-durum .nokta.bekliyor { background: var(--select); }
+.psih-durum .nokta.hata { background: var(--err); }
+.sihirbaz-bekliyor { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; border: 1px solid var(--select); border-radius: var(--radius); background: var(--pane-2); }
+.sihirbaz.sayfa .psih-claude .sihirbaz-bekliyor .psih-durum { padding: 0; border: 0; background: none; }
+.sihirbaz-bekliyor p { margin: 0; }

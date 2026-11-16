@@ -156,6 +156,7 @@ export function createChannel(ctx) {
       started = true;
       ctx.setThinking?.(!!res.dusunuyor, !!res.dinliyor);
       wizard.set(res.sihirbaz || null);
+      wizard.setThinking(!!res.dusunuyor);
       const q = res.soru;
       if ((q?.id || null) !== (question?.id || null)) {
         question = q;
@@ -164,6 +165,7 @@ export function createChannel(ctx) {
         if (q) wizard.grow(); // a question in a wizard is asked where its steps are
         box.querySelector("textarea")?.remove();
         render();
+        wizard.refresh(); // its Claude column says "waiting for your answer" or goes back to working
       } else if (question && !later && (ctx.projectSlot?.() || wizard.slot()) !== (box.classList.contains("docked") ? box.parentElement : null)) {
         render(); // the wizard opened, grew or closed: the question follows it
       }

@@ -17,6 +17,7 @@ const QUESTION_DOCK = "#uretim[open] .uretim-soru";
 export function createWizard() {
   let current = null; // the wizard as the server sent it
   let small = false;
+  let thinking = false; // the person answered: Claude works on it (the channel's "düşünüyor")
   let dismissed = null; // id of a finished wizard the person closed
   const slot = el("div", { class: "sihirbaz-soru" }); // Claude's question goes here while the wizard is open
   const box = el("aside", { class: "sihirbaz", role: "dialog", "aria-modal": "false", "aria-labelledby": "sihirbaz-baslik", hidden: true });
@@ -87,9 +88,31 @@ export function createWizard() {
               : el("p", { class: "psih-aciklama", text: "Claude adımları sırayla yürütüyor." }))),
         el("aside", { class: "psih-claude", "aria-label": "Claude" },
           el("h3", { text: "Claude" }),
-          slot, // Claude's question: the person picks here
-          el("p", { class: "muted small sihirbaz-bos", text: active?.durum === "bekliyor" ? "Claude senden bir şey bekliyor; soru gelince burada görünür." : "Claude bir şey sorarsa burada görünür." }))),
+          claudeState(w, active),
+          slot)), // Claude's question: the person picks here
     ];
+  }
+
+  /**
+   * What Claude is doing now, always visible in its column: working (a spinner), or waiting for the
+   * person (with a way to the panel, which this page covers), or done. An empty column read as "stuck".
+   */
+  function claudeState(w, active) {
+    const asking = !!slot.querySelector(".kanal-soru:not([hidden])");
+    if (w.bitti) return el("p", { class: "psih-durum" }, el("span", { class: "nokta acik", "aria-hidden": "true" }), "Bütün adımlar bitti.");
+    if (asking) return el("p", { class: "psih-durum" }, el("span", { class: "nokta acik", "aria-hidden": "true" }), "Claude cevabını bekliyor: aşağıdan seç.");
+    if (thinking || active?.durum === "calisiyor" || !active) {
+      return el("p", { class: "psih-durum dusunuyor", role: "status" }, el("span", { class: "cark", "aria-hidden": "true" }),
+        thinking ? "Claude cevabını işliyor…" : `Claude çalışıyor${active ? `: ${active.baslik}` : ""}…`);
+    }
+    if (active.durum === "bekliyor") {
+      return el("div", { class: "sihirbaz-bekliyor" },
+        el("p", { class: "psih-durum bekliyor" }, el("span", { class: "nokta bekliyor", "aria-hidden": "true" }), "Senden bekleniyor"),
+        el("p", { class: "muted small", text: "Ne yapacağın ortada yazıyor. Panelde yapman gerekiyorsa bu sayfayı küçült; alttaki düğmeyle geri gelir." }),
+        el("button", { class: "btn primary", type: "button", text: "Küçült ve panelde yap", on: { click: () => { small = true; render(); } } }));
+    }
+    if (active.durum === "hata") return el("p", { class: "psih-durum hata" }, el("span", { class: "nokta hata", "aria-hidden": "true" }), "Bu adım olmadı: açıklamaya bak.");
+    return el("p", { class: "psih-durum" }, el("span", { class: "nokta", "aria-hidden": "true" }), "Sıradaki adıma geçiliyor.");
   }
 
   function render() {
@@ -136,6 +159,16 @@ export function createWizard() {
      * Üretim page's Claude column while that page is open (a floating box would hide behind it).
      */
     slot: () => (open() && !small ? slot : document.querySelector(QUESTION_DOCK)),
+    /** Claude is (no longer) working on the person's answer: the page shows it. */
+    setThinking(on) {
+      if (on === thinking) return;
+      thinking = on;
+      if (open() && !small) render();
+    },
+    /** Redraw Claude's state (a question came or went). */
+    refresh() {
+      if (open() && !small && !box.classList.contains("docked")) render();
+    },
     /** Make room so the person sees what Claude pointed at. */
     shrink() {
       if (!current || small) return;
