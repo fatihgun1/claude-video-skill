@@ -15,6 +15,7 @@ const PROP_MAX_DX = 600; // schema limit of props[].dx
 const CAST_MAX_DX = 900; // schema limit of cast[].dx
 const NUDGE = 10; // world units per arrow key
 const NUDGE_BIG = 50; // with Shift
+const CUT_TOLERANCE = 6; // screen px a frame may stick out before a person counts as cut off
 const BACK_STEP = 0.05; // depth per ↑/↓
 const BACK_STEP_BIG = 0.2; // with Shift
 const DEPTH_START_PX = 10; // a mostly sideways drag leaves the depth alone
@@ -347,7 +348,13 @@ export function createStageEditor(els, ctx) {
             on: { pointerdown: (e) => e.stopPropagation(), click: (e) => { e.stopPropagation(); ctx.flip(i); } },
           })
           : null;
-        parts.push(frame({ box, label: ctx.labelOf(m.id), selected, kind: "cast", index: i, baseX, here: m, taken, movable: true, extra: [flip] }));
+        // a person the frame cuts at the side: marked on the stage (on purpose only for an over-the-shoulder)
+        const width = els.layer.clientWidth;
+        const cut = width > 0 && (box.left < -CUT_TOLERANCE || box.left + box.width > width + CUT_TOLERANCE);
+        const cutTag = cut ? el("span", { class: "ekesik", text: "kenardan kesik" }) : null;
+        const node = frame({ box, label: ctx.labelOf(m.id), selected, kind: "cast", index: i, baseX, here: m, taken, movable: true, extra: [flip, cutTag] });
+        if (cut) node.classList.add("kesik");
+        parts.push(node);
         if (selected && m.walk) parts.push(...walkArrow(map, layout, m, i, baseX));
       });
       (shot.props || []).forEach((p, i) => {

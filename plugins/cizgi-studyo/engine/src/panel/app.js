@@ -22,6 +22,7 @@ import { installKeys } from "./klavye.js";
 import { installViews } from "./gorunum.js";
 import { createDrafts } from "./taslak.js";
 import { createObjectWindow } from "./nesne-pencere.js";
+import { setView, applyRecipe, viewsOf, viewKindOf, shotProblems, RECIPES } from "./kompozisyon.js";
 import { decorId } from "./dekor.js";
 import {
   addShotAfter, duplicateShot, deleteShot, moveShot, createHistory, rowOfMessage,
@@ -289,6 +290,30 @@ const objectWindow = createObjectWindow({
     const res = await runJob("ornek", owner.id);
     return `${state.outputsUrl || ""}${res.dosya}?v=${Date.now()}`;
   },
+  // the same person in another view, in this shot (side, front 3/4, back 3/4)
+  setView: (oyuncu, kind) => {
+    const f = find(state.sel.shot);
+    const i = f?.shot.cast.findIndex((m) => m.id === oyuncu) ?? -1;
+    if (i < 0) return "Bu kişi bu çekimde yok.";
+    const res = setView(state.draft, state.vocab, f.shot, i, kind);
+    if (!res.ok) return res.why;
+    state.sel = { ...state.sel, kind: "cast", index: i };
+    changed(true);
+    objectWindow.open(topicOf("cast", i));
+    return "";
+  },
+  // a ready shot recipe, applied now (undo takes it back)
+  applyRecipe: (id) => {
+    const f = find(state.sel.shot);
+    if (!f) return "Önce bir çekim seç.";
+    const res = applyRecipe(state.draft, state.vocab, f.shot, id);
+    if (!res.ok) return res.why;
+    state.sel = { ...state.sel, kind: null, index: -1 };
+    changed(true);
+    note(`${res.not} Beğenmezsen geri al (Ctrl+Z).`);
+    objectWindow.open(shotTopic());
+    return "";
+  },
   // one line spoken again, a new take; the window then plays it
   redoLine: async (key) => {
     const res = await runJob("satir", key);
@@ -304,7 +329,10 @@ function topicOf(kind, index) {
   if (kind === "cast") {
     const m = f.shot.cast[index];
     const ch = m && character(m.id);
-    return ch ? { tur: "karakter", id: ch.rig, ad: (ch.name || ch.id).slice(0, 80), ...where, oyuncu: ch.id } : null;
+    if (!ch) return null;
+    // its views (side, front, back) and which one this shot shows: the window switches between them
+    const goster = { gorunusler: viewsOf(state.vocab, state.draft, ch.id), simdi: viewKindOf(state.vocab, ch.rig) };
+    return { tur: "karakter", id: ch.rig, ad: (ch.name || ch.id).slice(0, 80), ...where, oyuncu: ch.id, goster };
   }
   if (kind === "prop") {
     const p = (f.shot.props || [])[index];
@@ -337,7 +365,22 @@ function shotTopic() {
   const f = find(state.sel.shot);
   if (!f) return null;
   const c = f.shot.camera || {};
-  return { tur: "cekim", id: f.shot.shot_id, ad: `Çekim ${f.shot.shot_id}`, bolum: state.path, shot: f.shot.shot_id, goster: { plan: c.framing, hareket: c.move || "static", hedef: c.target ? labelOf(c.target) : null } };
+  const goster = {
+    plan: c.framing, hareket: c.move || "static", hedef: c.target ? labelOf(c.target) : null,
+    sorunlar: shotProblems(state.validation?.warnings, f.shot.shot_id, f.scene.scene_id), // what the film rules say about it
+    tarifler: RECIPES, kisi: f.shot.cast.length,
+  };
+  return { tur: "cekim", id: f.shot.shot_id, ad: `Çekim ${f.shot.shot_id}`, bolum: state.path, shot: f.shot.shot_id, goster };
+}
+/** The open window shows its thing as it is now (after an edit, or a new check of the rules). */
+function refreshWindow() {
+  const t = objectWindow.current();
+  if (!t) return;
+  if (t.tur === "cekim" && t.shot === state.sel.shot) objectWindow.open(shotTopic());
+  if (t.tur === "karakter") {
+    const i = find(state.sel.shot)?.shot.cast.findIndex((m) => m.id === t.oyuncu) ?? -1;
+    if (i >= 0) objectWindow.open(topicOf("cast", i));
+  }
 }
 const inspector = createInspector($("inspector"), {
   // a voice sample (cizgi ses-ornek) of one character, from the saved file: save first, then listen
@@ -761,6 +804,7 @@ async function refreshPreview() {
     state.previewOk = res.validation.ok && (res.preview.ok || state.look === "3b");
     if (res.preview.ok) state.unspoken = new Set(res.preview.unspoken || []);
     renderMessages(res.preview);
+    refreshWindow(); // the shot window lists the rules' findings: they may have changed
     if (res.preview.ok) stage.load(res.preview);
     else if (res.validation.ok && state.look === "3b") stage.load({ ...res.preview, error: tr(res.preview.error) }); // why, on the stage
     timeline.render();

@@ -2,7 +2,7 @@
 // thing with Claude, right next to the stage (which stays in view): its drawing, a new version
 // Claude drew (taken in with one click), quick actions, and a short chat (panel-sohbet.mjs).
 // Everything from Claude is drawn as text; pictures are only the panel's own drawings.
-import { el } from "./dom.js";
+import { el, svg } from "./dom.js";
 import { startRecording, fileToWav, MAX_RECORD_S } from "./kayit.js";
 
 const KIND_TEXT = { karakter: "Karakter", nesne: "Nesne", mekan: "Mekân", replik: "Replik", efekt: "Efekt", cekim: "Çekim" };
@@ -16,7 +16,15 @@ const QUICK = {
   mekan: ["Mekânı değiştir: ", "Daha sade çiz", "Gece yap", "Hikâyeye uyan bir mekân öner"],
   replik: ["Daha duygulu söylesin", "Daha yavaş söylesin", "Metni değiştir: "],
   efekt: ["Başka bir efekt öner", "Daha erken çalsın", "Sesini kıs", "Bu efekti kaldır"],
-  cekim: ["Omuz üstü çek", "İki kişiyi derinlikli göster", "Yakın çekim yap", "Kamera yavaşça yaklaşsın", "Kompozisyonu düzelt"],
+  cekim: ["Kompozisyonu düzelt", "Kamera yavaşça yaklaşsın", "Bu çekimi daha heyecanlı yap"],
+};
+const VIEW_TEXT = { yan: "Yandan", on: "Önden", arka: "Arkadan" };
+// A small sketch of each shot recipe, so the person sees the composition before choosing it
+const SKETCH = {
+  omuz: [["ellipse", { cx: 14, cy: 40, rx: 16, ry: 22, class: "koyu" }], ["circle", { cx: 40, cy: 17, r: 6 }], ["rect", { x: 34, y: 24, width: 12, height: 16, rx: 3 }]],
+  derin: [["circle", { cx: 16, cy: 14, r: 7 }], ["rect", { x: 9, y: 22, width: 14, height: 22, rx: 3 }], ["circle", { cx: 42, cy: 16, r: 4 }], ["rect", { x: 38, y: 21, width: 8, height: 12, rx: 2 }]],
+  takip: [["circle", { cx: 30, cy: 20, r: 6, class: "koyu" }], ["rect", { x: 24, y: 27, width: 12, height: 17, rx: 3, class: "koyu" }], ["path", { d: "M30 12 L30 2 M26 6 L30 2 L34 6", class: "cizgi" }]],
+  yakin: [["circle", { cx: 30, cy: 24, r: 15 }], ["circle", { cx: 25, cy: 22, r: 2, class: "koyu" }], ["circle", { cx: 35, cy: 22, r: 2, class: "koyu" }]],
 };
 const WIDTH = 380;
 const GAP = 12;
@@ -38,7 +46,8 @@ export function createObjectWindow(ctx) {
   let voice = { phase: "idle" }; // the character's voice: idle | recording | recorded | busy, and what to show
   let recorder = null;
   let line = { busy: false, msg: "", take: 0 }; // a line spoken again from its window
-  let drawn = 0; // bumped when a drawing changes under the same address, so the browser does not show the old one
+  let drawn = 0;
+  let shotNote = null; // what the last recipe did, or why it could not // bumped when a drawing changes under the same address, so the browser does not show the old one
   const box = el("section", { class: "npencere", role: "dialog", "aria-modal": "false", "aria-labelledby": "npencere-ad", hidden: true });
   document.body.append(box);
   const input = el("textarea", { rows: "2", maxlength: "2000", placeholder: "Bu şey için Claude'a yaz", "aria-label": "Claude'a mesaj" });
@@ -107,7 +116,7 @@ export function createObjectWindow(ctx) {
 
   /** The thing itself: its drawing (and a new version), or a line's words and voice, an effect, a shot's camera. */
   function body() {
-    if (topic.tur === "karakter") return el("div", { class: "npencere-govde" }, drawings(), voiceSection());
+    if (topic.tur === "karakter") return el("div", { class: "npencere-govde" }, drawings(), viewRow(), voiceSection());
     if (DRAWN.has(topic.tur)) return drawings();
     const g = topic.goster || {};
     if (topic.tur === "replik") {
@@ -126,8 +135,68 @@ export function createObjectWindow(ctx) {
         el("p", { text: `${g.efekt} · ${Number(g.at || 0).toFixed(1)} sn'de çalıyor` }),
         el("audio", { class: "kanal-ses", controls: "", preload: "none", src: `/kutuphane/ses/${encodeURIComponent(g.efekt)}.wav`, "aria-label": "Efekti dinle" }));
     }
-    return el("div", { class: "npencere-kart" }, // cekim
-      el("p", { text: `${FRAMING_TEXT[g.plan] || g.plan || "?"} plan, kamera ${MOVE_TEXT[g.hareket] || g.hareket}${g.hedef ? `, odak: ${g.hedef}` : ""}` }));
+    return el("div", { class: "npencere-govde" }, // cekim
+      el("div", { class: "npencere-kart" },
+        el("p", { text: `${FRAMING_TEXT[g.plan] || g.plan || "?"} plan, kamera ${MOVE_TEXT[g.hareket] || g.hareket}${g.hedef ? `, odak: ${g.hedef}` : ""}` })),
+      problems(g.sorunlar || []),
+      recipes(g.tarifler || [], g.kisi || 0),
+      shotNote ? el("p", { class: shotNote.error ? "npencere-hata" : "muted small", role: "status", text: shotNote.text }) : null);
+  }
+
+  /** The person in another view, in this shot: one click, no waiting. */
+  function viewRow() {
+    const g = topic.goster || {};
+    if (!g.gorunusler) return null;
+    return el("div", { class: "npencere-gorunus", role: "group", "aria-label": "Görünüş" },
+      el("span", { class: "small", text: "Görünüş:" }),
+      ...Object.keys(VIEW_TEXT).map((k) => {
+        const drawn = !!g.gorunusler[k];
+        const on = g.simdi === k;
+        return el("button", {
+          class: `btn small${on ? " primary" : ""}`, type: "button", "aria-pressed": String(on), disabled: drawn ? null : "",
+          title: drawn ? `Bu çekimde ${VIEW_TEXT[k].toLowerCase()} göster` : "Bu görünüş çizilmemiş: Claude'dan çizmesini iste",
+          text: VIEW_TEXT[k], on: { click: () => { if (!on) setView(k); } },
+        });
+      }));
+  }
+
+  function setView(kind) {
+    const why = ctx.setView?.(topic.oyuncu, kind);
+    if (why) {
+      error = why;
+      render();
+    }
+  }
+
+  /** What the film rules say about this shot (or its scene), each with a way to have Claude fix it. */
+  function problems(list) {
+    if (!list.length) return el("p", { class: "muted small", text: "Çekim kurallarına göre bir sorun yok." });
+    return el("section", { class: "npencere-sorunlar", "aria-label": "Çekim sorunları" },
+      el("h3", { text: `Sorunlar (${list.length})` }),
+      el("ul", {}, list.map((p) => el("li", {},
+        el("p", { text: p.metin }),
+        el("button", { class: "btn small ghost", type: "button", text: "Claude düzeltsin", on: { click: () => send(`Bu sorunu düzelt: ${p.metin}`) } })))));
+  }
+
+  /** Ready compositions, applied at once (undo takes them back). */
+  function recipes(list, people) {
+    if (!list.length) return null;
+    return el("section", { class: "npencere-tarifler", "aria-label": "Kompozisyon" },
+      el("h3", { text: "Kompozisyon" }),
+      el("div", { class: "tarif-kartlar" }, list.map((t) => {
+        const fits = people >= t.kisi;
+        return el("button", {
+          class: "tarif-kart", type: "button", disabled: fits ? null : "", title: fits ? `${t.not}. Hemen uygulanır; beğenmezsen geri al.` : "Bu tarif için çekimde iki kişi olmalı",
+          on: { click: () => recipe(t.id) },
+        }, svg("svg", { viewBox: "0 0 60 48", "aria-hidden": "true", class: "tarif-cizim" }, ...SKETCH[t.id].map(([tag, a]) => svg(tag, a))),
+        el("strong", { text: t.ad }), el("small", { text: t.not }));
+      })));
+  }
+
+  function recipe(id) {
+    const why = ctx.applyRecipe?.(id);
+    shotNote = why ? { error: true, text: why } : { text: "Uygulandı: sahnede gör. Beğenmezsen geri al (Ctrl+Z)." };
+    render();
   }
 
   /** A spoken line to play, if its file is there (no audio yet: no player). */
@@ -381,6 +450,7 @@ export function createObjectWindow(ctx) {
       topic = t;
       if (!same) {
         error = "";
+        shotNote = null;
         input.value = "";
         recorder?.cancel();
         recorder = null;
@@ -391,6 +461,7 @@ export function createObjectWindow(ctx) {
     },
     close,
     isOpen: () => !!topic,
+    current: () => topic,
     /** The poll's conversations (GET /api/kanal → sohbet) and whether Claude listens. */
     update(state, dinliyor) {
       listening = !!dinliyor;

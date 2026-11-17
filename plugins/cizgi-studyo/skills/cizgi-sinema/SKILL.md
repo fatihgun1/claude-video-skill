@@ -19,6 +19,8 @@ Sources: [continuity editing (StudioBinder)](https://www.studiobinder.com/blog/w
 | Rule | What it means here | Engine check |
 |---|---|---|
 | **180° / screen direction** | A character keeps the same screen direction across cuts: walking right stays walking right. Only a neutral shot (front or back view) may sit between opposite directions. | ✓ warns when consecutive shots show the same character facing opposite ways with no neutral view between |
+| **Not only from the side** | A scene of 3 or more shots that shows people only in profile reads flat. Add a front 3/4 close-up, an over-the-shoulder shot or a tracking shot from behind. | ✓ warns (on the scene's first shot) |
+| **Over the shoulder in a conversation** | When two people talk in a scene, at least one shot shows the speaker over the listener's shoulder: the listener's back 3/4 view in front (`back` 0), the speaker's front 3/4 further back (`back` ~0.35), medium, camera on the speaker. | ✓ warns (on the scene's first shot) |
 | **30° rule (no jump cuts)** | Two consecutive shots of the same subject must change framing size **or** view (angle). Same view and same framing = jump cut. | ✓ warns |
 | **Establishing first** | The first shot is wide, or a tracking shot. | ✓ warns when the first shot is close/detail |
 | **Motivated insert** | An insert on a prop must follow a shot where a character looks at or reaches for it. | ✓ warns when an insert (camera target = prop) is the first shot or has no character in the shot before |

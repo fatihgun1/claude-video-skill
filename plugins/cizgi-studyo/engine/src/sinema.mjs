@@ -5,10 +5,12 @@
  *   - 30° rule: consecutive shots of the same subject change framing or view
  *   - 180° / screen direction: a person does not flip direction between consecutive shots
  *     unless a neutral (front/back) view sits between
+ *   - composition: a scene not seen only from the side; a conversation with an over-the-shoulder shot
  */
 
 const CLOSE_FRAMINGS = new Set(["close", "detay"]);
 const NEUTRAL_VIEWS = new Set(["front", "back"]);
+const SIDE_ONLY_SHOTS = 3; // a scene of this many shots or more, all from the side, reads flat
 
 /** The person behind a character entry: rigs that are views of the same person share it. */
 function identityOf(character, lib) {
@@ -76,5 +78,28 @@ export function filmWarnings(episode, lib) {
       }
     }
   });
+  warnings.push(...compositionWarnings(episode, lib, chars));
   return warnings;
+}
+
+/**
+ * Scene-wide composition (told on the scene's first shot): a scene seen only from the side, and a
+ * conversation without an over-the-shoulder shot. Both made Test 11's film look flat.
+ */
+function compositionWarnings(episode, lib, chars) {
+  const out = [];
+  const viewOf = (m) => lib.characters.get(chars[m.id]?.rig)?.meta?.view || "front";
+  for (const scene of episode.scenes) {
+    const where = `film: shot ${scene.shots[0].shot_id}`;
+    const peopled = scene.shots.filter((s) => s.cast.length);
+    if (peopled.length >= SIDE_ONLY_SHOTS && peopled.every((s) => s.cast.every((m) => viewOf(m).startsWith("profile")))) {
+      out.push(`${where}: every shot of scene ${scene.scene_id} shows people from the side (profile); add a front 3/4 close-up, an over-the-shoulder shot or a tracking shot from behind`);
+    }
+    const speakers = new Set(scene.shots.flatMap((s) => (s.utterances || []).map((u) => chars[u.speaker] && identityOf(chars[u.speaker], lib))).filter(Boolean));
+    const overShoulder = scene.shots.some((s) => s.cast.some((m) => viewOf(m).startsWith("back")) && s.cast.some((m) => !viewOf(m).startsWith("back")));
+    if (speakers.size >= 2 && !overShoulder) {
+      out.push(`${where}: the conversation in scene ${scene.scene_id} has no over-the-shoulder shot; show the speaker over the listener's shoulder (the listener's back 3/4 in front, the speaker's front 3/4 behind)`);
+    }
+  }
+  return out;
 }

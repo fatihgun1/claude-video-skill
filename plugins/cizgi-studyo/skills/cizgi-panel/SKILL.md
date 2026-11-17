@@ -47,6 +47,8 @@ $CLI panel <klasör> --port 4900
        - Both are set on that person. Their front and back views (`<rig>-on`, `<rig>-arka`) speak with the same voice unless they have their own. The microphone is blocked in the desktop app's built-in browser: the window then says to pick a file or open the panel in Chrome.
      - `efekt <shot>-<n>`: sfx n of that shot (its `sfx`, `at`, `volume`). Change it in `bolum.json`, using only effects in the library.
      - `cekim <shot>`: the shot itself, its camera and composition (framing, move, target, who stands where, which view).
+       - The window lists the film rules' findings for the shot and its scene (with **Claude düzeltsin**, which comes to you as a message). It also has ready composition cards the person applies at once, without you: **Omuz üstü**, **İki kişi derinlikli**, **Arkadan takip**, **Yakın, önden**.
+       - The karakter window switches a person's view in that shot (**Yandan / Önden / Arkadan**); a view nobody drew is greyed out. When asked, draw the missing view as a draft (`<rig>-on` / `<rig>-arka` with `same_as`).
        - Plan it with the `cizgi-sinema` skill: over-the-shoulder uses the back 3/4 view in front of a front 3/4 view; a two-shot with depth uses `back`.
        - Validate, then look at its still (`cli.mjs storyboard <bolum.json> --sahne <scene id> --format <format>`).
    - Ask nothing in chat. If you truly need a choice, ask it in the window with `oneriler` (the person clicks one) or with `panel_sor`.
