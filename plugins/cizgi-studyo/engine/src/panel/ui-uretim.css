@@ -136,3 +136,8 @@ p.uretim-onay { margin: 0; border-color: color-mix(in srgb, var(--ok) 40%, var(-
 .sihirbaz-bekliyor { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; border: 1px solid var(--select); border-radius: var(--radius); background: var(--pane-2); }
 .sihirbaz.sayfa .psih-claude .sihirbaz-bekliyor .psih-durum { padding: 0; border: 0; background: none; }
 .sihirbaz-bekliyor p { margin: 0; }
+
+/* a draft picture on the step page can be taken into the library right there */
+.sresim-al { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.sresim-alindi { margin: 0; font-size: 12px; text-align: center; color: var(--ok); }
+.sresim-hata { margin: 0; font-size: 12px; color: var(--err); }

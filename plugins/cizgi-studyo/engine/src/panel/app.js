@@ -211,6 +211,7 @@ const drafts = createDrafts({
   title: () => state.draft?.title || state.draft?.episode || "",
   setVocab: (v) => {
     state.vocab = v; // a drawing just taken in is a card now, and can be used
+    if (!state.draft) return; // no episode open (the wizard's step page): the panels draw when one opens
     library.render();
     inspector.render();
   },
@@ -781,6 +782,7 @@ createClaudeChannel({
   projectWizard: (id, step) => projectWizard.open(id, step),
   projectSlot: () => projectWizard.slot(),
   setThinking: (on, listening) => projectWizard.setThinking(on, listening),
+  takeDraft: (tur, id) => drafts.take(tur, id),
   note,
 }).start();
 /* ---------- İncele: scene review ---------- */

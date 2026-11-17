@@ -16,7 +16,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
  *          home:() => Promise<void>, openEpisode:(rel:string) => Promise<void>, story:() => void,
  *          selectShot:(id:string) => boolean, note:(text:string) => void,
  *          projectWizard?:(id:string, step?:string) => Promise<void>, projectSlot?:() => HTMLElement|null,
- *          setThinking?:(on:boolean, listening:boolean) => void}} ctx
+ *          setThinking?:(on:boolean, listening:boolean) => void,
+ *          takeDraft?:(tur:string, id:string) => Promise<string>}} ctx
  */
 export function createChannel(ctx) {
   let seenSeq = -1; // the last command applied
@@ -27,7 +28,7 @@ export function createChannel(ctx) {
   const box = el("div", { class: "kanal-soru", role: "dialog", "aria-modal": "false", "aria-labelledby": "kanal-soru-baslik", hidden: true });
   const chip = el("button", { class: "kanal-cip", type: "button", hidden: true, text: "Claude bir şey soruyor", on: { click: () => { later = false; render(); } } });
   document.body.append(box, chip);
-  const wizard = createWizard(); // panel_adim: the steps of a longer job; a question shows inside it
+  const wizard = createWizard({ takeDraft: ctx.takeDraft }); // panel_adim: the steps of a longer job; a question shows inside it
 
   function openRail(id) {
     const button = $("rail")?.querySelector(`button[title="${RAIL_TITLE[id]}"]`);

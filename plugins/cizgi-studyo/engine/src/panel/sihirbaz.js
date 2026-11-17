@@ -12,10 +12,16 @@ const STATE_TEXT = { sirada: "sırada", calisiyor: "Claude çalışıyor", bekli
 // the Üretim page's Claude column (uretim.js keeps these elements across its redraws)
 const DOCK = "#uretim[open] .uretim-sihirbaz";
 const QUESTION_DOCK = "#uretim[open] .uretim-soru";
+// a picture that is a draft of the project library (see panel-taslak.mjs): it can be taken in right here
+const DRAFT_SRC = /^\/kutuphane-taslak\/(karakter|mekan|nesne)\/([a-z0-9_-]+)\.svg$/;
 
-/** @returns {{set:(w:object|null) => void, slot:() => HTMLElement|null, shrink:() => void, grow:() => void}} */
-export function createWizard() {
+/**
+ * @param {{takeDraft?:(tur:string, id:string) => Promise<string>}} [opts]
+ * @returns {{set:(w:object|null) => void, slot:() => HTMLElement|null, shrink:() => void, grow:() => void}}
+ */
+export function createWizard({ takeDraft } = {}) {
   let current = null; // the wizard as the server sent it
+  const taking = new Map(); // draft picture → "alınıyor" | "alındı" | why it failed
   let small = false;
   let thinking = false; // the person answered: Claude works on it (the channel's "düşünüyor")
   let dismissed = null; // id of a finished wizard the person closed
@@ -80,10 +86,13 @@ export function createWizard() {
               ? [el("h3", { text: active.baslik }),
                 el("p", { class: `sihirbaz-durum ${active.durum}`, text: STATE_TEXT[active.durum] || active.durum }),
                 active.aciklama ? el("p", { class: "psih-aciklama", text: active.aciklama }) : null,
+                takeAllButton(active.gorsel),
                 active.gorsel.length
                   ? el("div", { class: "sihirbaz-resimler" }, active.gorsel.map((src, n) => el("figure", {},
-                    el("img", { src, alt: `${active.baslik}: görsel ${n + 1}`, loading: "lazy" }),
-                    el("figcaption", { text: String(n + 1) }))))
+                    // a draft taken in left taslak/: show it from the library
+                    el("img", { src: taking.get(src) === "alındı" ? src.replace("/kutuphane-taslak/", "/kutuphane/") : src, alt: `${active.baslik}: görsel ${n + 1}`, loading: "lazy" }),
+                    el("figcaption", { text: String(n + 1) }),
+                    takeButton(src))))
                   : null]
               : el("p", { class: "psih-aciklama", text: "Claude adımları sırayla yürütüyor." }))),
         el("aside", { class: "psih-claude", "aria-label": "Claude" },
@@ -91,6 +100,38 @@ export function createWizard() {
           claudeState(w, active),
           slot)), // Claude's question: the person picks here
     ];
+  }
+
+  /**
+   * Claude asks the person to take its drawings into the library, and this page covers the panel
+   * where the drafts are: so each draft picture has its own "Kütüphaneye al" here.
+   */
+  async function take(src) {
+    const m = DRAFT_SRC.exec(src);
+    if (!m || !takeDraft || taking.get(src) === "alınıyor" || taking.get(src) === "alındı") return;
+    taking.set(src, "alınıyor");
+    render();
+    const why = await takeDraft(m[1], m[2]);
+    taking.set(src, why || "alındı");
+    render();
+  }
+  const waitingDrafts = (list) => list.filter((src) => DRAFT_SRC.test(src) && taking.get(src) !== "alındı");
+
+  function takeButton(src) {
+    if (!takeDraft || !DRAFT_SRC.test(src)) return null;
+    const s = taking.get(src);
+    if (s === "alındı") return el("p", { class: "sresim-alindi", role: "status", text: "✓ Kütüphanede" });
+    return el("div", { class: "sresim-al" },
+      el("button", { class: "btn small", type: "button", "aria-busy": s === "alınıyor" ? "true" : null, text: s === "alınıyor" ? "Alınıyor…" : "Kütüphaneye al", on: { click: () => take(src) } }),
+      s && s !== "alınıyor" ? el("p", { class: "sresim-hata", role: "alert", text: s }) : null);
+  }
+
+  function takeAllButton(list) {
+    if (!takeDraft) return null;
+    const left = waitingDrafts(list);
+    if (left.length < 2) return null;
+    return el("button", { class: "btn primary", type: "button", text: `${left.length} taslağın hepsini kütüphaneye al`,
+      on: { click: async () => { for (const src of left) await take(src); } } });
   }
 
   /**

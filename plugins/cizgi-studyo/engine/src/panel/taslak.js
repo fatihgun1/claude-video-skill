@@ -335,6 +335,20 @@ export function createDrafts(ctx) {
   }
 
   return {
+    /**
+     * Take one draft in from elsewhere (the wizard's step page, which covers this panel).
+     * @returns {Promise<string>} "" when taken, else the reason it was not
+     */
+    async take(tur, id) {
+      try {
+        const res = await ctx.api("/api/taslak", { islem: "al", tur, id });
+        drafts = res.taslaklar;
+        ctx.setVocab(res.vocab);
+        return "";
+      } catch (err) {
+        return err.message;
+      }
+    },
     /** The drafts part of the Mekân, Nesne, Karakter or Hareket panel; under Ses, the project's sound problems and the ask form. */
     section(tab) {
       if (!TABS.includes(tab)) return [];
