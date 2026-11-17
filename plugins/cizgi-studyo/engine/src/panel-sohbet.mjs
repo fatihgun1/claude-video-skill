@@ -14,7 +14,7 @@
 
 export const CHAT_KINDS = Object.freeze(["karakter", "nesne", "mekan", "replik", "efekt", "cekim"]);
 // a spoken line of an episode, relative to the panel folder: <episode folder>/ses/<shot>-<n>.wav
-const LINE_AUDIO = /^(?:[A-Za-z0-9_-]+\/){1,6}ses\/[A-Za-z0-9_-]{1,80}\.wav$/;
+const LINE_AUDIO = /^(?:[A-Za-z0-9_-]+\/){1,6}(?:ses\/[A-Za-z0-9_-]{1,80}|cikti\/ses-ornegi-[a-z0-9_-]{1,80})\.wav$/; // as panel-kanal.mjs
 const ID = /^[a-z0-9_-]{1,60}$/;
 const SHOT = /^[a-z0-9_-]{1,40}$/;
 const PICTURE = /^\/(kutuphane|kutuphane-taslak)\/(karakter|mekan|nesne|konsept)\/[a-z0-9_-]{1,60}\.svg$/;
@@ -103,7 +103,7 @@ export function createChats({ now = () => Date.now() } = {}) {
       const text = words(metin, "metin", MAX_TEXT, { optional: true, multiline: true });
       const pictures = cleanPictures(gorsel);
       const chips = cleanSuggestions(oneriler);
-      if (ses !== undefined && (typeof ses !== "string" || !LINE_AUDIO.test(ses))) throw new Error("ses bir replik sesi olmalı: <bölüm klasörü>/ses/<shot>-<n>.wav");
+      if (ses !== undefined && (typeof ses !== "string" || !LINE_AUDIO.test(ses))) throw new Error("ses bir replik sesi ya da ses örneği olmalı: <bölüm klasörü>/ses/<shot>-<n>.wav ya da <bölüm klasörü>/cikti/ses-ornegi-<id>.wav");
       const working = durum === undefined || durum === null ? undefined : words(durum, "durum", 160);
       if (!text && !pictures && !chips && !ses && working === undefined) throw new Error("metin, durum, gorsel, ses ya da oneriler ver");
       const c = touch(`${tur}:${id}`, { tur, id }, (old) => ({

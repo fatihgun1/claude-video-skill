@@ -573,6 +573,11 @@ body.at-home .editor, body.at-home .bar > :not(.brand):not(.state), body.at-home
 .card .thumb .dcompare { position: absolute; inset: 6px; height: auto; padding-top: 2px; }
 .card .thumb .dcompare img { position: static; inset: auto; width: 100%; height: auto; max-height: 100%; }
 .kanal-soru[hidden], .kanal-cip[hidden] { display: none; }
+/* in the editor a question sits at the right edge, like an object window: the stage stays in view
+   (Test 16: "ekranda kocaman modal var, sesi nereden dinleyecem") */
+@media (min-width: 900px) {
+  .kanal-soru:not(.docked) { left: auto; right: 16px; top: 64px; bottom: 16px; transform: none; width: min(400px, 36vw); max-height: none; }
+}
 
 /* The wizard Claude moves on (panel_adim): sihirbaz.js */
 .sihirbaz { position: fixed; z-index: 55; top: 64px; right: 12px; bottom: 12px; width: min(420px, calc(100vw - 24px)); overflow: auto; display: flex; flex-direction: column; gap: var(--gap); padding: 14px 16px; background: var(--pane-2); border: 1px solid var(--accent); border-radius: 12px; box-shadow: 0 12px 40px rgba(0, 0, 0, .5); }

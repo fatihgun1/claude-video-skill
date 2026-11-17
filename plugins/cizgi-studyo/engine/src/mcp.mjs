@@ -23,7 +23,7 @@ import { queueOf, takeRequests, updateRequest, describe, episodeFile, ANSWERS, M
 
 // The Claude session this server belongs to: requests from its panel are for it alone (istekler.mjs).
 const SESSION_ID = process.env.CLAUDE_CODE_SESSION_ID || null;
-const SERVER_INFO = { name: "cizgi-studyo", version: "2.11.7" };
+const SERVER_INFO = { name: "cizgi-studyo", version: "2.11.8" };
 // panel-kanal.mjs PANELS (not imported: engine modules load on first use)
 const PANEL_TABS = ["projeler", "uretim", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"];
 const WAIT_DEFAULT_S = 600;
@@ -133,7 +133,7 @@ const TOOLS = [
         coklu: { type: "boolean", description: "Several options may be picked (default: one)." },
         serbest: { type: "boolean", description: "The person may also write their own answer (default: true)." },
         bolum: { type: "string", description: "The episode the question is about (relative path); the panel opens it." },
-        ses: { type: "string", description: "A spoken line to play in the question, so the person can listen right where they answer: <episode folder>/ses/<shot_id>-<n>.wav relative to the panel folder (e.g. bolumler/kus/ses/s1_sh4-0.wav)." },
+        ses: { type: "string", description: "A spoken line or voice sample to play in the question, so the person can listen right where they answer: <episode folder>/ses/<shot_id>-<n>.wav or <episode folder>/cikti/ses-ornegi-<character>.wav, relative to the panel folder (e.g. bolumler/kus/ses/s1_sh4-0.wav). It plays at the film's level." },
         bekle: { type: "number", minimum: 0, maximum: 1800, description: "Seconds to wait for the answer (default 600)." },
       },
       required: ["soru", "secenekler"],

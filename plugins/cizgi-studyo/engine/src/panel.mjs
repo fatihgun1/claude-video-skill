@@ -405,7 +405,8 @@ export function createPanel(opts) {
       if (!dir) throw new HttpError(404, "open the episode first");
       return sendFile(res, safeJoin(dir, decode(shown[2])));
     }
-    // a spoken line Claude plays in a question (panel_sor ses): only <episode>/ses/<file>.wav next to a bolum.json
+    // a spoken line or voice sample Claude plays in a question (panel_sor ses): only <episode>/ses/<file>.wav
+    // or <episode>/cikti/ses-ornegi-<id>.wav next to a bolum.json
     if (path.startsWith("/satir-ses/")) {
       const rel = decode(path.slice(11));
       if (!LINE_AUDIO.test(rel)) throw new HttpError(404, "not found");
