@@ -7,7 +7,9 @@
  *   GET  /api/yapim                 {yapimlar: [{id, baslik}]}   folders with a story and no bolum.json yet
  *   GET  /api/yapim/oku?id=         {id, story, version, bolum, errors}   bolum: the episode file when it exists
  *   POST /api/yapim                 {id, story, version}   write the story (valid, over the version read)
- *   POST /api/yapim/olustur         {id}   ask Claude to build the episode from it (needs a Claude session):
+ *   POST /api/yapim/olustur         {id, hizli?}   ask Claude to build the episode from it (needs a Claude session);
+ *                                   hizli (the one-screen quick start): only the idea and the format, Claude
+ *                                   makes the characters and the scene cards itself:
  *                                   straight to Claude's panel_dinle when it listens, else the request queue
  */
 import { existsSync, mkdirSync, readdirSync, rmdirSync, statSync } from "node:fs";
@@ -23,10 +25,14 @@ function idOf(value) {
   return value;
 }
 
-/** What a story must have before Claude can build an episode from it. */
-export function missingForBuild(story) {
+/**
+ * What a story must have before Claude can build an episode from it. A quick start needs only the
+ * idea and the format: Claude writes the characters and the cards from the idea.
+ */
+export function missingForBuild(story, { quick = false } = {}) {
   const missing = [];
   if (!story.fikir?.trim()) missing.push("hikâyenin fikri");
+  if (quick) return story.istekler?.format ? missing : [...missing, "format (9:16 ya da 16:9)"];
   if (!story.karakterler?.length) missing.push("en az bir karakter");
   if (!story.kartlar?.length) missing.push("en az bir sahne kartı");
   if (!story.istekler?.format) missing.push("format (9:16 ya da 16:9)");
@@ -89,7 +95,8 @@ export function makingRoutes({ root, loadLib, requests, channel = null }) {
       if (!exists) throw new HttpError(404, "bu bölümün hikâyesi yok: önce sihirbazı kaydet");
       const { ok, errors } = validateStory(story, loadLib());
       if (!ok) throw new HttpError(400, errors.join("\n"));
-      const missing = missingForBuild(story);
+      const quick = body?.hizli === true;
+      const missing = missingForBuild(story, { quick });
       if (missing.length) throw new HttpError(400, `Oluşturmadan önce eksikler: ${missing.join(", ")}`);
       // Claude waits in panel_dinle while the person fills the wizard: a request in the queue would
       // only reach it after that wait (hooks run between turns), so hand it over directly
@@ -102,7 +109,9 @@ export function makingRoutes({ root, loadLib, requests, channel = null }) {
         update
           ? "Değişen istekleri bolum.json'a uygula; değişmeyenlere dokunma."
           : `${relOf(id)} dosyasını bu isteklere göre yaz.`,
-        "cizgi-proje skill'indeki adımlarla: panel_adim sihirbazıyla ilerle, eksik çizimleri taslak yap, kararları bolum.json kararlar'a yaz, sonra senaryo tablosunu göster.",
+        quick
+          ? "Hızlı başlangıç: karakterleri ve sahne kartlarını fikirden sen çıkar, soru sormadan ilk bölümü kur (cizgi-proje skill'indeki \"Hızlı başlangıç\"), editörde aç ve stüdyo moduna geç."
+          : "cizgi-proje skill'indeki adımlarla: panel_adim sihirbazıyla ilerle, eksik çizimleri taslak yap, kararları bolum.json kararlar'a yaz, sonra senaryo tablosunu göster.",
       ].join("\n");
       try {
         return { istek: addRequest(requests, { root, b: relOf(id), hedef: { tur: "bolum", etiket: (story.baslik || id).slice(0, 100) }, metin }) };

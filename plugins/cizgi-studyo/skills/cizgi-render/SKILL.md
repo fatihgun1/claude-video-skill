@@ -5,6 +5,8 @@ description: Render the final MP4s (16:9 YouTube, 9:16 Reels/Shorts) of a Çizgi
 
 # Render
 
+**When the panel is open, the person renders there:** the **🎬 Video çıkar** button in the top bar approves, speaks the lines and renders in one press, and plays the video in the panel. Point them to it. Do not render from chat and do not send the video file into the chat: the person watches it in the panel. The commands below are for when there is no panel.
+
 ```bash
 CLI="node ${CLAUDE_PLUGIN_ROOT}/engine/src/cli.mjs"
 $CLI render <bolum.json>                    # final, both formats (needs storyboard approval)

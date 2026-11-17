@@ -67,3 +67,23 @@
 .tarif-cizim .cizgi { fill: none; stroke: var(--accent); stroke-width: 2; }
 .ebox.kesik { outline: 2px dashed var(--warn); }
 .ebox .ekesik { position: absolute; bottom: -22px; left: 0; white-space: nowrap; font-size: 11px; padding: 2px 6px; border-radius: 4px; background: var(--warn); color: #111; }
+.video-cikar { font-weight: 600; }
+.vcikar { width: min(560px, calc(100vw - 32px)); padding: 24px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--pane); color: var(--text); }
+.vcikar::backdrop { background: rgb(0 0 0 / .55); }
+.vcikar > * + * { margin-top: 16px; }
+.vcikar-bas { display: flex; justify-content: space-between; align-items: center; }
+.vcikar-bas h2 { margin: 0; font-size: 18px; }
+.vcikar-kararlar { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--warn); border-radius: var(--radius); }
+.vcikar-kararlar h3 { margin: 0; font-size: 14px; }
+.vcikar-adimlar { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.vcikar-adimlar li { display: grid; grid-template-columns: 20px 1fr auto; align-items: center; gap: 8px; }
+.vcikar-adimlar li.bitti .vcikar-isaret, .vcikar-adimlar li.atlandi .vcikar-isaret { color: var(--ok); }
+.vcikar-adimlar li.hata .vcikar-isaret { color: var(--err); }
+.vcikar-adimlar .cark { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); animation: npencere-cark .9s linear infinite; }
+.vcikar-video { width: 100%; max-height: 60vh; background: #000; border-radius: var(--radius); }
+.hizli { width: min(600px, calc(100vw - 32px)); padding: 24px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--pane); color: var(--text); }
+.hizli::backdrop { background: rgb(0 0 0 / .55); }
+.hizli > * + * { margin-top: 12px; }
+.hizli textarea { width: 100%; box-sizing: border-box; resize: vertical; font-size: 15px; line-height: 1.5; }
+.hizli .psegment { display: flex; gap: 8px; flex-wrap: wrap; }
+.hizli-alt { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; justify-content: space-between; }

@@ -294,7 +294,7 @@ export function createProjects(page, ctx) {
       el("div", { class: "hactions" },
         back,
         el("button", { class: "btn", type: "button", text: "Boş bölüm", title: "Sihirbazsız: tek sahne, tek shot", "aria-expanded": String(creating), "aria-controls": "hnew", on: { click: toggleNew } }),
-        el("button", { class: "btn primary", type: "button", text: "+ Yeni bölüm", title: "Proje sihirbazı: hikâye, kararlar, karakterler, sahneler, ses", on: { click: () => ctx.wizard() } })));
+        el("button", { class: "btn primary", type: "button", text: "+ Yeni bölüm", title: "Hikâyeni yaz, formatı ve süreyi seç: gerisini Claude kurar", on: { click: () => ctx.wizard() } })));
   }
 
   function render() {

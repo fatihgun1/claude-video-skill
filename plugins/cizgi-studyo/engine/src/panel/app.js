@@ -22,6 +22,8 @@ import { installKeys } from "./klavye.js";
 import { installViews } from "./gorunum.js";
 import { createDrafts } from "./taslak.js";
 import { createObjectWindow } from "./nesne-pencere.js";
+import { createVideoButton } from "./video-cikar.js";
+import { createQuickStart } from "./hizli-basla.js";
 import { setView, applyRecipe, viewsOf, viewKindOf, shotProblems, RECIPES } from "./kompozisyon.js";
 import { decorId } from "./dekor.js";
 import {
@@ -704,6 +706,26 @@ const production = createProduction({ dialog: $("uretim"), steps: $("steps") }, 
   },
 });
 const renderSteps = () => production.renderSteps();
+/* ---------- "Video çıkar": the whole production in one press ---------- */
+const videoButton = createVideoButton({
+  api,
+  path: () => state.path,
+  format: () => state.format,
+  dirty: () => !!state.draft && dirty(),
+  save: () => save(),
+  outputsUrl: () => state.outputsUrl || "",
+  applyDecisions: async ({ format, kararlar }) => {
+    if (format) state.draft.format = format;
+    state.draft.kararlar = { ...(state.draft.kararlar || {}), ...kararlar };
+    changed(true);
+    await save();
+  },
+  openProduction: () => production.show(),
+  after: () => refreshPreview(), // the lines' audio is new: the stage plays it
+});
+$("video-cikar").addEventListener("click", () => {
+  if (state.draft) videoButton.open();
+});
 function renderHeader() {
   const atHome = document.body.classList.contains("at-home"); // the editor waits behind the home page
   if (!atHome) {
@@ -882,8 +904,17 @@ async function open(rel) {
 
 // unsaved story cards count too: switching episodes would drop them
 const projectWizard = createProjectWizard({ api, note, slug, onClose: () => { if (projects.shown()) projects.show(); } });
+// a new episode starts on one screen (the story, the format, the length); the wizard stays a click away
+const quickStart = createQuickStart({
+  api,
+  wizard: () => projectWizard.open(null),
+  done: (id) => {
+    note(`Claude “${id}” bölümünü kuruyor: karakterler, sahneler, ilk çekimler. Birkaç dakikada editörde açılır; adımları sağda görürsün.`);
+    if (projects.shown()) projects.show(); // the list shows it under "Yapım aşamasında"
+  },
+});
 const projects = createProjects($("projects"), {
-  wizard: (id) => projectWizard.open(id ?? null),
+  wizard: (id) => (id ? projectWizard.open(id) : quickStart.open()),
   current: () => state.path,
   dirty: () => (!!state.draft && dirty()) || story.dirty(),
   open,

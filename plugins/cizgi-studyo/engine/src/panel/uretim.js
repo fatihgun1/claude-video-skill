@@ -11,7 +11,7 @@ import { tr } from "./tr.js";
 const POLL_MS = 2000;
 const GATE_TEXT = { onayli: "onaylı", eskimis: "eskidi (içerik değişti)", yok: "onaylanmadı" };
 /** The decisions the script needs, with their choices (kararlar.mjs): [value, label, hint?]. */
-const DECISIONS = [
+export const DECISIONS = [
   ["format", "Format", [["9:16", "Dikey", "9:16"], ["16:9", "Yatay", "16:9"]]],
   ["boyut", "Boyut", [["2b", "2B"], ["3b", "3B"]]],
   ["muzik", "Müzik", [["yok", "Yok"], ["var", "Var", "Bölüm ayarları → müzik seç"]]],
