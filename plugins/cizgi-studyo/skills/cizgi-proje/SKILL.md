@@ -43,7 +43,14 @@ The episode is made **with** the person, step by step, in the editor panel. You 
      2. Within about two minutes, write the skeleton `bolum.json` with library stand-ins and open it (`panel_git {bolum}`). Show the steps with `panel_adim`.
      3. Draw each new main character once: one concept straight to a draft, front and back views too, no concept cards to choose from. The person takes it in (or asks for changes) in the character's object window.
      4. Build every scene in one pass (step 6). Leave `muzik`, `efekt` and `altyazi` unset: the panel's **Video çıkar** asks them with one click each.
-     5. Go into studio mode (`panel_dinle`).
+     5. Hand the stage to the person:
+        - `panel_adim {kapat: true}`: the step page covers the stage, and a step left on "bekliyor" reads as "do something", but nothing tells the person what.
+        - `panel_git` to the first shot.
+        - Never send them to the Üretim page.
+        - Ask one `panel_sor`: "Bölüm hazır, sahnede. Ne yapmak istersin?" with two options:
+          - "Sahnede bir şeye tıklayıp düzelteceğim": a character, the place, a caption or the shot opens its window.
+          - "Videoyu çıkar": the top bar's **🎬 Video çıkar**. Point at it with `panel_git {vurgula: "Video çıkar"}`; the person presses it.
+        - Then go into studio mode: `panel_dinle`, with `bekle` 600 at most, so messages from other sessions are not held for long.
    - Without the wizard (the person keeps talking in chat), follow steps 2-8 below.
 2. **Decide the basics with the person.** Ask one `panel_sor` per topic:
    - **The story in their words**: who it is about, what their problem is, what changes, how it ends. If the request is one line, ask for these before drafting anything. Draft a story only when they ask you to, and then offer two or three different directions.

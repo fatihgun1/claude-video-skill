@@ -91,3 +91,9 @@
 .edisari { position: absolute; z-index: 5; padding: 4px 10px; font-size: 12px; border-radius: 999px; border: 1px solid var(--warn); background: var(--pane); color: var(--text); cursor: pointer; pointer-events: auto; }
 .edisari.sol { left: 8px; }
 .edisari.sag { right: 8px; }
+
+.stage-box { position: relative; }
+.studyo-ipucu { position: absolute; z-index: 6; top: 8px; left: 50%; transform: translateX(-50%); width: min(720px, calc(100% - 32px)); box-sizing: border-box; display: flex; align-items: center; gap: 8px; margin: 0; box-shadow: 0 6px 18px rgb(0 0 0 / .35); padding: 8px 12px; font-size: 13px; border-radius: var(--radius); background: color-mix(in srgb, var(--accent) 14%, var(--pane)); border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.studyo-ipucu[hidden] { display: none; }
+.studyo-ipucu span:nth-child(2) { flex: 1; }
+.studyo-ipucu .nokta { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }

@@ -742,6 +742,22 @@ const production = createProduction({ dialog: $("uretim"), steps: $("steps") }, 
   },
 });
 const renderSteps = () => production.renderSteps();
+/* ---------- the studio hint: what to do while Claude listens ---------- */
+// Without it the person met a stage and no idea what the buttons do (Test 14). It names the two
+// moves and goes away once an object window is open (then the window says the rest).
+let hintClosed = false;
+function studioHint(listening) {
+  const box = $("studyo-ipucu");
+  if (!box) return;
+  const show = listening && !!state.draft && !hintClosed && !objectWindow.isOpen() && !document.body.classList.contains("at-home");
+  if (show && box.hidden) {
+    box.replaceChildren(
+      el("span", { class: "nokta acik", "aria-hidden": "true" }),
+      el("span", { text: "Claude dinliyor. Sahnede bir şeye tıkla (karakter, mekân, altyazı): yanında pencere açılır, ne istediğini oraya yaz. Bitince sağ üstte 🎬 Video çıkar." }),
+      el("button", { class: "btn icon small", type: "button", "aria-label": "İpucunu kapat", text: "✕", on: { click: () => { hintClosed = true; box.hidden = true; } } }));
+  }
+  box.hidden = !show;
+}
 /* ---------- "Video çıkar": the whole production in one press ---------- */
 const videoButton = createVideoButton({
   api,
@@ -1034,7 +1050,10 @@ createClaudeChannel({
   projectSlot: () => projectWizard.slot(),
   setThinking: (on, listening) => projectWizard.setThinking(on, listening),
   takeDraft: (tur, id) => drafts.take(tur, id),
-  onChats: (state, listening) => objectWindow.update(state, listening),
+  onChats: (state, listening) => {
+    objectWindow.update(state, listening);
+    studioHint(listening);
+  },
   note,
 }).start();
 /* ---------- İncele: scene review ---------- */

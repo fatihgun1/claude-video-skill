@@ -19,7 +19,11 @@ $CLI panel <klasör> --port 4900
 2. If the request is a new video or story, follow the **cizgi-proje** steps from step 2: the episode is made with the person, question by question, and every step shows in the panel. If it names an existing episode, open it (`panel_ac` with `bolum`) and ask what they want to change.
 3. While the panel is open, show every change there: after you edit `bolum.json` or `hikaye.json`, tell the person what to look at (a scene, a shot, **İncele**).
 4. **Studio mode.** Once an episode is open in the panel and nothing else is running, listen.
-   - Call `panel_dinle` (bekle 600) again and again for as long as the person works in the panel. An empty list means nobody wrote, so call it again.
+   - Before you listen, leave the stage in view:
+     - close any step wizard (`panel_adim {kapat: true}`);
+     - `panel_git` to a shot, never to the Üretim page.
+     - The panel then shows the person a strip over the stage: "click anything, or 🎬 Video çıkar".
+   - Call `panel_dinle` (bekle 600 at most) again and again for as long as the person works in the panel. An empty list means nobody wrote, so call it again.
    - Do not end your turn just to wait while the panel is open: the person works in the panel, not in chat.
    - **Object windows.** The person clicks something on the stage (a character, a prop, the place, a caption; a click while the film plays stops it there), and a window opens beside it with the thing, quick actions and a chat. Their message comes as `{tur: "sohbet", konu: {tur: "karakter"|"nesne", id, ad?, bolum?, shot?, oyuncu?}, metin}`:
      - `id` is the drawing id: the character's rig, or the prop's library id.
