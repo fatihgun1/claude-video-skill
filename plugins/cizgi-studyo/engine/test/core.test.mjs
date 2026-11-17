@@ -142,12 +142,17 @@ test("portrait framing zoom is compressed, not multiplied", () => {
   assert.ok(close.zoom < 2 * fit916);
 });
 
-test("a face framed in portrait keeps most of the height it shows in landscape", () => {
-  const p = { ...presets, framings: { ...presets.framings, yakin: { zoom: 2.2, anchor: "face" } } };
-  const cam = C.cameraAt({ framing: "yakin" }, 0, 960, world, p, vp916);
-  near(1920 / cam.zoom, (1080 / 2.2) / 0.8, 1e-6); // visible height: the landscape close-up's, a little looser
-  const land = C.cameraAt({ framing: "yakin" }, 0, 960, world, p, vp169);
-  near(land.zoom, 2.2);
+test("a framing measured on the person shows the same share of them in every format and size", () => {
+  const p = { ...presets, framings: { ...presets.framings, yakin: { zoom: 2.2, anchor: "face", boy: 0.4 } } };
+  for (const [vp, drop] of [[vp169, 500], [vp916, 500], [vp169, 250]]) {
+    const person = drop / (1 - 0.11);
+    const faceY = 900 - drop;
+    const cam = C.cameraAt({ framing: "yakin" }, 0, 960, world, p, vp, null, faceY, drop);
+    near(vp.height / cam.zoom, person * 0.4, 1e-6); // head and shoulders, however tall the drawing
+    const top = faceY - person * 0.11;
+    const headroom = (top - (cam.cy - vp.height / cam.zoom / 2)) / (vp.height / cam.zoom);
+    assert.ok(headroom > 0.05 && headroom < 0.16, `head near the top (${headroom.toFixed(2)})`);
+  }
 });
 
 test("landscape framing is unaffected by portrait rules", () => {

@@ -126,10 +126,12 @@ test("framings anchored to the face follow tall and short characters", () => {
   const shot = { cast: [{ id: "genc", mark: "orta" }], camera: { framing: "close", target: "genc" } };
   const faceWorld = lib.world.ground_y - (950 - 125) * (lib.world.character_height / 900);
   const close = C.shotCamera(shot, 0, lib.world, lib.cameras, vp, { genc: 125 });
-  const halfH = 1080 / close.zoom / 2;
-  assert.ok(Math.abs(close.cy - Math.max(faceWorld, halfH)) < 1e-6);
+  const top = close.cy - 1080 / close.zoom / 2;
+  const bottom = close.cy + 1080 / close.zoom / 2;
+  assert.ok(faceWorld > top && faceWorld < top + (bottom - top) * 0.45, "the face in the upper part of a close-up");
+  assert.ok(bottom < lib.world.ground_y - 0.4 * (lib.world.ground_y - faceWorld), "a close-up does not reach the knees");
   const medium = C.shotCamera({ ...shot, camera: { framing: "medium", target: "genc" } }, 0, lib.world, lib.cameras, vp, { genc: 125 });
-  assert.ok(Math.abs(medium.cy - (faceWorld + lib.world.ground_y) / 2) < 1e-6);
+  assert.ok(medium.zoom < close.zoom, "a medium shot shows more of the person");
   const bear = C.shotCamera({ ...shot, camera: { framing: "medium" } }, 0, lib.world, lib.cameras, vp, {});
   assert.ok(bear.cy > medium.cy, "a short character's medium shot looks lower");
   assert.deepEqual(facesOf({ characters: [{ id: "a", rig: "genc" }, { id: "b", rig: "pamuk" }] }, lib), { a: 125, b: 568 });

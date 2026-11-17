@@ -33,6 +33,9 @@ const SHOT = /^[a-z0-9_-]{1,40}$/;
 export const LINE_AUDIO = /^(?:[A-Za-z0-9_-]+\/){1,6}(?:ses\/[A-Za-z0-9_-]{1,80}|cikti\/ses-ornegi-[a-z0-9_-]{1,80})\.wav$/;
 const PICTURE = /^\/(kutuphane|kutuphane-taslak)\/(karakter|mekan|nesne|konsept)\/[a-z0-9_-]{1,60}\.svg$/;
 const MAX_OPTIONS = 8;
+const QUESTION_MAX = 1500;
+// a sound an option card plays, so the person picks by ear: a library track or effect, or a spoken line
+const OPTION_SOUND = /^\/kutuphane\/(muzik|ses)\/[a-z0-9_-]{1,80}\.wav$/;
 const MAX_ASKS = 10;
 const THINKING_MAX_MS = 120_000;
 export const WATCHED_MS = 6000;
@@ -72,7 +75,7 @@ function cleanNav(cmd) {
 
 function cleanQuestion(q) {
   if (!q || typeof q !== "object") throw new Error("soru bir nesne olmalı");
-  const soru = text(q.soru, "soru", 500, { multiline: true });
+  const soru = text(q.soru, "soru", QUESTION_MAX, { multiline: true });
   if (!Array.isArray(q.secenekler) || !q.secenekler.length || q.secenekler.length > MAX_OPTIONS) {
     throw new Error(`secenekler 1-${MAX_OPTIONS} seçenek olmalı`);
   }
@@ -84,6 +87,12 @@ function cleanQuestion(q) {
     if (o.gorsel !== undefined) {
       if (typeof o.gorsel !== "string" || !PICTURE.test(o.gorsel)) throw new Error("gorsel panelin bir çizimi olmalı (/kutuphane/… ya da /kutuphane-taslak/….svg)");
       out.gorsel = o.gorsel;
+    }
+    if (o.ses !== undefined) {
+      if (typeof o.ses !== "string" || !(OPTION_SOUND.test(o.ses) || LINE_AUDIO.test(o.ses))) {
+        throw new Error("seçeneğin sesi bir kütüphane sesi (/kutuphane/muzik/<id>.wav, /kutuphane/ses/<id>.wav) ya da bir replik sesi olmalı");
+      }
+      out.ses = o.ses;
     }
     return out;
   });
@@ -105,6 +114,7 @@ export function createChannel({ onLateAnswer, onIdleChat, now = () => Date.now()
   let thinkingSince = 0; // the person answered: Claude works until its next move in the panel
   let asks = []; // object-window messages and draft news not handed to Claude yet
   let listener = null; // Claude's panel_dinle call: {done, timer}
+  let applied = 0; // the last move (yon.seq) a panel tab reported as carried out
   let seenAt = 0; // when a browser tab last polled the channel: is anyone looking at the panel?
 
   function hear(list) {
@@ -126,6 +136,12 @@ export function createChannel({ onLateAnswer, onIdleChat, now = () => Date.now()
   }
 
   return {
+    /** The panel carried out move `seq` (POST /api/kanal/gitti). */
+    gitti(n) {
+      if (Number.isInteger(n) && n > applied && n <= seq) applied = n;
+    },
+    /** The last move a panel tab carried out. */
+    uygulanan: () => applied,
     yonlendir(cmd) {
       nav = { ...cleanNav(cmd), seq: ++seq, at: Date.now() };
       thinkingSince = 0;
@@ -238,6 +254,10 @@ export function channelRoutes(channel) {
     "GET /api/kanal": () => {
       channel.gorundu();
       return channel.durum();
+    },
+    "POST /api/kanal/gitti": (body) => {
+      channel.gitti(Number(body?.seq));
+      return { ok: true };
     },
     "POST /api/kanal/cevap": (body) => {
       try {

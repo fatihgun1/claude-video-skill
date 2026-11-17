@@ -29,13 +29,17 @@
   /** Share of the portrait frame height kept free above the characters for captions. */
   const PORTRAIT_HEADROOM = 0.12;
   /**
-   * A face-anchored framing (close, detail, chest) in portrait keeps this share of the height it
-   * shows in landscape: compressed like the others, a "close-up" showed the body to the hips with
-   * the face low under empty sky (Köşe Başı: "sahne boyuta göre bozuluyor").
+   * Framings measured on the person (cameras.json "boy": the share of the target's height in view,
+   * e.g. close 0.38 = head and shoulders). A fixed zoom framed tall, small-headed drawings to the
+   * knees in a "close-up" (Köşe Başı: "yakın zoomlar tam yüze olmuyor"), and in 9:16 a medium shot
+   * looked like a wide one. The face is this share of the person's height below the top of the head.
    */
-  const PORTRAIT_FACE_HEIGHT = 0.8;
-  /** ... and its face sits this share of the frame height above the middle. */
-  const PORTRAIT_FACE_LIFT = 0.08;
+  const FACE_FROM_TOP = 0.11;
+  /** A framing showing less than this share of its subject crops the subject's body on purpose. */
+  const TIGHT_BOY = 0.7;
+  /** Room above the head, as a share of the frame height (more in portrait: captions sit at the top). */
+  const HEADROOM = 0.08;
+  const PORTRAIT_HEAD_ROOM = 0.13;
   /** Portrait wide shots zoom this much past "just covers the frame", so headroom can apply. */
   const PORTRAIT_MIN_ZOOM = 1.1;
 
@@ -196,7 +200,7 @@
    * Returns {zoom, cx, cy}: the world point shown at the canvas centre and the zoom factor.
    * The view is clamped so the camera never shows outside the world.
    */
-  function cameraAt(shotCamera, p, targetX, world, presets, viewport, keepWidth, faceY) {
+  function cameraAt(shotCamera, p, targetX, world, presets, viewport, keepWidth, faceY, faceDrop) {
     const framing = presets.framings[shotCamera.framing];
     const move = presets.moves[shotCamera.move || "static"];
     const zStart = framing.zoom * (move.zoom_from || 1);
@@ -210,9 +214,12 @@
     // In portrait a little extra zoom leaves room to shift the view for caption headroom.
     const base = portrait ? fit * PORTRAIT_MIN_ZOOM : fit;
     let zoom = Math.max(z, base * (1 + (z - 1) * PORTRAIT_ZOOM_SHARE));
-    // a face framed in portrait: about the height of face it shows in landscape (z × fit is exactly that)
-    const face = framing.anchor === "face" || framing.anchor === "chest";
-    if (portrait && face && z > 1) zoom = Math.max(zoom, z * (viewport.height / world.height) * PORTRAIT_FACE_HEIGHT);
+    // measured on the person: the same share of them in view in every format, whatever the drawing's size
+    const person = framing.boy && faceY != null && faceDrop > 0 ? faceDrop / (1 - FACE_FROM_TOP) : 0;
+    if (person) {
+      const moveZoom = (move.zoom_from || 1) + ((move.zoom_to || 1) - (move.zoom_from || 1)) * k;
+      zoom = Math.max(fit, (viewport.height / (person * framing.boy)) * moveZoom);
+    }
     // Without a target the whole cast must stay visible: zoom out as far as covering the frame allows.
     if (keepWidth) zoom = Math.max(Math.min(zoom, viewport.width / keepWidth), fit);
 
@@ -229,11 +236,12 @@
     if (faceY != null && framing.anchor === "chest") cy = faceY + (world.ground_y - faceY) * 0.22;
     // A reveal starts centred on its target (e.g. a bottle) and settles on the framing.
     if (faceY != null && move.from_target) cy = faceY + (cy - faceY) * k;
+    if (person && !move.from_target) {
+      // the top of the head a little under the top of the frame (more room in portrait, for captions)
+      const top = faceY - person * FACE_FROM_TOP;
+      cy = top + (viewport.height / zoom) * (0.5 - (portrait ? PORTRAIT_HEAD_ROOM : HEADROOM));
+    } else if (portrait) cy -= (viewport.height / zoom) * PORTRAIT_HEADROOM;
     // Portrait frames keep captions at the top, so look a little higher to push the characters down.
-    // A face framed in portrait sits a little above the middle instead (eyes near the upper third):
-    // pushed down it left the top half of a close-up empty (Köşe Başı); a caption still fits above.
-    if (portrait && face && z > 1) cy += (viewport.height / zoom) * PORTRAIT_FACE_LIFT;
-    else if (portrait) cy -= (viewport.height / zoom) * PORTRAIT_HEADROOM;
 
     const halfW = viewport.width / zoom / 2;
     const halfH = viewport.height / zoom / 2;
@@ -480,6 +488,22 @@
     return sum / cast.length;
   }
 
+  /**
+   * How far below their faces the framed people's feet are (world units, depth included): their
+   * height on screen, for the framings measured on the person (cameras.json "boy").
+   */
+  function faceDrop(shot, layout, faces) {
+    if (propAnchor(shot)) return 0;
+    const cast = shot.camera.target ? shot.cast.filter((m) => m.id === shot.camera.target) : shot.cast;
+    if (!cast.length) return 0;
+    let sum = 0;
+    for (const m of cast) {
+      const fy = faces && faces[m.id] != null ? faces[m.id] : DEFAULT_FACE_Y;
+      sum += (950 - fy) * layout.scale * depthOf(m, layout).shrink;
+    }
+    return sum / cast.length;
+  }
+
   /** Share of the visible width kept as lead room ahead of a walker the camera follows. */
   const LEAD_ROOM = 0.15;
 
@@ -494,7 +518,7 @@
       const zoom = presets.framings[shot.camera.framing].zoom * fit;
       x += walkDirection(shot) * LEAD_ROOM * (viewport.width / zoom);
     }
-    return cameraAt(shot.camera, p, x, world, presets, viewport, keepWidthFor(shot, layout), focusFaceY(shot, layout, world, faces));
+    return cameraAt(shot.camera, p, x, world, presets, viewport, keepWidthFor(shot, layout), focusFaceY(shot, layout, world, faces), faceDrop(shot, layout, faces));
   }
 
   /**
@@ -509,7 +533,9 @@
       const cam = shotCamera(shot, p, world, presets, viewport, faces);
       const left = cam.cx - viewport.width / cam.zoom / 2;
       const right = cam.cx + viewport.width / cam.zoom / 2;
+      const tight = ((presets.framings[shot.camera.framing] || {}).boy || 1) < TIGHT_BOY;
       for (const m of shot.cast) {
+        if (tight && m.id === shot.camera.target) continue; // a close-up crops its own subject by design
         const half = memberHalfWidth(m, layout); // narrower when standing back
         const x = memberX(m, layout, p * shotDuration(shot), shotDuration(shot));
         if (x - half < left || x + half > right) out[m.id] = true;
@@ -618,6 +644,7 @@
     LIGHT_TIMES,
     depthOf,
     focusFaceY,
+    faceDrop,
     segmentsOf,
     segmentAt,
     keepWidthFor,

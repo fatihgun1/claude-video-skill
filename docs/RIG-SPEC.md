@@ -6,7 +6,8 @@ One person seen from several sides is several rigs (for example `genc`, `genc-on
 
 ## Canvas
 - `viewBox="0 0 1000 1000"`. The feet rest on **y = 950** and the character is centred on **x = 500**.
-- Flat shapes; strokes may stay as strokes. No masks, filters, scripts, event handlers or external links. Simple gradients are allowed.
+- Flat shapes; strokes may stay as strokes. Gradients, `<pattern>`, `<clipPath>` and `<use href="#id">` are allowed (clip a part's shadow to the part with a `<clipPath>`). The checker refuses `<script>`, `<style>` elements, `<image>`, `<foreignObject>`, `<iframe>`, `<object>`, `<embed>`, `<link>`, event handlers and any link or `url(...)` that does not start with `#`.
+- No filters and no masks in a character. The checker does not refuse them, but the player redraws every character every frame and the scene light already filters it.
 - **No `transform` attribute on any `<g>`**: the player owns transforms. Bake positions into the shapes.
 - Colours may use CSS variables with a fallback, e.g. `fill="var(--top, #8fb3a0)"`, so an episode can recolour the character without touching the drawing. List the variables in `character.json` → `palette_vars`.
 - Paint order is document order: far parts first, near parts last.
@@ -125,6 +126,7 @@ Action files (`library/actions/*.json`) give rotation angles in degrees around e
 ## Backgrounds and props
 - A background is an SVG with `viewBox="0 0 1920 1080"` in `library/backgrounds/`; the ground line is at y = 870 (`world.json` → `ground_y`). A perspective background (for camera dollies) gives its vanishing point as `data-vp="x,y"` on the `<svg>` element.
 - A prop is an SVG in `library/props/` with `data-base="x,y"` (the point that rests on the ground) and `data-grip="x,y"` (the point that sits in a hand).
+- The same elements are refused as in a rig; gradients, `<pattern>` and `<clipPath>` are allowed. Filters only on a still background layer (`derinlik` 0, the sky), for example a light `feTurbulence` grain; never in a layer that moves with the camera, in a prop, and no `feGaussianBlur` (the camera's depth of field already blurs).
 
 ## Hand-off checklist for an illustrator
 - One SVG per view that follows the tree above, with ids spelled exactly as shown.

@@ -81,7 +81,7 @@ export function createChannel(ctx) {
 
   function card(o) {
     const on = picked.has(o.etiket);
-    return el("button", {
+    const pick = el("button", {
       class: `kanal-kart${on ? " secili" : ""}`, type: "button", "aria-pressed": String(on),
       on: {
         click: () => {
@@ -96,6 +96,11 @@ export function createChannel(ctx) {
     o.gorsel ? el("img", { src: o.gorsel, alt: "", loading: "lazy" }) : null,
     el("span", { class: "kanal-etiket", text: o.etiket }),
     o.aciklama ? el("span", { class: "kanal-aciklama", text: o.aciklama }) : null);
+    if (!o.ses) return pick;
+    // a card with a sound: listen right on it before picking (Köşe Başı: music picked unheard)
+    const src = o.ses.startsWith("/") ? o.ses : `/satir-ses/${o.ses.split("/").map(encodeURIComponent).join("/")}`;
+    return el("div", { class: "kanal-kart-sar" }, pick,
+      el("audio", { class: "kanal-ses", controls: "", preload: "none", src, "aria-label": `${o.etiket}: dinle` }));
   }
 
   function render() {
@@ -147,6 +152,7 @@ export function createChannel(ctx) {
         const fresh = started || Date.now() - (nav.at || 0) < FRESH_MS;
         seenSeq = nav.seq;
         if (fresh) await go(nav);
+        ctx.api("/api/kanal/gitti", { seq: nav.seq }).catch(() => {}); // panel_git waits for this
       }
       started = true;
       ctx.setThinking?.(!!res.dusunuyor, !!res.dinliyor);

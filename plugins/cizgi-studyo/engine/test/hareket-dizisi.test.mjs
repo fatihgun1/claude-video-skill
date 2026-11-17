@@ -107,12 +107,13 @@ test("a grab inside a later action counts from when that action starts", () => {
   assert.ok(Math.abs(layer2.data[0][0].grab - (2 + grab - 0.35)) < 1e-9);
 });
 
-test("a listed action after the end of the shot does not compile", () => {
+test("a shot grows to show an action listed after its hold, instead of refusing to compile", () => {
   const ep = episode({ actions: [{ action: "egil-al-cocuk", at: 30 }] }, { hold: 1 });
   const out = mkdtempSync(join(tmpdir(), "dizi-"));
   try {
     assert.deepEqual(errorsOf(ep), []);
-    assert.throws(() => compileEpisode(join(out, "bolum.json"), lib, out, { episode: ep }), /starts after the shot ends/);
+    const res = compileEpisode(join(out, "bolum.json"), lib, out, { episode: ep });
+    assert.ok(res.duration > 30, `the shot lasts past the action (${res.duration}s)`);
   } finally {
     rmSync(out, { recursive: true, force: true });
   }

@@ -17,6 +17,7 @@
  *   cizgi derle      <bolum.json> <out-dir> [16:9|9:16]
  *   cizgi panel      <klasör|bolum.json> [--port 4810] local control panel (127.0.0.1): pick an episode, edit shots with a live preview
  *   cizgi taslaklar  <klasör>                         drafts of the project library (kutuphane/taslak) and their problems
+ *   cizgi taslak-al  <klasör> <tur>/<id>...           take the drafts you drew (and checked) into the project library
  *
  * Options: --kutuphane <dir> (default: ../library next to the engine)
  *          --proje-kutuphane <dir> (default: the nearest kutuphane/ above the episode, below the home folder)
@@ -33,7 +34,7 @@ import { runAudio, readManifest, linesOf, planAudio, lineFingerprint, failedLine
 import { storyboard, sceneStills, render, qaPages } from "./uretim.mjs";
 import { loadTools, run } from "./tools.mjs";
 import { openPanel } from "./panel-baslat.mjs";
-import { projectLibraryOf, listDrafts } from "./proje-kutuphane.mjs";
+import { projectLibraryOf, listDrafts, approveDraft } from "./proje-kutuphane.mjs";
 import { decisionProblems } from "./kararlar.mjs";
 import { approveEpisode } from "./onayla.mjs";
 import { scriptTable } from "./senaryo-tablo.mjs";
@@ -41,7 +42,7 @@ import { checkLibrary, integrityErrors } from "./icerik.mjs";
 
 const DEFAULT_LIBRARY = fileURLToPath(new URL("../../library", import.meta.url));
 const FLAGS = new Set(["--hepsi", "--taslak", "--3b"]);
-const NEEDS = { "ses-ornek": 2, dogrula: 1, durum: 1, senaryo: 1, ses: 1, storyboard: 1, render: 1, onayla: 2, derle: 2, kabul: 2, qa: 1, panel: 1, taslaklar: 1 };
+const NEEDS = { "ses-ornek": 2, dogrula: 1, durum: 1, senaryo: 1, ses: 1, storyboard: 1, render: 1, onayla: 2, derle: 2, kabul: 2, qa: 1, panel: 1, taslaklar: 1, "taslak-al": 2 };
 const USAGE =
   "usage: cizgi dogrula|durum|senaryo|ses|storyboard|render <bolum.json> · cizgi panel <klasör|bolum.json> · cizgi onayla senaryo|storyboard <bolum.json> · cizgi kabul <bolum.json> <line> · cizgi ses-ornek <bolum.json> <karakter> · cizgi derle <bolum.json> <dir> [format]\n";
 
@@ -121,7 +122,7 @@ function main(argv) {
     return 2;
   }
   // The project's own library (<project>/kutuphane, the nearest above the episode) joins the plugin's.
-  const episodeArg = command === "onayla" ? a2 : ["qa", "panel", "taslaklar"].includes(command) ? null : a1;
+  const episodeArg = command === "onayla" ? a2 : ["qa", "panel", "taslaklar", "taslak-al"].includes(command) ? null : a1;
   // (--proje-kutuphane names it: the panel's jobs pass the one the panel uses)
   const lib = loadLibrary(library, { project: project ? resolve(project) : episodeArg ? projectLibraryOf(dirname(resolve(episodeArg))) : null });
   const deps = { run, formats, log: (m) => process.stderr.write(`${m}\n`) };
@@ -201,6 +202,25 @@ function main(argv) {
       const plib = proj ? loadLibrary(library, { project: proj }) : null;
       print({ kutuphane: proj, taslaklar: plib ? listDrafts(proj, plib) : [], kutuphane_sorunlari: plib?.projectErrors || [] });
       return 0;
+    }
+    case "taslak-al": {
+      // Claude takes in what it drew for this episode, once its own checks pass: a separate
+      // "Kütüphaneye al" click per drawing made the person wait (Köşe Başı: "direkt alsın").
+      // Only the named drafts: leftovers of other episodes stay where they are.
+      const proj = projectLibraryOf(resolve(a1));
+      if (!proj) throw new Error(`no project library (kutuphane/) at or above ${a1}`);
+      const alinan = [];
+      const hatalar = [];
+      for (const name of args.slice(2)) {
+        const [tur, id] = name.split("/");
+        try {
+          alinan.push(approveDraft(proj, tur, id, loadLibrary(library, { project: proj })));
+        } catch (err) {
+          hatalar.push({ taslak: name, hata: err.message });
+        }
+      }
+      print({ kutuphane: proj, alinan, hatalar });
+      return hatalar.length ? 1 : 0;
     }
     case "derle":
       print(compileEpisode(a1, lib, a2, { format: a3 }));

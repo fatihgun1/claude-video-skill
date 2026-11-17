@@ -8,7 +8,7 @@
  *   panel_istekleri {hepsi?}       take the requests the person wrote in the panel (istekler.mjs)
  *   panel_yanitla {id, durum, yanit}  answer one; the panel shows it
  *   panel_git   {bolum?, sekme?, shot?, kaydir?, vurgula?}  move the open panel to what the person should look at
- *   panel_sor   {soru, secenekler, coklu?, serbest?, bolum?, bekle?}  ask in the panel with option cards; waits for the answer
+ *   panel_sor   {soru, secenekler (each with gorsel? and ses?), coklu?, serbest?, bolum?, ses?, bekle?}  ask in the panel with option cards; waits for the answer
  *   panel_dinle {bekle?}  wait for the person's messages in object windows, panel requests and draft news
  *   panel_sohbet {konu, metin?, durum?, gorsel?, oneriler?}  reply in an object window (one thing on the stage)
  *
@@ -22,7 +22,7 @@ import { queueOf, takeRequests, updateRequest, describe, episodeFile, ANSWERS, M
 
 // The Claude session this server belongs to: requests from its panel are for it alone (istekler.mjs).
 const SESSION_ID = process.env.CLAUDE_CODE_SESSION_ID || null;
-const SERVER_INFO = { name: "cizgi-studyo", version: "2.13.0" };
+const SERVER_INFO = { name: "cizgi-studyo", version: "2.14.0" };
 // panel-kanal.mjs PANELS (not imported: engine modules load on first use)
 const PANEL_TABS = ["projeler", "uretim", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"];
 const WAIT_DEFAULT_S = 600;
@@ -113,7 +113,7 @@ const TOOLS = [
     inputSchema: {
       type: "object",
       properties: {
-        soru: { type: "string", description: "The question, in the person's language (at most 500 characters)." },
+        soru: { type: "string", description: "The question, in the person's language (at most 1500 characters; keep it short, a plan summary may run longer)." },
         secenekler: {
           type: "array", minItems: 1, maxItems: 8,
           items: {
@@ -122,6 +122,7 @@ const TOOLS = [
               etiket: { type: "string", description: "The option, short (at most 80 characters)." },
               aciklama: { type: "string", description: "One or two sentences under it (optional, at most 300 characters)." },
               gorsel: { type: "string", description: "A drawing the panel serves (see above), shown on the card (optional)." },
+              ses: { type: "string", description: "A sound the card plays, so the person picks by ear (optional): a library track /kutuphane/muzik/<id>.wav, an effect /kutuphane/ses/<id>.wav, or a spoken line or voice sample as for ses below. Give every music card its track." },
             },
             required: ["etiket"],
             additionalProperties: false,
@@ -272,11 +273,20 @@ async function checkEpisode(p, bolum) {
   if (!e.findEpisodes(p.root).includes(bolum)) throw new Error(`no such episode under ${p.root}: ${bolum}`);
 }
 
+const NAV_CONFIRM_MS = 6000; // how long panel_git waits for the panel to say it went there
+
 async function panelGit(args = {}) {
   const p = openPanelOrThrow();
   await checkEpisode(p, args.bolum);
   const yon = p.channel.yonlendir(args);
-  return (await watched(p, 3000)) ? { yon, not: "Panel birkaç saniye içinde oraya gider." } : { yon, uyari: NOT_WATCHED };
+  if (!(await watched(p, 3000))) return { yon, uyari: NOT_WATCHED };
+  // the move counts once the panel says it carried it out: a tab in the background may sit on it
+  // (Köşe Başı: the episode never opened until the person reloaded the page)
+  const until = Date.now() + NAV_CONFIRM_MS;
+  while (p.channel.uygulanan() < yon.seq && Date.now() < until) await new Promise((r) => setTimeout(r, 200));
+  return p.channel.uygulanan() >= yon.seq
+    ? { yon, not: "Panel oraya gitti." }
+    : { yon, uyari: "Panel bu yönlendirmeyi uygulamadı (sekme arka planda ya da donmuş olabilir). Kişiye sohbette tek satırla söyle: panel sekmesine geçsin ya da sayfayı yenilesin." };
 }
 
 /** The requests written in the panel's "Claude'a yaz" box (or queued while Claude was busy), taken now. */

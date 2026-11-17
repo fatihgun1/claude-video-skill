@@ -147,3 +147,23 @@ test("taking a draft in wakes a listening Claude, and waits for a busy one", asy
   assert.equal(later[0].tur, "taslak");
   assert.equal(later[0].cizimler[0].id, "vazo");
 });
+
+test("the panel reports the moves it carried out; panel_git can tell one that never arrived", () => {
+  const ch = createChannel();
+  const a = ch.yonlendir({ sekme: "karakter" });
+  assert.equal(ch.uygulanan(), 0);
+  ch.gitti(a.seq);
+  assert.equal(ch.uygulanan(), a.seq);
+  ch.gitti(a.seq + 5); // a move that does not exist yet is ignored
+  assert.equal(ch.uygulanan(), a.seq);
+});
+
+test("an option card may play a library track or effect; a long plan question fits", () => {
+  const ch = createChannel();
+  ch.sor({ soru: "x".repeat(1200), secenekler: [{ etiket: "A", ses: "/kutuphane/muzik/eskiz-1.wav" }, { etiket: "B", ses: "/kutuphane/ses/kapi.wav" }] });
+  assert.equal(ch.durum().soru.secenekler[0].ses, "/kutuphane/muzik/eskiz-1.wav");
+  for (const bad of ["/etc/x.wav", "/kutuphane/muzik/../x.wav", "http://a/b.wav", "/kutuphane/karakter/a.wav"]) {
+    assert.throws(() => createChannel().sor({ soru: "s", secenekler: [{ etiket: "A", ses: bad }] }), /seçeneğin sesi/, bad);
+  }
+  assert.throws(() => createChannel().sor({ soru: "x".repeat(1600), secenekler: [{ etiket: "A" }] }), /soru/);
+});

@@ -690,3 +690,7 @@ div.pitem { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
 
 /* a spoken line played in a question (kanal.js) */
 .kanal-ses { width: 100%; margin: 4px 0 8px; }
+
+/* an option card with its sound under it (kanal.js) */
+.kanal-kart-sar { display: flex; flex-direction: column; gap: 4px; }
+.kanal-kart-sar .kanal-ses { margin: 0; height: 32px; }

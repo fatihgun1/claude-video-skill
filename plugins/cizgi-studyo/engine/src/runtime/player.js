@@ -113,7 +113,9 @@
   }
   const sceneStart = {};
   for (const s of D.shots) if (sceneStart[s.scene_id] == null) sceneStart[s.scene_id] = s.start;
-  const FLOW_NEAR = 0.15; // a piece walking toward the camera comes round again past this depth
+  // a piece walking toward the camera comes round again at this depth: nearer, a crowd grew to the
+  // characters' size and seemed to walk into them (Köşe Başı: "arka plan rolleri önünü kesiyor")
+  const FLOW_NEAR = 0.5;
   const FLOW_FADE = 0.08; // and fades out and in over this much depth, instead of popping
   const FLOW_MARGIN = 300; // a piece walking sideways comes round this far past the frame
   const wrap = (v, lo, hi) => lo + ((((v - lo) % (hi - lo)) + (hi - lo)) % (hi - lo));

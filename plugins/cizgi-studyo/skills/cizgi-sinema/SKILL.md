@@ -34,6 +34,18 @@ Sources: [continuity editing (StudioBinder)](https://www.studiobinder.com/blog/w
 **Between scenes:** a scene that goes on in the same place at the same time of day as the one before begins with a hard cut (`kesme`): it is the same moment. Any other scene begins with a short dip to black, about 0.3 s out and 0.3 s in (`kararma`). Set `scene.gecis` only to change that, for example a cut to keep a chase going, or a dip for a jump in time in the same place. The person changes it in the place window (**Sahneye geçiş**).
 
 ## 3. Camera vocabulary (library: `cameras.json`)
+**Choose the framing by what the shot needs, not by habit.** Köşe Başı opened every scene "wide → medium → medium → close": 23 of 37 shots read as wide, and the person asked "niye sürekli geniş plan".
+- **Wide:** only when entering a new place, or when movement across the place matters.
+- **Talk:** shot / reverse shot in `gogus` or `close`, over the shoulder for the listener.
+- **A feeling or a reaction:** `close`, or `detay` on the face or hands.
+- Never the same framing more than twice in a row.
+
+Framings are measured on the person, the same in 16:9 and 9:16, however tall the drawing:
+- `close`: head and shoulders.
+- `gogus`: to the waist.
+- `medium`: from the thighs up.
+- `detay`: the face.
+
 - **wide**: geography and who is where; also the release at the end.
 - **medium** (anchor: body): actions with the hands, decisions.
 - **close** (anchor: face): reactions and feelings. The background is softly blurred (shallow focus).
