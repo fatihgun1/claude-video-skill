@@ -20,7 +20,7 @@ The plugin's MCP server (`cizgi-studyo`) starts with the session and hosts the e
 1. Call `panel_ac`. If the person named a folder or an episode, pass it. Otherwise use the default; if the project folder has no episodes and the person keeps their cartoons elsewhere, ask which folder.
 2. Open the returned `url` for them: in the Claude desktop app, in the built-in browser. Elsewhere, give the URL.
 3. List the episodes in chat as a short table: title, shots, length (`duration` in seconds), state. State comes from `gates` (`senaryo`, `storyboard`: `onayli` / `eskimis` / `yok`), from `valid: false` ("hatalı, N hata"; `gates` and `next` are then null), and from `next`. An entry with `ok: false` could not be read: show its `path` and `error`. Then ask which one to work on, or whether to start a new one (`cizgi-proje`).
-4. When they pick one, call `panel_ac` again with `bolum` set to its `path` and open that URL.
+4. When they pick one, call `panel_ac` again with `bolum` set to its `path` and open that URL. Tell them in one line that they can click any character or prop on the stage to work on it with you. Then go into studio mode (step 4 of the `cizgi-panel` skill): listen with `panel_dinle`, and answer in the object windows.
 5. A new video or story (picked here, or in the request itself): follow **cizgi-proje** from its step 2, with the panel already open.
 
 ## Requests from the panel

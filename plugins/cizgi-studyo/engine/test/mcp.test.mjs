@@ -70,7 +70,7 @@ test("initialize answers with tools capability and the asked protocol version", 
 test("tools/list names the panel and request tools with input schemas", async () => {
   const res = await rpc("tools/list", {});
   const names = res.result.tools.map((t) => t.name).sort();
-  assert.deepEqual(names, ["panel_ac", "panel_adim", "panel_dinle", "panel_git", "panel_istekleri", "panel_kapat", "panel_sor", "panel_yanitla"]);
+  assert.deepEqual(names, ["panel_ac", "panel_adim", "panel_dinle", "panel_git", "panel_istekleri", "panel_kapat", "panel_sohbet", "panel_sor", "panel_yanitla"]);
   for (const t of res.result.tools) assert.equal(t.inputSchema.type, "object");
 });
 
@@ -238,6 +238,27 @@ test("panel_dinle hands the person's Claude'a sor to Claude; when nobody asks it
   const posted = await fetch(`${base}/api/kanal/iste`, { method: "POST", headers: { "content-type": "application/json", origin: `http://${host}` }, body: JSON.stringify({ proje: "bir", adim: "kararlar", alan: "istekler.sure", etiket: "Süre" }) });
   assert.deepEqual(await posted.json(), { dinliyor: true });
   assert.deepEqual(textOf(await listening).istekler, [{ proje: "bir", adim: "kararlar", alan: "istekler.sure", etiket: "Süre" }]);
+});
+
+test("studio mode: a message in an object window reaches panel_dinle and panel_sohbet answers in that window", async () => {
+  const open = textOf(await callTool("panel_ac", { klasor: root }));
+  const base = open.url.slice(0, -1);
+  const host = new URL(open.url).host;
+  const listening = callTool("panel_dinle", { bekle: 5 });
+  await new Promise((r) => setTimeout(r, 50));
+  const konu = { tur: "karakter", id: "kiz", ad: "Kız", bolum: "bolumler/bir/bolum.json", shot: "s1_sh1", oyuncu: "kiz" };
+  const posted = await fetch(`${base}/api/kanal/sohbet`, { method: "POST", headers: { "content-type": "application/json", origin: `http://${host}` }, body: JSON.stringify({ konu, metin: "Gözlüğünü kaldır" }) });
+  assert.deepEqual(await posted.json(), { dinliyor: true });
+  assert.deepEqual(textOf(await listening).istekler, [{ tur: "sohbet", konu, metin: "Gözlüğünü kaldır" }]);
+  textOf(await callTool("panel_sohbet", { konu: "karakter:kiz", durum: "Gözlüğü kaldırıyorum…" }));
+  let chat = (await (await fetch(`${base}/api/kanal`)).json()).sohbet.sohbetler[0];
+  assert.equal(chat.durum, "Gözlüğü kaldırıyorum…");
+  textOf(await callTool("panel_sohbet", { konu: "karakter:kiz", metin: "Kaldırdım.", gorsel: ["/kutuphane-taslak/karakter/kiz.svg"], oneriler: ["Saçını kısalt"] }));
+  chat = (await (await fetch(`${base}/api/kanal`)).json()).sohbet.sohbetler[0];
+  assert.equal(chat.durum, null, "a reply ends the spinner");
+  assert.deepEqual(chat.mesajlar.map((m) => m.kim), ["kisi", "claude"]);
+  assert.deepEqual(chat.mesajlar[1].gorsel, ["/kutuphane-taslak/karakter/kiz.svg"]);
+  assert.match(JSON.stringify(await callTool("panel_sohbet", { konu: "mekan:x", metin: "a" })), /konu/);
 });
 
 test("panel_kapat closes the panel", async () => {

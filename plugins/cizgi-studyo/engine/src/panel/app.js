@@ -21,6 +21,7 @@ import { slug } from "./projeler.js";
 import { installKeys } from "./klavye.js";
 import { installViews } from "./gorunum.js";
 import { createDrafts } from "./taslak.js";
+import { createObjectWindow } from "./nesne-pencere.js";
 import { decorId } from "./dekor.js";
 import {
   addShotAfter, duplicateShot, deleteShot, moveShot, createHistory, rowOfMessage,
@@ -215,9 +216,41 @@ const drafts = createDrafts({
     library.render();
     inspector.render();
   },
-  rerender: () => library.render(),
+  rerender: () => {
+    library.render();
+    objectWindow.refresh(); // a new version Claude drew shows in the object window
+  },
   note: (text) => note(text),
 });
+/* ---------- the object window: click a character or prop, work on it with Claude ---------- */
+const objectWindow = createObjectWindow({
+  api,
+  draftOf: (tur, id) => drafts.find(tur, id),
+  takeDraft: (tur, id) => drafts.take(tur, id),
+  rejectDraft: (tur, id) => drafts.reject(tur, id),
+  stageBox: () => $("stage")?.getBoundingClientRect() || null,
+  after: () => refreshPreview(), // the stage draws the drawing just taken in
+});
+/** What the person clicked on the stage, as an object-window topic (null: nothing it opens for). */
+function topicOf(kind, index) {
+  const f = find(state.sel.shot);
+  if (!f) return null;
+  const where = { bolum: state.path, shot: f.shot.shot_id };
+  if (kind === "cast") {
+    const m = f.shot.cast[index];
+    const ch = m && character(m.id);
+    return ch ? { tur: "karakter", id: ch.rig, ad: (ch.name || ch.id).slice(0, 80), ...where, oyuncu: ch.id } : null;
+  }
+  if (kind === "prop") {
+    const p = (f.shot.props || [])[index];
+    return p ? { tur: "nesne", id: p.prop, ad: p.id.slice(0, 80), ...where } : null;
+  }
+  if (kind === "dekor") {
+    const d = (f.scene.dekor || [])[index];
+    return d ? { tur: "nesne", id: d.prop, ad: d.id.slice(0, 80), ...where } : null;
+  }
+  return null;
+}
 const inspector = createInspector($("inspector"), {
   // a voice sample (cizgi ses-ornek) of one character, from the saved file: save first, then listen
   sample: async (id, report) => {
@@ -366,6 +399,8 @@ function choose(id) {
 }
 function select(kind, index = -1, seg = undefined) {
   state.sel = { ...state.sel, kind, index, seg };
+  const topic = topicOf(kind, index);
+  if (topic) objectWindow.open(topic); // a click on a character or prop opens its window
   requests.renderTarget();
   inspector.render();
   library.render();
@@ -783,6 +818,7 @@ createClaudeChannel({
   projectSlot: () => projectWizard.slot(),
   setThinking: (on, listening) => projectWizard.setThinking(on, listening),
   takeDraft: (tur, id) => drafts.take(tur, id),
+  onChats: (state, listening) => objectWindow.update(state, listening),
   note,
 }).start();
 /* ---------- İncele: scene review ---------- */

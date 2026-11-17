@@ -48,6 +48,20 @@ cizgi-proje skill'indeki "Claude'a sor" adımıyla: panel_sor ile 2-4 öneri kar
 `);
       }
     } : undefined,
+    // a message in an object window while Claude is not listening: the hooks hand it over after the turn
+    onIdleChat: requests ? (item) => {
+      const k = item.konu;
+      try {
+        addRequest(requests, {
+          root: space.root, b: k.bolum || "", hedef: { tur: "bolum", etiket: `Nesne penceresi: ${k.ad || k.id}` },
+          metin: `Nesne penceresinde (${k.tur} ${k.id}${k.shot ? `, shot ${k.shot}` : ""}${k.oyuncu ? `, oyuncu ${k.oyuncu}` : ""}): ${item.metin}
+Yalnız bu şey üzerinde çalış; cevabı panel_sohbet {konu: "${k.tur}:${k.id}"} ile pencereye yaz, sonra panel_dinle ile dinlemeye dön.`.slice(0, 2000),
+        });
+      } catch (err) {
+        process.stderr.write(`cizgi panel: sohbet kuyruğa yazılamadı: ${err.message}
+`);
+      }
+    } : undefined,
     onLateAnswer: (a, bolum) => {
       if (!requests) return;
       const picked = a.secim.length ? a.secim.join(", ") : "(seçim yok)";

@@ -344,11 +344,25 @@ export function createDrafts(ctx) {
         const res = await ctx.api("/api/taslak", { islem: "al", tur, id });
         drafts = res.taslaklar;
         ctx.setVocab(res.vocab);
+        ctx.rerender();
         return "";
       } catch (err) {
         return err.message;
       }
     },
+    /** Put a draft aside (it is kept in taslak/_reddedilen). @returns {Promise<string>} "" or why not */
+    async reject(tur, id) {
+      try {
+        const res = await ctx.api("/api/taslak", { islem: "reddet", tur, id });
+        drafts = res.taslaklar;
+        ctx.rerender();
+        return "";
+      } catch (err) {
+        return err.message;
+      }
+    },
+    /** The draft waiting under this id (a new version of a drawing), or null. */
+    find: (tur, id) => drafts.find((d) => d.tur === tur && d.id === id) || null,
     /** The drafts part of the Mekân, Nesne, Karakter or Hareket panel; under Ses, the project's sound problems and the ask form. */
     section(tab) {
       if (!TABS.includes(tab)) return [];

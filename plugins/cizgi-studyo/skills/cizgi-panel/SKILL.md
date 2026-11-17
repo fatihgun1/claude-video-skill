@@ -18,6 +18,23 @@ $CLI panel <klasör> --port 4900
 1. Open the panel at once, before anything else, even when the request already describes a video: `panel_ac` (or the CLI below when the MCP server is missing), then **open its URL for the person right away**: in the Claude desktop app with the built-in browser (`mcp__Claude_Browser__preview_start {url}`; load the tool with ToolSearch if it is deferred). Until that tab is open the person sees nothing: `panel_sor` refuses to ask and `panel_git`/`panel_adim` warn.
 2. If the request is a new video or story, follow the **cizgi-proje** steps from step 2: the episode is made with the person, question by question, and every step shows in the panel. If it names an existing episode, open it (`panel_ac` with `bolum`) and ask what they want to change.
 3. While the panel is open, show every change there: after you edit `bolum.json` or `hikaye.json`, tell the person what to look at (a scene, a shot, **İncele**).
+4. **Studio mode.** Once an episode is open in the panel and nothing else is running, listen.
+   - Call `panel_dinle` (bekle 600) again and again for as long as the person works in the panel. An empty list means nobody wrote, so call it again.
+   - Do not end your turn just to wait while the panel is open: the person works in the panel, not in chat.
+   - **Object windows.** The person clicks a character or a prop on the stage, and a window opens beside it with its drawing, quick actions and a chat. Their message comes as `{tur: "sohbet", konu: {tur: "karakter"|"nesne", id, ad?, bolum?, shot?, oyuncu?}, metin}`:
+     - `id` is the drawing id: the character's rig, or the prop's library id.
+     - `oyuncu` is the character id in the episode.
+     - `shot` is where they clicked.
+   - Work on **just that thing**, and answer **only in its window** with `panel_sohbet {konu: "<tur>:<id>"}`, never in chat:
+     1. Within seconds, send `panel_sohbet {konu, durum: "…"}` saying what you are doing. It shows with a spinner.
+     2. **A change to the drawing:** draw the new version as a draft **under the same id** in `<project>/kutuphane/taslak/`. Follow "Drawing new drawings" in the `cizgi-studyo` skill: write it with a script, check it with `cli.mjs taslaklar`, and look at it in a background tab. The window shows the draft next to the current drawing with **Al** / **İstemiyorum**, and the person decides there. If the drawing is in the plugin library (not the project one), copy it to the project library under the same id first, then change it as a draft.
+     3. **A change to the episode** (where the thing stands, its action, its colours, what it holds): edit `bolum.json`, validate, and save. The open editor reloads it.
+     4. Then send `panel_sohbet {konu, metin, gorsel?, oneriler?}`:
+        - `metin`: what you did, in one or two sentences.
+        - `gorsel`: the draft.
+        - `oneriler`: up to 3 next steps the person can click.
+   - Ask nothing in chat. If you truly need a choice, ask it in the window with `oneriler` (the person clicks one) or with `panel_sor`.
+   - Older paths still work: a "Claude'a yaz" request, or "Claude'a sor" in the project wizard. Handle them the same way, then go back to `panel_dinle`.
 
 Open the project root (the folder holding `ornekler/` and `bolumler/`) when the person works on several episodes: the panel then lists them all and switches between them without a restart. Run it in the background (it keeps serving until stopped) and give the person the printed URL. In the Claude desktop app, open it in the built-in browser. The layout needs a window at least 1180 px wide; narrower windows stack the panes.
 

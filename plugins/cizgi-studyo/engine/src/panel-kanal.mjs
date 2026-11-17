@@ -10,15 +10,20 @@
  *              Claude's waiting panel_dinle call, or, when Claude is not listening, to the idle-ask handler
  *              (the MCP server puts it in the request queue)
  *
- *   GET  /api/kanal         {yon, soru, sihirbaz, dusunuyor, dinliyor}
+ *   sohbet     the person talks to Claude about one thing on the stage (the object window, see
+ *              panel-sohbet.mjs): it goes to panel_dinle like "Claude'a sor"; Claude answers with panel_sohbet
+ *
+ *   GET  /api/kanal         {yon, soru, sihirbaz, dusunuyor, dinliyor, sohbet}
  *   POST /api/kanal/cevap   {id, secim, metin}: the person's answer
  *   POST /api/kanal/iste    {proje, adim, alan?, etiket?}: "Claude'a sor" → {dinliyor}
+ *   POST /api/kanal/sohbet  {konu: {tur, id, ad?, bolum?, shot?, oyuncu?}, metin}: a message in an object window → {dinliyor}
  *
  * Only one question is open at a time. Everything shown is text from Claude's tool call, checked
  * here and drawn as text by the panel; pictures can only be the panel's own drawings.
  */
 import { randomBytes } from "node:crypto";
 import { HttpError } from "./panel-proje.mjs";
+import { createChats } from "./panel-sohbet.mjs";
 
 export const PANELS = Object.freeze(["projeler", "uretim", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"]);
 const SCROLL = Object.freeze(["taslaklar"]);
@@ -126,7 +131,8 @@ function cleanQuestion(q) {
 /**
  * @param {{onLateAnswer?:(answer:{id:string, soru:string, secim:string[], metin:string}) => void}} [opts]
  */
-export function createChannel({ onLateAnswer, onIdleAsk, now = () => Date.now() } = {}) {
+export function createChannel({ onLateAnswer, onIdleAsk, onIdleChat, now = () => Date.now() } = {}) {
+  const chats = createChats({ now }); // the object windows' conversations
   let seq = 0;
   let nav = null;
   let question = null; // {id, soru, secenekler, coklu, serbest, seq}
@@ -206,6 +212,26 @@ export function createChannel({ onLateAnswer, onIdleAsk, now = () => Date.now() 
       asks = [...asks.filter((x) => x.proje !== ask.proje || x.adim !== ask.adim || x.alan !== ask.alan), ask].slice(-MAX_ASKS);
       return { dinliyor: false };
     },
+    /**
+     * The person's message in an object window. Claude gets it now if it listens (panel_dinle), else
+     * later: through onIdleChat (the request queue) or the next panel_dinle.
+     */
+    sohbet(topic, metin) {
+      const msg = chats.kisi(topic, metin);
+      const item = { tur: "sohbet", konu: msg.konu, metin: msg.metin, at: now() };
+      if (hear([item])) {
+        chats.bekliyor(msg.key, "Claude okuyor…");
+        return { dinliyor: true };
+      }
+      chats.bekliyor(msg.key, "Claude şu an başka bir işte: mesajın sırada, işi bitince görecek.");
+      if (onIdleChat) onIdleChat(item);
+      else asks = [...asks, item].slice(-MAX_ASKS);
+      return { dinliyor: false };
+    },
+    /** Claude's reply in an object window (panel_sohbet). */
+    sohbetCevap(args) {
+      return chats.claude(args);
+    },
     /** Claude listens for "Claude'a sor" (panel_dinle): the asks waiting, or the next one within `ms`, or [] then. */
     dinle(ms) {
       hear([]); // one listener: an older call gives up
@@ -237,7 +263,7 @@ export function createChannel({ onLateAnswer, onIdleAsk, now = () => Date.now() 
     durum() {
       // the panel locks its buttons and shows Claude thinking; it lets go if Claude stays silent too long
       const dusunuyor = !!thinkingSince && now() - thinkingSince < THINKING_MAX_MS;
-      return { yon: nav, soru: question ? { ...question } : null, sihirbaz: copyWizard(wizard), dusunuyor, dinliyor: !!listener };
+      return { yon: nav, soru: question ? { ...question } : null, sihirbaz: copyWizard(wizard), dusunuyor, dinliyor: !!listener, sohbet: chats.durum() };
     },
   };
 }
@@ -304,6 +330,13 @@ export function channelRoutes(channel) {
         throw new HttpError(400, err.message);
       }
       return { ok: true };
+    },
+    "POST /api/kanal/sohbet": (body) => {
+      try {
+        return channel.sohbet(body?.konu, body?.metin);
+      } catch (err) {
+        throw new HttpError(400, err.message);
+      }
     },
     "POST /api/kanal/iste": (body) => {
       try {

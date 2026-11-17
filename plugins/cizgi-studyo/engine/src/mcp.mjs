@@ -10,7 +10,8 @@
  *   panel_git   {bolum?, sekme?, shot?, kaydir?, vurgula?}  move the open panel to what the person should look at
  *   panel_sor   {soru, secenekler, coklu?, serbest?, bolum?, bekle?}  ask in the panel with option cards; waits for the answer
  *   panel_adim  {sihirbaz? | adim, durum?, aciklama?, gorsel? | kapat?}  a wizard modal in the panel whose steps Claude moves on
- *   panel_dinle {bekle?}  wait for the person's "Claude'a sor" in the project wizard
+ *   panel_dinle {bekle?}  wait for the person's "Claude'a sor" in the project wizard, and their messages in object windows
+ *   panel_sohbet {konu, metin?, durum?, gorsel?, oneriler?}  reply in an object window (one thing on the stage)
  *
  * stdout carries only protocol messages; anything else goes to stderr.
  * Engine modules load on first use, so a missing `npm install` is a readable tool error, not a dead server.
@@ -22,7 +23,7 @@ import { queueOf, takeRequests, updateRequest, describe, episodeFile, ANSWERS, M
 
 // The Claude session this server belongs to: requests from its panel are for it alone (istekler.mjs).
 const SESSION_ID = process.env.CLAUDE_CODE_SESSION_ID || null;
-const SERVER_INFO = { name: "cizgi-studyo", version: "2.4.12" };
+const SERVER_INFO = { name: "cizgi-studyo", version: "2.5.0" };
 // panel-kanal.mjs PANELS (not imported: engine modules load on first use)
 const PANEL_TABS = ["projeler", "uretim", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"];
 const WAIT_DEFAULT_S = 600;
@@ -147,10 +148,34 @@ const TOOLS = [
       "and returns {istekler: [{proje, adim, alan?, etiket?, tur?}]}. tur 'olustur' means the person pressed Oluştur: build the episode " +
       "from the story (as for a 'Proje sihirbazından' request in the cizgi-proje skill) and stop listening. Otherwise, read bolumler/<proje>/hikaye.json, ask about that field with " +
       "panel_sor (2-4 suggestion cards), write the answer into hikaye.json, then call panel_dinle again. An empty list means nobody asked: " +
-      "call it again while the wizard is open. Do not ask about fields nobody asked about.",
+      "call it again while the wizard is open. Do not ask about fields nobody asked about. " +
+      "In studio mode (an episode open in the panel) keep calling it: the person clicks a character or prop on the stage and writes to you in its " +
+      "object window. Such an item is {tur: 'sohbet', konu: {tur: 'karakter'|'nesne', id (the drawing id), ad?, bolum?, shot?, oyuncu?}, metin}: " +
+      "work on just that thing and answer with panel_sohbet {konu: '<tur>:<id>'}, never in chat.",
     inputSchema: {
       type: "object",
       properties: { bekle: { type: "number", minimum: 0, maximum: 1800, description: "Seconds to wait (default 600)." } },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "panel_sohbet",
+    description:
+      "Reply in the panel's object window: the person clicked one thing on the stage (konu 'karakter:<drawing id>' or 'nesne:<prop id>', " +
+      "as panel_dinle gave it) and wrote to you about it. Send durum first while you work ('Gözlüğü kaldırıyorum…', shown with a spinner), " +
+      "then metin with what you did. gorsel: up to 4 drawings the panel serves; a new version of this drawing is a draft under the same id " +
+      "(/kutuphane-taslak/<karakter|nesne>/<id>.svg): the window shows it next to the current one with an 'Al' button, so the person takes it there. " +
+      "oneriler: up to 6 short next steps the person can click instead of typing. A reply with no durum clears the spinner. Write in the person's language.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        konu: { type: "string", description: "The thing: 'karakter:<drawing id>' or 'nesne:<prop id>' (e.g. karakter:kiz)." },
+        metin: { type: "string", description: "Your reply (at most 2000 characters)." },
+        durum: { type: "string", description: "What you are doing now, shown with a spinner (at most 160 characters). Omit it in your final reply." },
+        gorsel: { type: "array", maxItems: 4, items: { type: "string" }, description: "Drawings the panel serves, shown under your reply." },
+        oneriler: { type: "array", maxItems: 6, items: { type: "string" }, description: "Short next steps (at most 80 characters each) the person can click." },
+      },
+      required: ["konu"],
       additionalProperties: false,
     },
   },
@@ -300,7 +325,7 @@ async function panelDinle({ bekle } = {}) {
   const istekler = await p.channel.dinle(seconds * 1000);
   return istekler.length
     ? { istekler: istekler.map(({ at, ...a }) => a) }
-    : { istekler: [], not: "Kimse sormadı. Sihirbaz açıksa panel_dinle ile dinlemeye devam et." };
+    : { istekler: [], not: "Kimse sormadı. Sihirbaz ya da bir bölüm panelde açıksa panel_dinle ile dinlemeye devam et." };
 }
 
 /** Wait a little for a browser tab to show up on the panel (it was just opened); false when none came. */
@@ -330,6 +355,7 @@ const TOOL_RUN = {
   panel_git: panelGit,
   panel_sor: panelSor,
   panel_dinle: panelDinle,
+  panel_sohbet: (args = {}) => openPanelOrThrow().channel.sohbetCevap(args),
   panel_adim: async (args = {}) => {
     const p = openPanelOrThrow();
     const sihirbaz = p.channel.sihirbaz(args);

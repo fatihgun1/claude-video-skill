@@ -17,7 +17,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
  *          selectShot:(id:string) => boolean, note:(text:string) => void,
  *          projectWizard?:(id:string, step?:string) => Promise<void>, projectSlot?:() => HTMLElement|null,
  *          setThinking?:(on:boolean, listening:boolean) => void,
- *          takeDraft?:(tur:string, id:string) => Promise<string>}} ctx
+ *          takeDraft?:(tur:string, id:string) => Promise<string>,
+ *          onChats?:(state:object, listening:boolean) => void}} ctx
  */
 export function createChannel(ctx) {
   let seenSeq = -1; // the last command applied
@@ -158,6 +159,7 @@ export function createChannel(ctx) {
       }
       started = true;
       ctx.setThinking?.(!!res.dusunuyor, !!res.dinliyor);
+      ctx.onChats?.(res.sohbet, res.dinliyor); // the object windows' conversations
       wizard.set(res.sihirbaz || null);
       wizard.setThinking(!!res.dusunuyor);
       const q = res.soru;
