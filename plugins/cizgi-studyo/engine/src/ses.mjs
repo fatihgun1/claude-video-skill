@@ -54,6 +54,20 @@ export function voiceOwner(episode, id) {
 }
 
 /**
+ * How a feeling is spoken: Chatterbox's exaggeration (more = livelier, more expressive) and cfg
+ * (less = slower, more drawn out). Without a feeling every line came out the same flat way (Test 16:
+ * "duygu aktarımı yok").
+ */
+export const MOODS = {
+  sakin: { exaggeration: 0.35, cfg: 0.5 },
+  neseli: { exaggeration: 0.75, cfg: 0.4 },
+  heyecanli: { exaggeration: 0.95, cfg: 0.3 },
+  uzgun: { exaggeration: 0.5, cfg: 0.3 },
+  kizgin: { exaggeration: 1.05, cfg: 0.35 },
+  korkmus: { exaggeration: 0.8, cfg: 0.3 },
+};
+
+/**
  * Every spoken line of an episode with its voice settings.
  * @param {object} episode
  * @returns {{key:string, shot_id:string, index:number, speaker:string, text:string, path:string, voice:object}[]}
@@ -70,7 +84,7 @@ export function linesOf(episode) {
         speaker: u.speaker,
         text: u.text,
         path: audioPathFor(u, shot, index),
-        voice: voices[u.speaker] || {},
+        voice: u.duygu && MOODS[u.duygu] ? { ...(voices[u.speaker] || {}), ...MOODS[u.duygu] } : voices[u.speaker] || {},
       })),
     ),
   );

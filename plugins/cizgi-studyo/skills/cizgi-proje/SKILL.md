@@ -103,7 +103,7 @@ Read these while working through the steps above.
      "characters": [{ "id": "pamuk", "name": "Pamuk", "rig": "pamuk", "palette": { "accent": "#7fb3e6" } }],
      "scenes": [{ "scene_id": "s1", "bg": "cayir", "shots": [{
        "shot_id": "s1_sh1",
-       "utterances": [{ "speaker": "pamuk", "text": "Merhaba!" }],
+       "utterances": [{ "speaker": "pamuk", "text": "Merhaba!", "duygu": "neseli" }],
        "cast": [{ "id": "pamuk", "action": "selam", "mark": "orta" }],
        "camera": { "framing": "wide", "move": "push_in", "target": "pamuk" },
        "hold": 3 }] }]
@@ -112,6 +112,7 @@ Read these while working through the steps above.
 
    - Never write times, coordinates or audio paths. Timing comes from the audio and the profile. Audio lands in `ses/<shot_id>-<n>.wav`.
    - `speaker` is a cast member of that shot or `anlatici` (the narrator).
+   - Give every line its feeling, `utterance.duygu`: `sakin`, `neseli`, `heyecanli`, `uzgun`, `kizgin` or `korkmus`, as the story asks. A line without one is spoken flat (Test 16: "duygu aktarımı yok"). The person changes it in the line's window (click the line), which speaks just that line again; `volume` (0-2, 1 = the common level) is its loudness.
    - A sound effect goes on the shot where it happens: `"sfx": [{ "sfx": "kapi-ac", "at": 0.5, "volume": 0.8 }]`, where `at` is seconds from the start of that shot. Use one only when the picture shows its cause: a door that opens, a foot that lands. Footsteps follow the walk cycle (every half cycle, for example every 0.4 s with `yuru-cocuk`).
    - If the story needs something the library lacks (a new action, background or character), **do not invent it**: ask the person about it (step 7).
 - **Validate**: `cli.mjs dogrula bolumler/<id>/bolum.json`. Fix every error. Keep the warnings for the person to see at the script gate.

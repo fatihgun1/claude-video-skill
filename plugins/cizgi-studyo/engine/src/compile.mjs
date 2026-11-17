@@ -458,9 +458,11 @@ export function prepareMedia(episodePath, lib, outDir, opts = {}) {
       if (isEstimated(shot, i)) return; // no audio yet: nothing to play
       const id = `ses-${shot.shot_id}-${i}`;
       // every line at the same clear level (the cloned voices came out far too quiet)
-      writeFileSync(join(outDir, "assets", "audio", `${id}.wav`), levelledWav(audioFile(u, shot, i)));
+      // a volume over 1 (the panel goes to 200%) is baked into the file: an audio tag stops at 1
+      const loud = (u.volume ?? 1) * mix.lines;
+      writeFileSync(join(outDir, "assets", "audio", `${id}.wav`), levelledWav(audioFile(u, shot, i), loud));
       const dur = (u.end - u.start).toFixed(3);
-      audioTags.push(`<audio id="${id}" src="assets/audio/${id}.wav" data-start="${u.start}" data-duration="${dur}" data-track-index="1" data-volume="${vol((u.volume ?? 1) * mix.lines)}"></audio>`);
+      audioTags.push(`<audio id="${id}" src="assets/audio/${id}.wav" data-start="${u.start}" data-duration="${dur}" data-track-index="1" data-volume="${vol(Math.min(1, loud))}"></audio>`);
     });
   }
 

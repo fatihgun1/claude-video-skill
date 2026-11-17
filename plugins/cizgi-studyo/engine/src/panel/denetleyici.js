@@ -300,7 +300,7 @@ export function createInspector(box, ctx) {
         note ? el("p", { class: "small warn", text: note }) : null),
       section("Zamanlama ve ses", null,
         labelled("Önce bekle", withUnit(number(u.delay, (val) => { setKey(u, "delay", val || undefined); ctx.changed(true); }, { min: 0, max: 5, step: 0.05 }), "s", "Önce bekle (saniye)")),
-        labelled("Ses düzeyi", valueSlider(u.volume ?? 1, { label: "Replik ses düzeyi", onSet: (x) => { setKey(u, "volume", x === 1 ? undefined : x); ctx.changed(); } })),
+        labelled("Ses düzeyi", valueSlider(u.volume ?? 1, { max: 2, label: "Replik ses düzeyi", onSet: (x) => { setKey(u, "volume", x === 1 ? undefined : x); ctx.changed(); } })),
         lineCaption(ctx.episode(), u, () => ctx.changed(true))),
       section("Dinleme", null,
         el("p", { class: `small ${heard && !heard.ok && !heard.accepted ? "err" : "muted"}`, text: listenDetail(heard) }),

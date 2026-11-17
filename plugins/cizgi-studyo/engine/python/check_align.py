@@ -20,14 +20,36 @@ SAMPLE_RATE = 16000
 ASR_MODEL = "large-v3-turbo"
 
 
+ONES = ["", "bir", "iki", "üç", "dört", "beş", "altı", "yedi", "sekiz", "dokuz"]
+TENS = ["", "on", "yirmi", "otuz", "kırk", "elli", "altmış", "yetmiş", "seksen", "doksan"]
+
+
+def number_words(n: int) -> str:
+    """A whole number as Turkish words, joined ("2" -> "iki", "1923" -> "bindokuzyüzyirmiüç")."""
+    if n == 0:
+        return "sıfır"
+    out = ""
+    for value, name in ((1_000_000_000, "milyar"), (1_000_000, "milyon"), (1000, "bin")):
+        if n >= value:
+            head, n = divmod(n, value)
+            out += ("" if head == 1 and value == 1000 else number_words(head)) + name
+    if n >= 100:
+        head, n = divmod(n, 100)
+        out += ("" if head == 1 else ONES[head]) + "yüz"
+    return out + TENS[n // 10] + ONES[n % 10]
+
+
 def normalise(text: str) -> str:
-    """Lower-case (Turkish-aware) and drop punctuation."""
+    """Lower-case (Turkish-aware), drop punctuation, and write digits as words: the listener writes
+    "iki" as "2", which must not count as a wrong take (KPSS: a line spoken three times for it)."""
     text = text.replace("I", "ı").replace("İ", "i").lower()
+    text = re.sub(r"[0-9]+", lambda m: number_words(int(m.group())) if len(m.group()) < 13 else m.group(), text)
     return " ".join(re.sub(r"[^\w ]+", " ", text).split())
 
 
 def cer(expected: str, heard: str) -> float:
-    a, b = normalise(expected), normalise(heard)
+    # spaces do not count: "bin dokuz yüz" and "bindokuzyüz" are the same words heard
+    a, b = normalise(expected).replace(" ", ""), normalise(heard).replace(" ", "")
     previous = list(range(len(b) + 1))
     for i, ca in enumerate(a, 1):
         current = [i]

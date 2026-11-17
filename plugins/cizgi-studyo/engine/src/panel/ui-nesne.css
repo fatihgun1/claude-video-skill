@@ -116,3 +116,13 @@
 /* the old stage chips (Senaryo · Ses · Storyboard · Render) are gone: Video çıkar says it in one place */
 .bar > .steps { display: none; }
 .stage-cekim { position: absolute; z-index: 6; top: 8px; left: 8px; }
+
+/* a line's feeling and loudness, in its window */
+.npencere-duygu, .npencere-duzey { display: flex; flex-direction: column; gap: 4px; }
+.npencere-duzey { flex-direction: row; align-items: center; gap: 8px; }
+.npencere-duzey > .muted { margin-right: auto; }
+.npencere-duzey-v { min-width: 4.5ch; text-align: center; font-variant-numeric: tabular-nums; }
+.ncip { min-height: 32px; padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); color: var(--text); font-size: 12px; cursor: pointer; }
+.ncip:hover:not(:disabled) { border-color: var(--muted); }
+.ncip[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--pane)); font-weight: 600; }
+.ncip:disabled { opacity: .45; cursor: default; }

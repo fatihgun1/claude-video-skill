@@ -100,17 +100,20 @@ test("the shipped library has the ready voices, and an unknown one is an error",
 });
 
 test("every line is brought to the same clear level; a peak never clips, a near-silent take is not blown up", async () => {
-  const { levelGain, TARGET_DB, PEAK_DB } = await import("../src/ses-duzey.mjs");
+  const { levelGain, level, TARGET_DB, PEAK_DB } = await import("../src/ses-duzey.mjs");
   const rate = 16000;
   const tone = (amp) => Float32Array.from({ length: rate }, (_, i) => amp * Math.sin((2 * Math.PI * 220 * i) / rate));
   const db = (x) => 20 * Math.log10(x);
   // a quiet line (rms of a sine = amp / √2): raised to the target
-  const quiet = tone(0.01);
+  const quiet = tone(0.03);
   const g = levelGain({ rate, samples: quiet });
-  assert.ok(Math.abs(db((0.01 / Math.SQRT2) * g) - TARGET_DB) < 0.5, "speech at the target");
-  // a loud line with a peak near full scale: limited by the peak, never past PEAK_DB
+  assert.ok(Math.abs(db((0.03 / Math.SQRT2) * g) - TARGET_DB) < 0.5, "speech at the target");
+  // a loud line, even pushed twice as loud: the soft limiter keeps every sample under PEAK_DB
   const loud = tone(0.95);
-  assert.ok(db(0.95 * levelGain({ rate, samples: loud })) <= PEAK_DB + 1e-6);
+  const out = level(loud, levelGain({ rate, samples: loud }) * 2);
+  assert.ok(db(Math.max(...out.map(Math.abs))) <= PEAK_DB + 1e-6);
+  // quiet parts pass the limiter untouched
+  assert.equal(level(Float32Array.of(0.1), 2)[0], Float32Array.of(0.2)[0]);
   // silence stays silence
   assert.equal(levelGain({ rate, samples: new Float32Array(rate) }), 1);
   // a whisper: at most +24 dB

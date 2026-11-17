@@ -5,6 +5,10 @@
 import { el, svg } from "./dom.js";
 import { startRecording, fileToWav, MAX_RECORD_S } from "./kayit.js";
 
+// a line's feelings (ses.mjs MOODS); "" = none, the character's own flat voice
+const MOODS = [["", "Normal"], ["sakin", "Sakin"], ["neseli", "Neşeli"], ["heyecanli", "Heyecanlı"], ["uzgun", "Üzgün"], ["kizgin", "Kızgın"], ["korkmus", "Korkmuş"]];
+const VOLUME_STEP = 0.25;
+const VOLUME_MAX = 2;
 const KIND_TEXT = { karakter: "Karakter", nesne: "Nesne", mekan: "Mekân", replik: "Replik", efekt: "Efekt", cekim: "Çekim" };
 const DRAWN = new Set(["karakter", "nesne", "mekan"]); // things with a drawing (a new version is a draft under its id)
 const FRAMING_TEXT = { wide: "Geniş", medium: "Orta", close: "Yakın", detay: "Detay", gogus: "Göğüs planı" };
@@ -132,6 +136,8 @@ export function createObjectWindow(ctx) {
         audio(g.ses, "Repliği dinle", line.take),
         el("div", { class: "row" },
           el("button", { class: "btn small", type: "button", "aria-busy": line.busy ? "true" : null, text: line.busy ? "Seslendiriliyor…" : "↻ Yeniden seslendir", title: "Bu repliği yeni bir çekimle yeniden seslendir (ses modeli yüklenirken 1-2 dakika)", on: { click: redoLine } })),
+        moodRow(g.duygu || ""),
+        volumeRow(Number(g.duzey ?? 1)),
         line.busy ? el("p", { class: "npencere-durum", role: "status" }, el("span", { class: "cark", "aria-hidden": "true" }), "Ses modeli yükleniyor ve replik seslendiriliyor (1-2 dakika)…") : null,
         line.msg ? el("p", { class: "muted small", role: "status", text: line.msg }) : null,
         g.dinleme && !g.dinleme.ok && !g.dinleme.accepted ? el("p", { class: "npencere-hata", text: `Ses kontrolünde farklı duyuldu: “${g.dinleme.heard || ""}”` }) : null);
@@ -405,6 +411,48 @@ export function createObjectWindow(ctx) {
       voice = { phase: "idle", error: true, msg: `Örnek olmadı: ${err.message}` };
     }
     render();
+  }
+
+  /** How the line is said: one press sets the feeling and speaks the line again with it. */
+  function moodRow(now) {
+    return el("div", { class: "npencere-duygu", role: "group", "aria-label": "Duygu" },
+      el("span", { class: "muted small", text: "Duygu" }),
+      el("div", { class: "row" }, MOODS.map(([id, label]) => el("button", {
+        type: "button", class: "ncip", "aria-pressed": String(now === id), disabled: line.busy,
+        title: id ? `“${label}” söylesin: bu replik yeniden seslendirilir` : "Duygusuz, karakterin kendi sesi",
+        on: { click: () => setMood(id) },
+      }, label))));
+  }
+
+  /** The line's loudness: − / + by 25%, 0-200% (100% = every line's common level). */
+  function volumeRow(now) {
+    const step = (d) => {
+      const v = Math.min(VOLUME_MAX, Math.max(0, Math.round((now + d) * 100) / 100));
+      ctx.setLineVolume(topic.id, v);
+      topic = { ...topic, goster: { ...topic.goster, duzey: v } };
+      render();
+    };
+    return el("div", { class: "npencere-duzey", role: "group", "aria-label": "Ses düzeyi" },
+      el("span", { class: "muted small", text: "Ses düzeyi" }),
+      el("button", { type: "button", class: "btn small", "aria-label": "Sesi kıs", disabled: now <= 0, on: { click: () => step(-VOLUME_STEP) } }, "−"),
+      el("output", { class: "npencere-duzey-v", text: `%${Math.round(now * 100)}` }),
+      el("button", { type: "button", class: "btn small", "aria-label": "Sesi aç", disabled: now >= VOLUME_MAX, on: { click: () => step(VOLUME_STEP) } }, "+"));
+  }
+
+  async function setMood(duygu) {
+    if (line.busy || topic?.tur !== "replik") return;
+    const key = topic.id;
+    line = { ...line, busy: true, msg: "" };
+    topic = { ...topic, goster: { ...topic.goster, duygu } }; // the chip shows the choice at once
+    render();
+    try {
+      await ctx.setLineMood(key, duygu || undefined);
+      const msg = await ctx.redoLine(key);
+      line = { busy: false, msg, take: line.take + 1 };
+    } catch (err) {
+      line = { ...line, busy: false, msg: `Olmadı: ${err.message}` };
+    }
+    if (topic?.id === key) render();
   }
 
   async function redoLine() {

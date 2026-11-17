@@ -152,6 +152,17 @@ test("linesOf assigns default audio paths and voices", () => {
   assert.notEqual(lineFingerprint(lines[0], "tr", 1), lineFingerprint(lines[0], "tr", 0.85));
 });
 
+test("a line's feeling sets how it is spoken and makes only that line be spoken again", () => {
+  const { ep } = makeEpisode();
+  const before = linesOf(ep).map((l) => lineFingerprint(l, "tr", 1));
+  const u = ep.scenes[0].shots.flatMap((sh) => sh.utterances || [])[2];
+  u.duygu = "heyecanli";
+  const lines = linesOf(ep);
+  assert.deepEqual(lines[2].voice, { exaggeration: 0.95, cfg: 0.3 });
+  const after = lines.map((l) => lineFingerprint(l, "tr", 1));
+  assert.deepEqual(after.map((x, i) => x === before[i]), [true, true, false]);
+});
+
 test("planAudio redoes changed, missing or forced lines only", () => {
   const { ep } = makeEpisode();
   const lines = linesOf(ep);

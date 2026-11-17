@@ -104,7 +104,8 @@ test("an episode names music from the library only, with volumes in range", () =
   assert.ok(validateEpisode(episode({ music: { track: "yok" } }).episode, lib).errors.some((e) => /music "yok"/.test(e)));
   assert.ok(validateEpisode(episode({ music: { track: "deneme-ezgi", volume: 2 } }).episode, lib).errors.length > 0);
   assert.ok(validateEpisode(episode({}, { volume: -1 }).episode, lib).errors.length > 0);
-  assert.ok(validateEpisode(episode({ mix: { lines: 1.5 } }).episode, lib).errors.length > 0);
+  assert.deepEqual(validateEpisode(episode({ mix: { lines: 1.5 } }).episode, lib).errors, []); // lines go to 200%
+  assert.ok(validateEpisode(episode({ mix: { lines: 2.5 } }).episode, lib).errors.length > 0);
 });
 
 test("compiling mixes the music into one sound and applies line and track volumes", () => {

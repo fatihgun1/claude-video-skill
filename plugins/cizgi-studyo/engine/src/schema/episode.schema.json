@@ -248,7 +248,7 @@
       "additionalProperties": false,
       "description": "Loudness of whole tracks (1 = as recorded).",
       "properties": {
-        "lines": { "type": "number", "minimum": 0, "maximum": 1 },
+        "lines": { "type": "number", "minimum": 0, "maximum": 2, "description": "Over 1 is louder than the common level." },
         "sfx": { "type": "number", "minimum": 0, "maximum": 1 }
       }
     }
@@ -311,8 +311,13 @@
               "volume": {
                 "type": "number",
                 "minimum": 0,
-                "maximum": 1,
-                "description": "Loudness of this line (1 = as recorded)."
+                "maximum": 2,
+                "description": "Loudness of this line (1 = the common level, up to 2 = twice as loud)."
+              },
+              "duygu": {
+                "type": "string",
+                "enum": ["sakin", "neseli", "heyecanli", "uzgun", "kizgin", "korkmus"],
+                "description": "How the line is said. Without it the speaker's own voice settings (flat)."
               },
               "altyazi": {
                 "type": "boolean",

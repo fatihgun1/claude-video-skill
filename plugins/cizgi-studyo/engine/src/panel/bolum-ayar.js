@@ -85,7 +85,7 @@ export function episodeSettings(ctx) {
   return el("div", { class: "iview" },
     header({ back: { text: "← Shot'a dön", onClick: () => ctx.select(null) }, kind: "Bölüm", title: "Bölüm ayarları", meta: "Bütün bölüm için: her shot'ta geçerli." }),
     section("Ses düzeyleri", "Bütün repliklerin ve efektlerin düzeyi. Dinlerken susturmak için zaman çizelgesindeki M / S.",
-      labelled("Replikler", valueSlider(ep.mix?.lines ?? 1, { label: "Repliklerin düzeyi", onSet: (x) => setMix("lines", x) })),
+      labelled("Replikler", valueSlider(ep.mix?.lines ?? 1, { max: 2, label: "Repliklerin düzeyi", onSet: (x) => setMix("lines", x) })),
       labelled("Efektler", valueSlider(ep.mix?.sfx ?? 1, { label: "Efektlerin düzeyi", onSet: (x) => setMix("sfx", x) }))),
     section("Müzik", "Bölümün arkasında çalan parça.", musicPart(ep, v, changed)),
     section("Altyazı", "Bütün bölümün altyazıları. Yeri ve boyutu sahnenin ayarlarında.",

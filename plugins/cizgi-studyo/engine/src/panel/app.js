@@ -350,6 +350,22 @@ const objectWindow = createObjectWindow({
     objectWindow.open(shotTopic());
     return "";
   },
+  // a line's feeling: saved, then only that line is spoken again with it (the window plays it)
+  setLineMood: async (key, duygu) => {
+    const u = lineByKey(key);
+    if (!u) throw new Error("bu replik artık yok");
+    setKey(u, "duygu", duygu);
+    changed(true);
+    await save();
+    if (dirty()) throw new Error("bölüm kaydedilemedi");
+  },
+  // a line's loudness, 0..2 (1 = the common level of every line)
+  setLineVolume: (key, v) => {
+    const u = lineByKey(key);
+    if (!u) return;
+    setKey(u, "volume", Math.abs(v - 1) < 0.001 ? undefined : Math.round(v * 100) / 100);
+    changed(true);
+  },
   // one line spoken again, a new take; the window then plays it
   redoLine: async (key) => {
     const res = await runJob("satir", key);
@@ -357,6 +373,11 @@ const objectWindow = createObjectWindow({
     return bad ? `Yeni çekim hazır ama ses kontrolünde farklı duyuldu: “${bad.heard}”. Dinle; olmadıysa yeniden dene.` : "Yeni çekim hazır.";
   },
 });
+/** A line by its key "<shot>-<n>" (a shot id may hold "-" too). */
+function lineByKey(key) {
+  const cut = key.lastIndexOf("-");
+  return find(key.slice(0, cut))?.shot.utterances?.[Number(key.slice(cut + 1))] || null;
+}
 /** What the person clicked on the stage, as an object-window topic (null: nothing it opens for). */
 function topicOf(kind, index) {
   const f = find(state.sel.shot);
@@ -383,7 +404,7 @@ function topicOf(kind, index) {
     if (!u) return null;
     const key = `${f.shot.shot_id}-${index}`;
     const dir = state.path.slice(0, state.path.lastIndexOf("/")); // the episode folder: its audio is <dir>/ses/<key>.wav
-    return { tur: "replik", id: key, ad: `${labelOf(u.speaker)}: replik`, ...where, goster: { konusan: labelOf(u.speaker), metin: u.text, ses: `${dir}/ses/${key}.wav`, dinleme: state.listening?.[key] || null } };
+    return { tur: "replik", id: key, ad: `${labelOf(u.speaker)}: replik`, ...where, goster: { konusan: labelOf(u.speaker), metin: u.text, ses: `${dir}/ses/${key}.wav`, dinleme: state.listening?.[key] || null, duygu: u.duygu || "", duzey: u.volume ?? 1 } };
   }
   if (kind === "sfx") {
     const x = (f.shot.sfx || [])[index];
