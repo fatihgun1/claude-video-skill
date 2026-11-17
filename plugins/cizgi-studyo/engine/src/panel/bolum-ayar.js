@@ -2,7 +2,7 @@
 // track levels (episode.mix), the background music (episode.music), the captions (off, or
 // edged with the speaker's colour), the voices and the 3D look. A settings page: titled
 // sections with one line each, most used first, the rare one folded. Opened from the top bar,
-// the timeline's Mikser or its music clip; "← Shot'a dön" goes back to the selected shot.
+// the timeline's Ses düzeyleri or its music clip; "← Shot'a dön" goes back to the selected shot.
 import { el, select, number, setKey } from "./dom.js";
 import { listen } from "./dinle.js";
 import { MUSIC_DEFAULTS } from "./muzik.mjs";

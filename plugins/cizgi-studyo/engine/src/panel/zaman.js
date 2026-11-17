@@ -42,7 +42,7 @@ export function createTimeline(els, ctx) {
   let all = []; // every shot of the episode, start from the film's start
   let filmLen = 0;
   let origin = 0; // film time at the left edge: the scene's start in scene view, else 0
-  let view = "sahne"; // "sahne": only the selected shot's scene · "bolum": the whole episode
+  let view = "bolum"; // "bolum" (the default: every scene, as the stage plays them) · "sahne": only the selected shot's scene
   let playhead = null;
   let dragging = false;
   let redrawLater = false;

@@ -15,6 +15,7 @@ import { buildTimeline, wavDuration } from "./timing.mjs";
 import { readJson, has } from "./util.mjs";
 import { readWav, writeWav, mixMusic } from "./muzik.mjs";
 import { gateCues, silencesOfFile } from "./dudak.mjs";
+import { levelledWav } from "./ses-duzey.mjs";
 import { captionPlace, captionShown, speakerColor } from "./altyazi.mjs";
 
 const RUNTIME_DIR = join(dirname(fileURLToPath(import.meta.url)), "runtime");
@@ -456,7 +457,8 @@ export function prepareMedia(episodePath, lib, outDir, opts = {}) {
     shot.utterances.forEach((u, i) => {
       if (isEstimated(shot, i)) return; // no audio yet: nothing to play
       const id = `ses-${shot.shot_id}-${i}`;
-      copyFileSync(audioFile(u, shot, i), join(outDir, "assets", "audio", `${id}.wav`));
+      // every line at the same clear level (the cloned voices came out far too quiet)
+      writeFileSync(join(outDir, "assets", "audio", `${id}.wav`), levelledWav(audioFile(u, shot, i)));
       const dur = (u.end - u.start).toFixed(3);
       audioTags.push(`<audio id="${id}" src="assets/audio/${id}.wav" data-start="${u.start}" data-duration="${dur}" data-track-index="1" data-volume="${vol((u.volume ?? 1) * mix.lines)}"></audio>`);
     });

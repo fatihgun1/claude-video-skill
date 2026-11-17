@@ -1,7 +1,7 @@
 // Inspector (the right panel) shows what is selected, its settings first:
 //   a cast member, prop, effect, line or decor: only that, with "← shot" back;
 //   nothing: the shot (camera and its rows, a click opens one), then its scene in a closed section;
-//   the episode (Bölüm ayarları, the timeline's Mikser): bolum-ayar.js.
+//   the episode (Bölüm ayarları, the timeline's Ses düzeyleri): bolum-ayar.js.
 // Every control only offers library words and commits through ctx.changed().
 // Look: a header naming the selection, titled sections, labels above controls (denetleyici-alan.js).
 import { el, select, number, setKey } from "./dom.js";

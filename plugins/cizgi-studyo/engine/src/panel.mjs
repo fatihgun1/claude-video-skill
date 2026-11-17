@@ -49,6 +49,7 @@ import { draftRoutes, draftFile } from "./panel-taslak.mjs";
 import { createChannel, channelRoutes, LINE_AUDIO } from "./panel-kanal.mjs";
 import { makingRoutes } from "./panel-yapim.mjs";
 import { voiceRoutes } from "./panel-ses.mjs";
+import { levelledWav } from "./ses-duzey.mjs";
 import { approveEpisode } from "./onayla.mjs";
 import { scriptTable } from "./senaryo-tablo.mjs";
 import { decisionProblems } from "./kararlar.mjs";
@@ -411,7 +412,7 @@ export function createPanel(opts) {
       const file = safeJoin(root, rel);
       if (!existsSync(file) || !existsSync(join(dirname(dirname(file)), "bolum.json"))) throw new HttpError(404, "not found");
       insideReally(root, file);
-      return sendRanged(req, res, file);
+      return send(res, levelledWav(file), "audio/wav"); // as loud as it plays in the film
     }
     if (path.startsWith("/hareket-onizleme/")) return sendFile(res, safeJoin(actionDir, decode(path.slice(18))));
     // Production outputs: /uretim/<key>/storyboard/... or /uretim/<key>/cikti/... of an opened episode.

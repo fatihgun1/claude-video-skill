@@ -56,3 +56,6 @@ The step needs these tools. Their paths come from environment variables or from 
 | `ffmpeg` / `CIZGI_FFMPEG` | ffmpeg (default: `ffmpeg` on PATH) |
 
 If a tool is missing, the command names it. Help the person set it up, and ask before downloading anything large (the models are several GB).
+
+## Loudness
+The voice cloner keeps its reference clip's level: lines came out between -26 and -47 dB, far under the sound effects. The engine brings every line to the same level where it goes into the film and where the panel plays one line (`ses-duzey.mjs`: speech about -20 dB, peaks under -1 dB). Nothing to regenerate. If the person still finds the voices quiet or loud next to music and effects, the levels are in the panel's **🔊 Ses düzeyleri** (`mix.lines`, `mix.sfx`, `music.level`).
