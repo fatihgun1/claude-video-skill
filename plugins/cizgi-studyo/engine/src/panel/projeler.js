@@ -1,7 +1,7 @@
 // Projeler: the panel's home page (a list of the folder's episodes, not a dialog). Every
 // bolum.json in the opened folder as a card (background, title, shots and length, approval
 // state), a search over them, switching with a confirmation when there are unsaved edits,
-// the episodes still being made (they reopen the project wizard), "+ Yeni bölüm" (the wizard)
+// how to start a new one (told to Claude in the chat: the setup wizard is gone, it made starting too long)
 // and "Boş bölüm", a small form that creates a new episode from the minimal template.
 // The editor is hidden while this page shows; the open episode stays loaded behind it.
 // Layout: page pattern "List / Index": heading + one line, one primary create action in the
@@ -35,11 +35,10 @@ const nameOf = (e) => e?.title || e?.id || e?.path || "";
  * @param {HTMLElement} page the home page section
  * @param {{current:() => string|null, dirty:() => boolean, open:(rel:string) => Promise<void>,
  *          api:(path:string, body?:object) => Promise<any>, onView:(home:boolean) => void,
- *          wizard:(id?:string) => void}} ctx   wizard: the project wizard, new (no id) or an episode being made
+ *          }} ctx
  */
 export function createProjects(page, ctx) {
   let list = null;
-  let making = []; // episodes being made: a story, no bolum.json yet (the project wizard)
   let pending = null; // an episode waiting for "discard my edits?"
   let error = "";
   let busy = false;
@@ -80,7 +79,6 @@ export function createProjects(page, ctx) {
     render();
     try {
       list = await ctx.api("/api/bolumler");
-      making = (await ctx.api("/api/yapim").catch(() => ({ yapimlar: [] }))).yapimlar;
     } catch (err) {
       error = `Liste alınamadı: ${err.message}`;
     }
@@ -220,7 +218,7 @@ export function createProjects(page, ctx) {
     } },
     el("div", { class: "hnew-head" },
       el("h3", { id: "hnew-title", text: "Boş bölüm" }),
-      el("p", { class: "muted", text: "Sihirbazsız başlangıç: seçtiğin mekânda bir sahne, bir shot, ortada duran seçtiğin karakter. Gerisini panelde düzenlersin." })),
+      el("p", { class: "muted", text: "Hikâyesiz başlangıç: seçtiğin mekânda bir sahne, bir shot, ortada duran seçtiğin karakter. Gerisini panelde düzenlersin." })),
     el("div", { class: "pikili" },
       field("hnew-baslik", "Başlık", title),
       field("hnew-kimlik", "Kimlik", id, "Klasör adı: bolumler/<kimlik>/bolum.json. Küçük harf, rakam ve tire.")),
@@ -234,26 +232,14 @@ export function createProjects(page, ctx) {
     return { form: f, focus: () => title.focus(), setChoices };
   }
 
-  /** Episodes being made: their own labelled group above the finished ones, each a row that reopens the wizard. */
-  function makingSection() {
-    if (!making.length) return null;
-    return el("section", { class: "hgroup pyapim", "aria-labelledby": "hyapim-title" },
-      el("div", { class: "hgroup-head" },
-        el("h3", { id: "hyapim-title" }, "Yapım aşamasında ", el("span", { class: "hcount", text: String(making.length) })),
-        el("p", { class: "muted", text: "Hikâyesi yazılmış, bölüm dosyası henüz oluşmamış bölümler. Sihirbazda kaldığın yerden sürdür." })),
-      el("ul", { class: "hmaking" }, making.map((m) => el("li", {},
-        el("button", { class: "hmaking-row", type: "button", title: `bolumler/${m.id}/hikaye.json`, on: { click: () => ctx.wizard(m.id) } },
-          el("span", { class: "hmaking-name", text: m.baslik || m.id }),
-          el("span", { class: "ppath", text: `bolumler/${m.id}` }),
-          el("span", { class: "popen", "aria-hidden": "true", text: "Sihirbazda sürdür →" }))))));
-  }
-
   /** An empty state inside the list frame: what belongs here, why, and one way forward. */
   const empty = (title, text, ...actions) => el("div", { class: "hempty", role: "status" },
     el("p", { class: "hempty-title", text: title }),
     el("p", { class: "muted", text }),
     actions.length ? el("div", { class: "hempty-actions" }, actions) : null);
-  const createBtn = () => el("button", { class: "btn primary", type: "button", text: "Yeni bölüm oluştur", on: { click: () => ctx.wizard() } });
+  // a new episode starts in the chat with Claude (the story is talked through there); the panel is for picking
+  const NEW_HINT = "Yeni bölüm için Claude'a sohbette hikâyeni anlat. Görselleri, sesleri ve seçenekleri burada kartlardan seçersin.";
+  const newHint = () => el("p", { class: "hnew-hint", role: "note" }, el("span", { "aria-hidden": "true", text: "💬 " }), NEW_HINT);
 
   /** Card-shaped placeholders while the list loads; they fade in late, so a fast answer never flashes them. */
   const skeleton = () => el("div", { class: "pgrid hskeleton", "aria-hidden": "true" },
@@ -274,7 +260,7 @@ export function createProjects(page, ctx) {
           el("button", { class: "btn", type: "button", text: "Yeniden dene", on: { click: refresh } }))
         : el("div", { role: "status" }, el("span", { class: "hsr", text: "Bölümler yükleniyor…" }), skeleton()))
         : !list.episodes.length
-          ? empty("Henüz bitmiş bölüm yok", "Bir bölüm oluşturduğunda burada resmi, süresi ve onay durumuyla görünür.", createBtn())
+          ? empty("Henüz bölüm yok", "Bir bölüm oluşturduğunda burada resmi, süresi ve onay durumuyla görünür.", newHint())
           : !shown.length
             ? empty(`“${q}” ile eşleşen bölüm yok`, "Başlık, kimlik ya da klasör adının bir parçasını dene.",
               el("button", { class: "btn", type: "button", text: "Aramayı temizle", on: { click: () => { search.value = ""; renderGrid(); search.focus(); } } }))
@@ -296,8 +282,8 @@ export function createProjects(page, ctx) {
         el("p", { class: "muted", title: list?.root, text: list ? `“${folderName(list.root)}” klasöründeki bölümler. Birini aç ya da yeni bir bölüm başlat.` : "Bu klasördeki bölümler. Birini aç ya da yeni bir bölüm başlat." })),
       el("div", { class: "hactions" },
         back,
-        el("button", { class: "btn ghost small", type: "button", text: "Hikâyesiz başla", title: "Hikâye yazmadan: tek sahne, tek çekimle boş bir bölüm", "aria-expanded": String(creating), "aria-controls": "hnew", on: { click: toggleNew } }),
-        el("button", { class: "btn primary", type: "button", text: "+ Yeni bölüm", title: "Hikâyeni yaz, formatı ve süreyi seç: gerisini Claude kurar", on: { click: () => ctx.wizard() } })));
+        el("button", { class: "btn ghost small", type: "button", text: "Hikâyesiz başla", title: "Hikâye yazmadan: tek sahne, tek çekimle boş bir bölüm", "aria-expanded": String(creating), "aria-controls": "hnew", on: { click: toggleNew } }),),
+      newHint());
   }
 
   function render() {
@@ -318,7 +304,7 @@ export function createProjects(page, ctx) {
       tools, grid, more);
     const parts = [header(), confirmBar(), creating ? newEp.form : null,
       error && list ? el("p", { class: "err herr", role: "alert", text: error }) : null,
-      makingSection(), episodes];
+      episodes];
     page.replaceChildren(el("div", { class: "hpage" }, parts.filter(Boolean)));
   }
   const newEp = newForm(); // made once, so a half-typed title survives the list refreshing

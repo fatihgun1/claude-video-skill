@@ -97,22 +97,6 @@ test("the film rules flag a talk with no over-the-shoulder shot and a scene seen
   assert.ok(probs.some((p) => /bütün çekimleri yandan/.test(p.metin)), "a scene-wide finding shows on every shot of it, in Turkish");
 });
 
-test("the quick start makes a folder id and a short title from the story", async () => {
-  const { idFromTitle, titleFromStory } = await import("../src/panel/hizli-basla.js");
-  assert.equal(titleFromStory("KPSS'ye hazırlanan bir öğrenci kütüphanede bir kızla tanışır. Kız ajandır."), "KPSS'ye hazırlanan bir öğrenci kütüphanede");
-  assert.equal(idFromTitle("KPSS'ye hazırlanan bir öğrenci kütüphanede"), "kpss-ye-hazirlanan-bir-ogrenci");
-  assert.equal(idFromTitle("Çığ ŞÜÖ"), "cig-suo");
-  assert.equal(idFromTitle("!!!"), "bolum");
-});
-
-test("a quick start needs only the idea and the format; the full wizard needs characters and cards", async () => {
-  const { missingForBuild } = await import("../src/panel-yapim.mjs");
-  const story = { fikir: "Bir öğrenci kütüphanede bir ajanla tanışır.", karakterler: [], kartlar: [], istekler: { format: "9:16", boyut: "2b" } };
-  assert.deepEqual(missingForBuild(story, { quick: true }), []);
-  assert.ok(missingForBuild(story).length >= 2);
-  assert.deepEqual(missingForBuild({ ...story, istekler: {} }, { quick: true }), ["format (9:16 ya da 16:9)"]);
-});
-
 test("a cut to another scene is neither a jump cut nor a flip of direction", () => {
   const ep = episode();
   ep.scenes.push({ scene_id: "s2", bg: "sokak", shots: [{ shot_id: "s2_sh1", cast: [{ id: "ela", action: "bekle-yan", mark: "orta" }], camera: { framing: "medium" } }] });

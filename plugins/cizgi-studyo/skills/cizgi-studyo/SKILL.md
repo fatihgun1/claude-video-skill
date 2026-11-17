@@ -11,9 +11,9 @@ The plugin's MCP server (`cizgi-studyo`) starts with the session and hosts the e
 - `panel_kapat`: stops the panel and any storyboard/render job it started.
 - `panel_istekleri {hepsi?}` and `panel_yanitla {id, durum, yanit}`: requests the person writes in the panel (below).
 - `panel_git {bolum?, sekme?, shot?, kaydir?, vurgula?}`: move the open panel to what the person should look at (an episode, a left panel or `hikaye`/`projeler`, a shot, the drafts list, a button to highlight). Use it instead of telling them where to click.
-- `panel_adim {sihirbaz? | adim, durum?, aciklama?, gorsel? | kapat?}`: a wizard in the panel (a drawer with the steps of a longer job) that you move on yourself; the person follows it there instead of in chat. A `panel_sor` question shows inside it.
-- `panel_dinle {bekle?}`: wait for the person's "Claude'a sor" clicks in the project wizard (they fill the fields; you answer only what they ask about). Returns `{istekler: [{proje, adim, alan?, etiket?}]}`; call it again after each answer while the wizard is open.
-- `panel_sor {soru, secenekler, coklu?, serbest?, bolum?, bekle?}`: ask in the panel with option cards (each may show a picture the panel serves). It waits for the answer and returns it; when it runs out of time the answer comes later as a panel request. Use it for every choice about the episode instead of asking in chat; gate approvals (`cizgi onayla`) stay in chat.
+- `panel_dinle {bekle?}`: studio mode. Waits for what the person does in the panel: a message in an object window (`tur: "sohbet"`), a request from the **Claude'a yaz** box (`tur: "istek"`), drafts taken into the library (`tur: "taslak"`). See the `cizgi-panel` skill.
+- `panel_sor {soru, secenekler, coklu?, serbest?, bolum?, ses?, bekle?}`: ask in the panel with option cards (each may show a picture the panel serves; `ses` plays a line or a voice sample). It waits for the answer and returns it; when it runs out of time the answer comes later as a panel request. Use it for every **choice between options** (pictures, voices, music, format, approvals of a plan). Open questions about the story and the characters go in the chat. Gate approvals (`cizgi onayla`) stay in chat.
+- There is no setup wizard: a new episode is talked through in the chat (`cizgi-proje`), and the person picks from cards in the panel.
 
 ## Steps
 
@@ -35,7 +35,7 @@ At the top of its properties the panel has **Claude'a yaz**: the person selects 
 - Answer every request with `panel_yanitla {id, durum, yanit}`: `yapildi` (what changed), `soru` (what you need from them), `olmadi` (why not). Keep it short and in their language. They see it under the request in the panel.
 
 ## Story cards (hikaye.json)
-A draft next to `bolum.json`, before the script: the idea, the audience, the characters and one card per scene. The panel's **project wizard** (Projeler → "+ Yeni bölüm", or "Bölümü düzenle" in the editor) writes the person's wishes into it too: `baslik`, `istekler` (`format`, `sure`, `boyut`, `stil3d`, `muzik`, `efekt`, `altyazi`) and, per card, `mekan` (a library background id, or words for a place to draw), `saat` and `nesneler`. An episode can exist as `bolumler/<id>/hikaye.json` alone ("yapım aşamasında") until its "Oluştur" request asks you to write `bolum.json` (see the `cizgi-proje` skill). It is not a gate; nothing waits for it. The person edits it in the panel (**Hikâye** in the top bar); you write it when they shape the story with you in chat, or when a panel request asks ("Claude kartları önersin").
+A draft next to `bolum.json`, before the script: the idea, the audience, the characters and one card per scene. You write it as you talk the story through in the chat (see the `cizgi-proje` skill): `baslik`, `istekler` (`format`, `sure`, `boyut`, `stil3d`, `muzik`, `efekt`, `altyazi`) and, per card, `mekan` (a library background id, or words for a place to draw), `saat` and `nesneler`. It is a record, not a form, and there is no setup wizard. It is not a gate; nothing waits for it. The person edits it in the panel (**Hikâye** in the top bar); you write it when they shape the story with you in chat, or when a panel request asks ("Claude kartları önersin").
 
 ```json
 {

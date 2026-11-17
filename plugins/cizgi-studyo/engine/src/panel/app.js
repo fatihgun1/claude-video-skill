@@ -16,14 +16,12 @@ import { createRequests } from "./istek.js";
 import { createReview } from "./inceleme.js";
 import { createStory } from "./hikaye.js";
 import { createChannel as createClaudeChannel } from "./kanal.js";
-import { createProjectWizard } from "./proje-sihirbaz.js";
 import { slug } from "./projeler.js";
 import { installKeys } from "./klavye.js";
 import { installViews } from "./gorunum.js";
 import { createDrafts } from "./taslak.js";
 import { createObjectWindow } from "./nesne-pencere.js";
 import { createVideoButton } from "./video-cikar.js";
-import { createQuickStart } from "./hizli-basla.js";
 import { setView, applyRecipe, viewsOf, viewKindOf, shotProblems, warningText, RECIPES } from "./kompozisyon.js";
 import { decorId } from "./dekor.js";
 import {
@@ -1000,19 +998,7 @@ async function open(rel) {
   if (!same && own && own !== state.format) $(`fmt-${own.replace(":", "x")}`)?.click();
 }
 
-// unsaved story cards count too: switching episodes would drop them
-const projectWizard = createProjectWizard({ api, note, slug, onClose: () => { if (projects.shown()) projects.show(); } });
-// a new episode starts on one screen (the story, the format, the length); the wizard stays a click away
-const quickStart = createQuickStart({
-  api,
-  wizard: () => projectWizard.open(null),
-  done: (id) => {
-    note(`Claude “${id}” bölümünü kuruyor: karakterler, sahneler, ilk çekimler. Birkaç dakikada editörde açılır; adımları sağda görürsün.`);
-    if (projects.shown()) projects.show(); // the list shows it under "Yapım aşamasında"
-  },
-});
 const projects = createProjects($("projects"), {
-  wizard: (id) => (id ? projectWizard.open(id) : quickStart.open()),
   current: () => state.path,
   dirty: () => (!!state.draft && dirty()) || story.dirty(),
   open,
@@ -1066,17 +1052,6 @@ const story = createStory($("hikaye"), {
   api,
 });
 $("story").addEventListener("click", () => story.show());
-// "Bölümü düzenle": the project wizard on the open episode (its wishes live in its story)
-$("story").after(el("button", {
-  class: "btn small", type: "button", text: "Bölümü düzenle", title: "Proje sihirbazı: bu bölümün isteklerini değiştir",
-  on: {
-    click: () => {
-      const m = /^bolumler\/([a-z0-9]+(?:-[a-z0-9]+)*)\/bolum\.json$/.exec(state.path || "");
-      if (!m) return note("Sihirbaz yalnız bolumler/<kimlik>/bolum.json bölümlerini düzenler.");
-      return projectWizard.open(m[1]);
-    },
-  },
-}));
 /* ---------- Claude moving the panel and asking in it (panel_git, panel_sor) ---------- */
 createClaudeChannel({
   api,
@@ -1092,9 +1067,6 @@ createClaudeChannel({
     choose(id);
     return true;
   },
-  projectWizard: (id, step) => projectWizard.open(id, step),
-  projectSlot: () => projectWizard.slot(),
-  setThinking: (on, listening) => projectWizard.setThinking(on, listening),
   takeDraft: (tur, id) => drafts.take(tur, id),
   onChats: (state, listening) => {
     objectWindow.update(state, listening);

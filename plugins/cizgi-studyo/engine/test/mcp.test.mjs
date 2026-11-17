@@ -70,7 +70,7 @@ test("initialize answers with tools capability and the asked protocol version", 
 test("tools/list names the panel and request tools with input schemas", async () => {
   const res = await rpc("tools/list", {});
   const names = res.result.tools.map((t) => t.name).sort();
-  assert.deepEqual(names, ["panel_ac", "panel_adim", "panel_dinle", "panel_git", "panel_istekleri", "panel_kapat", "panel_sohbet", "panel_sor", "panel_yanitla"]);
+  assert.deepEqual(names, ["panel_ac", "panel_dinle", "panel_git", "panel_istekleri", "panel_kapat", "panel_sohbet", "panel_sor", "panel_yanitla"]);
   for (const t of res.result.tools) assert.equal(t.inputSchema.type, "object");
 });
 
@@ -212,21 +212,7 @@ test("an answer after panel_sor stopped waiting reaches Claude as a panel reques
   textOf(await callTool("panel_yanitla", { id: late.id, durum: "yapildi", yanit: "Müzik yok." }));
 });
 
-test("panel_adim starts a wizard in the panel and moves its steps on", async () => {
-  const open = textOf(await callTool("panel_ac", { klasor: root }));
-  const base = open.url.slice(0, -1);
-  const started = textOf(await callTool("panel_adim", { sihirbaz: { baslik: "Yeni karakter", adimlar: [{ id: "konsept", baslik: "Konsept" }, { id: "al", baslik: "Kütüphaneye al" }] } }));
-  assert.equal(started.sihirbaz.adimlar.length, 2);
-  const moved = textOf(await callTool("panel_adim", { adim: "al", durum: "bekliyor", aciklama: "Taslakları al" }));
-  assert.deepEqual(moved.sihirbaz.adimlar.map((a) => a.durum), ["bitti", "bekliyor"]);
-  const kanal = await (await fetch(`${base}/api/kanal`)).json();
-  assert.equal(kanal.sihirbaz.aktif, "al");
-  const bad = await callTool("panel_adim", { adim: "yok" });
-  assert.equal(bad.result.isError, true);
-  assert.equal(textOf(await callTool("panel_adim", { kapat: true })).sihirbaz, null);
-});
-
-test("panel_dinle hands the person's Claude'a sor to Claude; when nobody asks it returns an empty list", async () => {
+test("panel_dinle returns an empty list when nobody asks, and the panel shows Claude listening", async () => {
   const open = textOf(await callTool("panel_ac", { klasor: root }));
   const base = open.url.slice(0, -1);
   const host = new URL(open.url).host;
@@ -235,9 +221,10 @@ test("panel_dinle hands the person's Claude'a sor to Claude; when nobody asks it
   await new Promise((r) => setTimeout(r, 50));
   const kanal = await (await fetch(`${base}/api/kanal`)).json();
   assert.equal(kanal.dinliyor, true);
-  const posted = await fetch(`${base}/api/kanal/iste`, { method: "POST", headers: { "content-type": "application/json", origin: `http://${host}` }, body: JSON.stringify({ proje: "bir", adim: "kararlar", alan: "istekler.sure", etiket: "Süre" }) });
-  assert.deepEqual(await posted.json(), { dinliyor: true });
-  assert.deepEqual(textOf(await listening).istekler, [{ proje: "bir", adim: "kararlar", alan: "istekler.sure", etiket: "Süre" }]);
+  assert.equal(kanal.sihirbaz, undefined, "the project wizard is gone");
+  const posted = await fetch(`${base}/api/kanal/iste`, { method: "POST", headers: { "content-type": "application/json", origin: `http://${host}` }, body: JSON.stringify({ proje: "bir", adim: "kararlar" }) });
+  assert.equal(posted.status, 404, "no wizard \"Claude'a sor\" route");
+  assert.deepEqual(textOf(await listening).istekler, []);
 });
 
 test("studio mode: a message in an object window reaches panel_dinle and panel_sohbet answers in that window", async () => {

@@ -3,7 +3,6 @@
 // of in chat. Everything shown comes from Claude's tool call: it is drawn as text, never as HTML, and
 // pictures are only the panel's own drawings (checked on the server).
 import { $, el } from "./dom.js";
-import { createWizard } from "./sihirbaz.js";
 
 const POLL_MS = 1500;
 const HIGHLIGHT_MS = 6000;
@@ -15,7 +14,6 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
  * @param {{api:(path:string, body?:object) => Promise<any>, current:() => string|null,
  *          home:() => Promise<void>, openEpisode:(rel:string) => Promise<void>, story:() => void,
  *          selectShot:(id:string) => boolean, note:(text:string) => void,
- *          projectWizard?:(id:string, step?:string) => Promise<void>, projectSlot?:() => HTMLElement|null,
  *          setThinking?:(on:boolean, listening:boolean) => void,
  *          takeDraft?:(tur:string, id:string) => Promise<string>,
  *          onChats?:(state:object, listening:boolean) => void}} ctx
@@ -29,7 +27,9 @@ export function createChannel(ctx) {
   const box = el("div", { class: "kanal-soru", role: "dialog", "aria-modal": "false", "aria-labelledby": "kanal-soru-baslik", hidden: true });
   const chip = el("button", { class: "kanal-cip", type: "button", hidden: true, text: "Claude bir şey soruyor", on: { click: () => { later = false; render(); } } });
   document.body.append(box, chip);
-  const wizard = createWizard({ takeDraft: ctx.takeDraft }); // panel_adim: the steps of a longer job; a question shows inside it
+  // the Üretim page has a column for Claude's question; elsewhere it floats at the right edge
+  const QUESTION_DOCK = "#uretim[open] .uretim-soru";
+  const dock = () => document.querySelector(QUESTION_DOCK);
 
   function openRail(id) {
     const button = $("rail")?.querySelector(`button[title="${RAIL_TITLE[id]}"]`);
@@ -43,7 +43,7 @@ export function createChannel(ctx) {
 
   function highlight(text) {
     const want = text.toLocaleLowerCase("tr");
-    const hits = [...document.querySelectorAll("button")].filter((b) => !b.closest(".kanal-soru, .sihirbaz") && b.offsetParent && b.textContent.trim().toLocaleLowerCase("tr").startsWith(want));
+    const hits = [...document.querySelectorAll("button")].filter((b) => !b.closest(".kanal-soru") && b.offsetParent && b.textContent.trim().toLocaleLowerCase("tr").startsWith(want));
     hits[0]?.scrollIntoView({ block: "center", behavior: "smooth" });
     for (const b of hits) b.classList.add("kanal-vurgu");
     setTimeout(() => hits.forEach((b) => b.classList.remove("kanal-vurgu")), HIGHLIGHT_MS);
@@ -52,15 +52,6 @@ export function createChannel(ctx) {
 
   /** Apply one navigation command, in order: episode, panel, shot, scroll, highlight. */
   async function go(cmd) {
-    if (cmd.proje) {
-      await ctx.projectWizard?.(cmd.proje, cmd.proje_adim);
-      render();
-      return;
-    }
-    if (cmd.bolum || cmd.shot || cmd.kaydir || cmd.vurgula) { // an episode opening is something to watch too
-      wizard.shrink(); // the person must see what Claude points at
-      render();
-    }
     if (cmd.sekme === "projeler") await ctx.home();
     if (cmd.bolum && cmd.bolum !== ctx.current()) {
       await ctx.openEpisode(cmd.bolum);
@@ -111,13 +102,13 @@ export function createChannel(ctx) {
     const show = !!question && !later;
     box.hidden = !show;
     chip.hidden = !(question && later);
-    // a modal dialog (the project wizard) hides everything behind it: the chip goes inside it then
-    const modal = ctx.projectSlot?.() || document.querySelector("#uretim[open]"); // Üretim is a modal page too
+    // a modal page (Üretim) hides everything behind it: the chip goes inside it then
+    const modal = document.querySelector("#uretim[open]");
     if (modal && chip.parentElement !== modal) modal.append(chip);
     else if (!modal && chip.parentElement !== document.body) document.body.append(chip);
     if (!show) return;
-    // inside the open wizard when there is one, else floating over the editor
-    const home = ctx.projectSlot?.() || wizard.slot();
+    // in the Üretim page's Claude column when it is open, else floating at the editor's right edge
+    const home = dock();
     box.classList.toggle("docked", !!home);
     if (home && box.parentElement !== home) {
       home.append(box);
@@ -160,19 +151,15 @@ export function createChannel(ctx) {
       started = true;
       ctx.setThinking?.(!!res.dusunuyor, !!res.dinliyor);
       ctx.onChats?.(res.sohbet, res.dinliyor); // the object windows' conversations
-      wizard.set(res.sihirbaz || null);
-      wizard.setThinking(!!res.dusunuyor);
       const q = res.soru;
       if ((q?.id || null) !== (question?.id || null)) {
         question = q;
         picked = new Set();
         later = false;
-        if (q) wizard.grow(); // a question in a wizard is asked where its steps are
         box.querySelector("textarea")?.remove();
         render();
-        wizard.refresh(); // its Claude column says "waiting for your answer" or goes back to working
-      } else if (question && !later && (ctx.projectSlot?.() || wizard.slot()) !== (box.classList.contains("docked") ? box.parentElement : null)) {
-        render(); // the wizard opened, grew or closed: the question follows it
+      } else if (question && !later && dock() !== (box.classList.contains("docked") ? box.parentElement : null)) {
+        render(); // Üretim opened or closed: the question follows it
       }
     } catch {
       /* the panel's server is gone or busy: try again */

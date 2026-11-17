@@ -497,7 +497,6 @@ body.at-home .editor, body.at-home .bar > :not(.brand):not(.state), body.at-home
 .pthumb { position: relative; aspect-ratio: 16 / 9; border-radius: 6px; overflow: hidden; background: radial-gradient(circle at 50% 35%, #343947, #23262e); margin-bottom: 4px; }
 .pthumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ptitle { font-size: 14px; font-weight: 600; line-height: 1.25; }
-.pcard .ppath { color: var(--muted); font-size: 11px; word-break: break-all; }
 .pcard .meta { font-size: 12px; color: var(--text); }
 .pcard .why { font-size: 11.5px; color: var(--err); }
 .gates { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
@@ -579,35 +578,8 @@ body.at-home .editor, body.at-home .bar > :not(.brand):not(.state), body.at-home
   .kanal-soru:not(.docked) { left: auto; right: 16px; top: 64px; bottom: 16px; transform: none; width: min(400px, 36vw); max-height: none; }
 }
 
-/* The wizard Claude moves on (panel_adim): sihirbaz.js */
-.sihirbaz { position: fixed; z-index: 55; top: 64px; right: 12px; bottom: 12px; width: min(420px, calc(100vw - 24px)); overflow: auto; display: flex; flex-direction: column; gap: var(--gap); padding: 14px 16px; background: var(--pane-2); border: 1px solid var(--accent); border-radius: 12px; box-shadow: 0 12px 40px rgba(0, 0, 0, .5); }
-.sihirbaz[hidden], .sihirbaz-cip[hidden] { display: none; }
-.sihirbaz h3 { margin: 0; font-size: 16px; }
-.sust { display: flex; align-items: center; justify-content: space-between; }
-.skim { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
-.sadimlar { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.sadim { display: flex; gap: 10px; padding: 8px; border-radius: var(--radius); }
-.sadim.aktif { background: var(--pane); border: 1px solid var(--line); }
-.sisaret { width: 22px; height: 22px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--pane-3); color: var(--muted); font-weight: 700; font-size: 12px; }
-.sadim.bitti .sisaret { background: var(--ok); color: var(--accent-ink); }
-.sadim.calisiyor .sisaret { background: var(--accent); color: var(--accent-ink); }
-.sadim.bekliyor .sisaret { background: var(--select); color: #2a1a00; }
-.sadim.hata .sisaret { background: var(--err); color: #2a0a08; }
-.sgovde { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.sbaslik { font-weight: 600; }
-.sdurum { font-size: 11px; color: var(--muted); }
-.sadim.bekliyor .sdurum { color: var(--select); font-weight: 600; }
-.saciklama { margin: 4px 0 0; white-space: pre-wrap; }
-.sgorseller { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 6px; margin-top: 6px; }
-.sgorseller img { width: 100%; height: 110px; object-fit: contain; background: var(--pane-3); border-radius: 6px; }
-.sihirbaz-cip { position: fixed; z-index: 55; left: 50%; bottom: 16px; transform: translateX(-50%); max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--accent); background: var(--pane-2); color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
-.sihirbaz-cip.bekliyor { border-color: var(--select); color: var(--select); }
+/* a question docked in a page's Claude column (kanal.js) */
 .kanal-soru.docked { position: static; transform: none; width: auto; max-height: none; box-shadow: none; padding: 12px; }
-@keyframes sihirbaz-nabiz { 50% { opacity: .45; } }
-@media (prefers-reduced-motion: no-preference) { .sadim.calisiyor .sisaret { animation: sihirbaz-nabiz 1.4s ease-in-out infinite; } }
-
-.pyapim { margin: 16px 0 0; }
-.pyapim .row { flex-wrap: wrap; gap: 8px; }
 
 /* Üretim as a wizard: the senaryo step (uretim.js) */
 .pkarar { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; margin: 6px 0; border: 1px solid var(--select); border-radius: var(--radius); background: var(--pane-2); }
@@ -626,11 +598,8 @@ body.at-home .editor, body.at-home .bar > :not(.brand):not(.state), body.at-home
 .kanal-soru.docked textarea { min-height: 38px; }
 .kanal-soru.docked { gap: 8px; }
 
-/* The project wizard (proje-sihirbaz.js): a full-screen work page. Steps | form (narrow column) | Claude.
+/* A full-screen work page (Üretim, story cards): steps | form (narrow column) | Claude.
    Labels above fields; Claude's question sits in its own column, never over the form. */
-.psih { position: fixed; inset: 0; width: 100vw; height: 100vh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: var(--bg); color: var(--text); }
-.psih[open] { display: grid; grid-template-rows: auto 1fr; }
-.psih:focus-visible { outline: none; }
 .psih-bas { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 24px; border-bottom: 1px solid var(--line); background: var(--pane); }
 .psih-baslik { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
 .psih-baslik h2 { margin: 0; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -655,17 +624,11 @@ body.at-home .editor, body.at-home .bar > :not(.brand):not(.state), body.at-home
 .pgovde { display: flex; flex-direction: column; gap: 24px; }
 /* a field: label (and its Claude'a sor) above, the control, then a hint or the error in the same slot */
 .pfield { display: flex; flex-direction: column; gap: 8px; }
-.pfield-ust { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 24px; }
 .pfield-ad { font-weight: 600; }
 .pfield-ipucu { margin: 0; font-size: 12px; color: var(--muted); }
 .pfield-hata { margin: 0; font-size: 12px; color: var(--err); }
 .pfield.hatali input, .pfield.hatali textarea, .pfield.hatali .psegment button { border-color: var(--err); }
-.psih input[type=text], .psih input[type=number], .psih input:not([type]), .psih textarea, .psih select { width: 100%; min-height: 36px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--pane); color: var(--text); font: inherit; }
-.psih textarea { resize: vertical; line-height: 1.45; }
-.psih input:focus-visible, .psih textarea:focus-visible, .psih select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
-.psih input:disabled { opacity: .6; }
 .pikili { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.pyigin { display: flex; flex-direction: column; gap: 8px; }
 /* choices as segmented buttons */
 .psegment { display: flex; flex-wrap: wrap; gap: 8px; }
 .psegment button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 120px; padding: 8px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--pane); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
@@ -678,7 +641,6 @@ body.at-home .editor, body.at-home .bar > :not(.brand):not(.state), body.at-home
 .btn.ghost:hover:not(:disabled) { background: var(--pane-2); border-color: var(--line); }
 .psih-sor { color: var(--accent); white-space: nowrap; }
 .psih-sor .yildiz { margin-right: 4px; }
-.psih-sor.soruldu { border-color: var(--accent); }
 /* characters and scenes */
 .pitem { border: 1px solid var(--line); border-radius: var(--radius); background: var(--pane); }
 div.pitem { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
@@ -692,41 +654,12 @@ div.pitem { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
 .pkart-govde { display: flex; flex-direction: column; gap: 24px; padding: 16px; }
 .pbos { padding: 24px; border: 1px dashed var(--line); border-radius: var(--radius); text-align: center; color: var(--muted); }
 .pbos p { margin: 0; }
-.pekle { gap: 8px; flex-wrap: wrap; }
-.pek > summary { cursor: pointer; color: var(--muted); font-size: 12px; }
-.pek[open] > summary { margin-bottom: 8px; }
-/* props as chips */
-.pnesne { display: flex; flex-direction: column; gap: 8px; }
-.pcipler { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 36px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--pane); }
-.pcipler:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
-.psih .pcipler input[type=text] { flex: 1; width: auto; min-width: 160px; min-height: 28px; padding: 4px; border: 0; background: none; outline: none; }
-.pcip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 12px; border-radius: 999px; background: var(--pane-3); font-size: 12px; }
-.pcip.yeni { background: none; border: 1px dashed var(--select); }
-.pcip small { color: var(--select); }
-.pcip button { width: 20px; height: 20px; border: 0; border-radius: 50%; background: none; color: var(--muted); cursor: pointer; font: inherit; line-height: 1; }
-.pcip button:hover { background: var(--line); color: var(--text); }
-.poneri { display: flex; flex-wrap: wrap; gap: 4px; }
-.pcip-oneri { padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; background: none; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
-.pcip-oneri:hover { border-color: var(--accent); color: var(--text); }
-/* summary */
-.pozet { display: grid; grid-template-columns: 160px 1fr auto; align-items: start; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); white-space: pre-wrap; }
 /* Claude's column */
 .psih-claude { display: flex; flex-direction: column; gap: 16px; min-height: 0; overflow: auto; padding: 24px 16px; border-left: 1px solid var(--line); background: var(--pane); }
 .psih-claude > h3 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-.psih-durum { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 13px; color: var(--muted); }
-.psih-durum.dusunuyor { color: var(--accent); font-weight: 600; }
-.psih-durum .nokta { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
-.psih-durum .nokta.acik { background: var(--ok); }
-.psih-durum .cark { flex: none; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); animation: psih-cark .9s linear infinite; }
-@keyframes psih-cark { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .psih-durum .cark { animation: none; } }
-.psih-soru:empty { display: none; }
-.psih-soru:has(.kanal-soru:not([hidden])) + .psih-claude-bos { display: none; }
-.psih-claude-bos { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
-.psih-claude-bos p { margin: 0; }
 .psih-claude .kanal-soru.docked { border-radius: var(--radius); }
 .psih-claude .kanal-soru.docked .kanal-kartlar { grid-template-columns: 1fr; }
-.projects .kanal-soru h3, .psih .kanal-soru h3 { font-size: 15px; font-weight: 600; text-transform: none; letter-spacing: normal; color: var(--text); margin: 0; }
+.projects .kanal-soru h3 { font-size: 15px; font-weight: 600; text-transform: none; letter-spacing: normal; color: var(--text); margin: 0; }
 /* narrow: steps become a strip, Claude goes beside, then under the form */
 @media (max-width: 1100px) {
   .psih-alan { grid-template-columns: minmax(0, 1fr) clamp(260px, 34vw, 320px); grid-template-rows: auto minmax(0, 1fr); }
@@ -744,8 +677,6 @@ div.pitem { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
   .psih-bas { padding: 12px 16px; }
   .psih-sutun { padding: 24px 16px; }
   .pikili { grid-template-columns: 1fr; }
-  .pozet { grid-template-columns: 1fr auto; }
-  .pozet > :first-child { grid-column: 1 / -1; }
 }
 
 /* An in-page yes/no question (dom.js confirmInPage): the embedded browser shows no confirm() */
@@ -757,18 +688,5 @@ div.pitem { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
 .btn.tehlike { background: var(--err); border-color: var(--err); color: #2a0b08; font-weight: 600; }
 .btn.tehlike:hover { filter: brightness(1.08); }
 
-/* The wizard's scenes: tiles on top, the picked scene in its own section below (proje-sihirbaz.js) */
-.pkaro-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 8px; }
-.pkaro { display: flex; flex-direction: column; align-items: stretch; gap: 4px; min-height: 88px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--pane); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
-.pkaro:hover { border-color: var(--muted); }
-.pkaro:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.pkaro.secili { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--pane)); }
-.pkaro-ust { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.pkaro-ust b { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pkaro-satir { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pkaro-ekle { align-items: center; justify-content: center; border-style: dashed; color: var(--muted); }
-.pkaro-ekle:hover { color: var(--text); border-color: var(--accent); }
-.psahne { margin-top: 8px; border-color: var(--accent); }
-.psahne h4 { margin: 0; font-size: 16px; font-weight: 600; }
-.psahne .pitem-ust { flex-wrap: wrap; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+/* a spoken line played in a question (kanal.js) */
 .kanal-ses { width: 100%; margin: 4px 0 8px; }

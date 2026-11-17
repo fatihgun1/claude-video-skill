@@ -2,7 +2,7 @@
 // (script → audio → storyboard → draft → final video) and what the person does at each stage on the
 // saved file: complete the open decisions, read the script table, approve the script, speak the lines,
 // take the stills, approve the storyboard, render. Stages on the left, the current stage in the centre,
-// Claude's column on the right (sihirbaz.js docks its steps there, kanal.js Claude's question).
+// Claude's column on the right (kanal.js docks Claude's question there).
 // An approval is recorded only when the person presses its button here (POST /api/onay, the same
 // checks as `cizgi onayla`); Claude never presses it.
 import { el, confirmInPage } from "./dom.js";
@@ -60,15 +60,14 @@ export function createProduction(els, ctx) {
 
   els.dialog.classList.add("uretim-sayfa");
   // The frame is built once and only its parts are redrawn: the job poll redraws every 2 s, the
-  // centre keeps its scroll, and Claude's column (where sihirbaz.js and kanal.js move their boxes,
+  // centre keeps its scroll, and Claude's column (where kanal.js moves its question,
   // a half-typed answer among them) is never taken out of the page.
   const header = el("header", { class: "psih-bas" });
   const nav = el("nav", { class: "psih-adimlar", "aria-label": "Üretim adımları" });
   const main = el("main", { class: "psih-form" });
   const claudeCol = el("aside", { class: "psih-claude uretim-claude", "aria-label": "Claude" },
     el("h3", { text: "Claude" }),
-    el("div", { class: "uretim-sihirbaz" }), // the steps Claude moves on (sihirbaz.js)
-    el("div", { class: "uretim-soru" }), // Claude's question when no steps hold it (sihirbaz.js → kanal.js)
+    el("div", { class: "uretim-soru" }), // Claude's question (kanal.js)
     el("p", { class: "uretim-claude-bos muted small", text: "Claude bir işi adım adım yürütürken ya da sana bir şey sorduğunda burada görünür. Onay düğmelerine yalnız sen basarsın; Claude onay vermez." }));
 
   /**

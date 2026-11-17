@@ -15,12 +15,11 @@ $CLI panel <klasör> --port 4900
 ```
 
 ## Steps
-1. Open the panel at once, before anything else, even when the request already describes a video: `panel_ac` (or the CLI below when the MCP server is missing), then **open its URL for the person right away**: in the Claude desktop app with the built-in browser (`mcp__Claude_Browser__preview_start {url}`; load the tool with ToolSearch if it is deferred). Until that tab is open the person sees nothing: `panel_sor` refuses to ask and `panel_git`/`panel_adim` warn.
-2. If the request is a new video or story, follow the **cizgi-proje** steps from step 2: the episode is made with the person, question by question, and every step shows in the panel. If it names an existing episode, open it (`panel_ac` with `bolum`) and ask what they want to change.
+1. Open the panel at once, before anything else, even when the request already describes a video: `panel_ac` (or the CLI below when the MCP server is missing), then **open its URL for the person right away**: in the Claude desktop app with the built-in browser (`mcp__Claude_Browser__preview_start {url}`; load the tool with ToolSearch if it is deferred). Until that tab is open the person sees nothing: `panel_sor` refuses to ask and `panel_git` warns.
+2. If the request is a new video or story, follow the **cizgi-proje** steps from step 2: the story is talked through in the chat, the person picks pictures, voices and options from cards in the panel, and every change shows there. If it names an existing episode, open it (`panel_ac` with `bolum`) and ask what they want to change.
 3. While the panel is open, show every change there: after you edit `bolum.json` or `hikaye.json`, tell the person what to look at (a scene, a shot, **İncele**).
 4. **Studio mode.** Once an episode is open in the panel and nothing else is running, listen.
    - Before you listen, leave the stage in view:
-     - close any step wizard (`panel_adim {kapat: true}`);
      - `panel_git` to a shot, never to the Üretim page.
      - The panel then shows the person a strip over the stage: "click anything, or 🎬 Video çıkar".
    - Call `panel_dinle` (bekle 600 at most) again and again for as long as the person works in the panel. An empty list means nobody wrote, so call it again.
@@ -60,7 +59,7 @@ $CLI panel <klasör> --port 4900
      - It also includes any request that waited in the queue.
      - Do it, answer with `panel_yanitla {id, durum, yanit}`, then go back to `panel_dinle`.
      - Never leave one waiting: the panel shows it as "Sırada" until you answer.
-   - "Claude'a sor" in the project wizard is handled the same way.
+   - Drafts the person took into the library (or put aside) come as `{tur: "taslak", islem: "al"|"reddet", cizimler: [{tur, id}]}`: carry on with what waited for them (use the new drawing in the episode).
 
 Open the project root (the folder holding `ornekler/` and `bolumler/`) when the person works on several episodes: the panel then lists them all and switches between them without a restart. Run it in the background (it keeps serving until stopped) and give the person the printed URL. In the Claude desktop app, open it in the built-in browser. The layout needs a window at least 1180 px wide; narrower windows stack the panes.
 
@@ -127,5 +126,5 @@ Lines can be edited, added and deleted in the panel (a line's details and the fo
 - You may edit `bolum.json` and `hikaye.json` while the panel is open: it reloads them, and asks the person first when they have unsaved edits there. Tell the person what you changed, so they do not lose edits of their own.
 - New actions, characters, backgrounds and props are drawn as drafts in the project library (`kutuphane/taslak/`, see the `cizgi-studyo` skill); new sounds go to `kutuphane/sfx`. The person takes drafts in from the panel. Never write into the plugin's `library/`. The panel only chooses among what exists.
 - The preview is the composition, not a render. Before showing anyone a video of the result, render a draft and check it with `cizgi qa` (**cizgi-render**).
-- Show a longer job as a wizard in the panel (`panel_adim`) and move its steps on as you work. Ask your questions in the panel (`panel_sor`, option cards) and move the panel to what the person should see (`panel_git`) instead of describing where to click; pictures are shown in the panel, never in a separate tab. Gate approvals stay in chat.
+- Say what you are doing in one short chat line as you go. Ask open questions (the story, the characters) in the chat. Ask every choice between options in the panel (`panel_sor`, option cards with pictures or a sound). Move the panel to what the person should see (`panel_git`) instead of describing where to click; pictures are shown in the panel, never in a separate tab. Gate approvals stay in chat.
 - The server listens on 127.0.0.1 only. Stop it when the person is done.

@@ -21,7 +21,6 @@
  *   GET  /api/taslaklar  ·  POST /api/taslak  ·  GET /kutuphane-taslak/…   project library drafts (panel-taslak.mjs)
  *   GET  /api/senaryo?b=   the script table, open decisions and new assets of the saved file (Üretim → Senaryo)
  *   POST /api/onay         {b, kapi}   the person approves a gate with the button in Üretim (onayla.mjs: same checks as cizgi onayla)
- *   GET  /api/yapim(/oku)  ·  POST /api/yapim(/olustur)   the project wizard: an episode being made (panel-yapim.mjs)
  *   GET  /api/kanal  ·  POST /api/kanal/cevap   Claude moves the panel and asks in it (panel-kanal.mjs)
  *
  * Bound to 127.0.0.1 only. Requests whose Host is not the panel's own address are refused
@@ -47,7 +46,6 @@ import { requestRoutes } from "./panel-istek.mjs";
 import { storyRoutes } from "./panel-hikaye.mjs";
 import { draftRoutes, draftFile } from "./panel-taslak.mjs";
 import { createChannel, channelRoutes, LINE_AUDIO } from "./panel-kanal.mjs";
-import { makingRoutes } from "./panel-yapim.mjs";
 import { voiceRoutes } from "./panel-ses.mjs";
 import { levelledWav } from "./ses-duzey.mjs";
 import { approveEpisode } from "./onayla.mjs";
@@ -59,7 +57,7 @@ export { vocabulary };
 const PANEL_DIR = fileURLToPath(new URL("./panel/", import.meta.url));
 const PAGE = join(PANEL_DIR, "index.html");
 /** The only files /panel/ serves. */
-const PANEL_FILES = new Set(["panel.css", "ui-uretim.css", "ui-nesne.css", "ui-projeler.css", "ui-denetleyici.css", "ui-hikaye.css", "ui-taslak.css", "app.js", "dom.js", "kutuphane.js", "sahne.js", "denetleyici.js", "denetleyici-alan.js", "projeler.js", "zaman.js", "kurgu.js", "dinle.js", "duzen.js", "uretim.js", "agac.js", "istek.js", "inceleme.js", "hikaye.js", "klavye.js", "gorunum.js", "katman.js", "taslak.js", "dekor.js", "isik.js", "altyazi-ayar.js", "serit.js", "bolum-ayar.js", "ayirici.js", "cekmece.js", "birak.js", "tr.js", "kanal.js", "sihirbaz.js", "proje-sihirbaz.js", "hikaye-birlestir.js", "nesne-pencere.js", "kayit.js", "kompozisyon.js", "video-cikar.js", "hizli-basla.js"]);
+const PANEL_FILES = new Set(["panel.css", "ui-uretim.css", "ui-nesne.css", "ui-projeler.css", "ui-denetleyici.css", "ui-hikaye.css", "ui-taslak.css", "app.js", "dom.js", "kutuphane.js", "sahne.js", "denetleyici.js", "denetleyici-alan.js", "projeler.js", "zaman.js", "kurgu.js", "dinle.js", "duzen.js", "uretim.js", "agac.js", "istek.js", "inceleme.js", "hikaye.js", "klavye.js", "gorunum.js", "katman.js", "taslak.js", "dekor.js", "isik.js", "altyazi-ayar.js", "serit.js", "bolum-ayar.js", "ayirici.js", "cekmece.js", "birak.js", "tr.js", "kanal.js", "hikaye-birlestir.js", "nesne-pencere.js", "kayit.js", "kompozisyon.js", "video-cikar.js"]);
 /** Engine modules the panel uses as they are (pure code): the music envelope, so the timeline draws what the render plays. */
 const SHARED_FILES = {
   "muzik.mjs": fileURLToPath(new URL("./muzik.mjs", import.meta.url)),
@@ -185,7 +183,7 @@ export function createPanel(opts) {
     renameSync(tmp, path);
   }
 
-  const channel = opts.channel ?? createChannel(); // Claude moves the panel and asks in it; Oluştur reaches its listening call
+  const channel = opts.channel ?? createChannel(); // Claude moves the panel and asks in it
   const routes = {
     "GET /api/bolumler": () => {
       const lib = opts.loadLib();
@@ -319,8 +317,6 @@ export function createPanel(opts) {
     // Claude moving the panel and asking in it (MCP panel_git, panel_sor); a panel of its own when none is given
     ...channelRoutes(channel),
     ...voiceRoutes({ episodeOf }),
-    // The project wizard: an episode's wishes in its story before (or after) it has a bolum.json
-    ...makingRoutes({ root, loadLib: () => opts.loadLib(), requests: opts.requests ?? null, channel }),
   };
 
   /** Both senders return true: "the request has been answered". */

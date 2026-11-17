@@ -9,8 +9,7 @@
  *   panel_yanitla {id, durum, yanit}  answer one; the panel shows it
  *   panel_git   {bolum?, sekme?, shot?, kaydir?, vurgula?}  move the open panel to what the person should look at
  *   panel_sor   {soru, secenekler, coklu?, serbest?, bolum?, bekle?}  ask in the panel with option cards; waits for the answer
- *   panel_adim  {sihirbaz? | adim, durum?, aciklama?, gorsel? | kapat?}  a wizard modal in the panel whose steps Claude moves on
- *   panel_dinle {bekle?}  wait for the person's "Claude'a sor" in the project wizard, and their messages in object windows
+ *   panel_dinle {bekle?}  wait for the person's messages in object windows, panel requests and draft news
  *   panel_sohbet {konu, metin?, durum?, gorsel?, oneriler?}  reply in an object window (one thing on the stage)
  *
  * stdout carries only protocol messages; anything else goes to stderr.
@@ -23,7 +22,7 @@ import { queueOf, takeRequests, updateRequest, describe, episodeFile, ANSWERS, M
 
 // The Claude session this server belongs to: requests from its panel are for it alone (istekler.mjs).
 const SESSION_ID = process.env.CLAUDE_CODE_SESSION_ID || null;
-const SERVER_INFO = { name: "cizgi-studyo", version: "2.12.0" };
+const SERVER_INFO = { name: "cizgi-studyo", version: "2.13.0" };
 // panel-kanal.mjs PANELS (not imported: engine modules load on first use)
 const PANEL_TABS = ["projeler", "uretim", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"];
 const WAIT_DEFAULT_S = 600;
@@ -98,8 +97,6 @@ const TOOLS = [
         shot: { type: "string", description: "Shot id to select (in the open or the given episode)." },
         kaydir: { type: "string", enum: ["taslaklar"], description: "Scroll the open left panel: taslaklar = the drafts waiting to be taken in." },
         vurgula: { type: "string", description: "Highlight the buttons with this text for a few seconds (e.g. Kütüphaneye al)." },
-        proje: { type: "string", description: "Open the project wizard on bolumler/<proje>/hikaye.json (write that file first): the person sees the wishes you record there, live." },
-        proje_adim: { type: "string", enum: ["hikaye", "kararlar", "karakterler", "sahneler", "ses", "ozet"], description: "With proje: the wizard step to show." },
       },
       additionalProperties: false,
     },
@@ -143,18 +140,14 @@ const TOOLS = [
   {
     name: "panel_dinle",
     description:
-      "Listen for the person's \"Claude'a sor\" clicks in the panel's project wizard. The person fills the wizard fields themselves; " +
-      "when they want your help with a field (or a whole step) they click its \"Claude'a sor\" button. This call waits (bekle seconds, default 600) " +
-      "and returns {istekler: [{proje, adim, alan?, etiket?, tur?}]}. tur 'olustur' means the person pressed Oluştur: build the episode " +
-      "from the story (as for a 'Proje sihirbazından' request in the cizgi-proje skill) and stop listening. Otherwise, read bolumler/<proje>/hikaye.json, ask about that field with " +
-      "panel_sor (2-4 suggestion cards), write the answer into hikaye.json, then call panel_dinle again. An empty list means nobody asked: " +
-      "call it again while the wizard is open. Do not ask about fields nobody asked about. " +
-      "In studio mode (an episode open in the panel) keep calling it: the person clicks something on the stage and writes to you in its " +
+      "Listen for what the person does in the open editor panel. This call waits (bekle seconds, default 600) and returns {istekler: [...]}; " +
+      "an empty list means nothing came: call it again while an episode is open in the panel. " +
+      "Keep calling it in studio mode (an episode open in the panel): the person clicks something on the stage and writes to you in its " +
       "object window. Such an item is {tur: 'sohbet', konu: {tur, id, ad?, bolum?, shot?, oyuncu?}, metin}; tur and id: karakter <rig>, nesne <prop>, " +
       "mekan <background>, replik <shot>-<n> (utterance n of that shot), efekt <shot>-<n> (sfx n), cekim <shot> (the shot: camera, composition). " +
       "work on just that thing and answer with panel_sohbet {konu: '<tur>:<id>'}, never in chat. An item {tur: 'istek', id, bolum, hedef, metin} is a " +
       "request written in the panel's 'Claude'a yaz' box: do it, then answer with panel_yanitla {id, durum, yanit}. An item {tur: 'taslak', islem: 'al'|'reddet', " +
-      "cizimler: [{tur, id}]} means the person took those drafts into the library (or put one aside): carry on with what waited for them (the wizard's next step).",
+      "cizimler: [{tur, id}]} means the person took those drafts into the library (or put one aside): carry on with what waited for them.",
     inputSchema: {
       type: "object",
       properties: { bekle: { type: "number", minimum: 0, maximum: 1800, description: "Seconds to wait (default 600)." } },
@@ -181,44 +174,6 @@ const TOOLS = [
         ses: { type: "string", description: "A spoken line to play under your reply: <episode folder>/ses/<shot>-<n>.wav relative to the panel folder." },
       },
       required: ["konu"],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "panel_adim",
-    description:
-      "Show a multi-step job in the open editor panel as a wizard modal and move its steps on yourself, so the person follows it " +
-      "there instead of in chat (a new character, place or prop; building an episode; the script or storyboard steps). " +
-      "Start: {sihirbaz: {baslik, adimlar: [{id, baslik}]}} (every step 'sirada'). Then for each step: {adim, durum, aciklama?, gorsel?}: " +
-      "durum calisiyor (you work on it), bekliyor (the person must act: say what in aciklama, and ask with panel_sor or point with panel_git), " +
-      "bitti, hata. Moving to a step marks the steps before it done. gorsel: up to 6 drawings the panel serves (as in panel_sor), " +
-      "shown in the step. A panel_sor question shows inside the wizard while it is open. {kapat: true} removes it.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        sihirbaz: {
-          type: "object",
-          properties: {
-            baslik: { type: "string", description: "What is being made (at most 120 characters)." },
-            adimlar: {
-              type: "array", minItems: 1, maxItems: 12,
-              items: {
-                type: "object",
-                properties: { id: { type: "string", description: "Lowercase id (a-z, 0-9, -, _)." }, baslik: { type: "string", description: "Step title (at most 80 characters)." } },
-                required: ["id", "baslik"],
-                additionalProperties: false,
-              },
-            },
-          },
-          required: ["baslik", "adimlar"],
-          additionalProperties: false,
-        },
-        adim: { type: "string", description: "The step id to move to or update." },
-        durum: { type: "string", enum: ["sirada", "calisiyor", "bekliyor", "bitti", "hata"], description: "Default: calisiyor." },
-        aciklama: { type: "string", description: "What happens in this step now, in the person's language (at most 500 characters)." },
-        gorsel: { type: "array", maxItems: 6, items: { type: "string" }, description: "Drawings to show in the step." },
-        kapat: { type: "boolean", description: "Remove the wizard from the panel." },
-      },
       additionalProperties: false,
     },
   },
@@ -280,7 +235,7 @@ async function panelAc({ klasor, bolum } = {}) {
   const url = first ? `${panel.url}#b=${encodeURIComponent(first)}` : panel.url;
   return {
     ...(uyari ? { uyari } : {}),
-    simdi: `Şimdi bu adresi kişiye aç: Claude masaüstü uygulamasında uygulama içi tarayıcıda (mcp__Claude_Browser__preview_start {url: "${url}"}), başka yerde adresi ver. Açılana kadar kişi hiçbir şey görmez; panel_sor, panel_git ve panel_adim bunu bekler.`,
+    simdi: `Şimdi bu adresi kişiye aç: Claude masaüstü uygulamasında uygulama içi tarayıcıda (mcp__Claude_Browser__preview_start {url: "${url}"}), başka yerde adresi ver. Açılana kadar kişi hiçbir şey görmez; panel_sor ve panel_git bunu bekler.`,
     url,
     klasor: panel.root,
     bolumler: paths.map((p) => e.summarize(panel.root, p, lib, e.status)),
@@ -347,7 +302,7 @@ async function panelDinle({ bekle } = {}) {
     const queued = heard.some((i) => i.tur === "kuyruk") ? queuedRequests() : [];
     if (direct.length || queued.length) return answer([...direct, ...queued]);
     if (heard.length === 0 || Date.now() >= until) {
-      return { istekler: [], not: "Kimse sormadı. Sihirbaz ya da bir bölüm panelde açıksa panel_dinle ile dinlemeye devam et." };
+      return { istekler: [], not: "Kimse sormadı. Bir bölüm panelde açıksa panel_dinle ile dinlemeye devam et." };
     }
   }
 }
@@ -380,11 +335,6 @@ const TOOL_RUN = {
   panel_sor: panelSor,
   panel_dinle: panelDinle,
   panel_sohbet: (args = {}) => openPanelOrThrow().channel.sohbetCevap(args),
-  panel_adim: async (args = {}) => {
-    const p = openPanelOrThrow();
-    const sihirbaz = p.channel.sihirbaz(args);
-    return (await watched(p, 3000)) ? { sihirbaz } : { sihirbaz, uyari: NOT_WATCHED };
-  },
 };
 
 function callTool(name, args) {

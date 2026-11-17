@@ -51,93 +51,17 @@ p.uretim-onay { margin: 0; border-color: color-mix(in srgb, var(--ok) 40%, var(-
 .pbos { display: flex; flex-direction: column; gap: 4px; }
 .pbos .uretim-bos-baslik { font-weight: 600; color: var(--text); }
 
-/* Claude's column: the empty line goes once steps or a question are in it */
-.uretim-claude .uretim-sihirbaz:empty, .uretim-claude .uretim-soru:empty { display: none; }
+/* Claude's column: the empty line goes once a question is in it */
+.uretim-claude .uretim-soru:empty { display: none; }
 .uretim-claude .uretim-claude-bos { margin: 0; max-width: 40ch; }
-.uretim-claude:has(.sihirbaz:not([hidden]), .sihirbaz-cip:not([hidden]), .uretim-soru .kanal-soru:not([hidden])) .uretim-claude-bos { display: none; }
-
-/* The Claude step drawer (sihirbaz.js): a slide-over from the right edge over the editor. */
-.sihirbaz { top: 64px; right: 16px; bottom: 16px; width: min(440px, calc(100vw - 32px)); gap: 16px; padding: 16px; background: var(--pane); border: 1px solid var(--line); border-radius: var(--radius); }
-.sihirbaz .sust { gap: 8px; }
-.sihirbaz-bas { display: flex; flex-direction: column; gap: 4px; }
-#uretim .sihirbaz h3, .sihirbaz h3 { margin: 0; font-size: 16px; font-weight: 600; text-transform: none; letter-spacing: normal; color: var(--text); }
-.sihirbaz-sayac { margin: 0; font-size: 12px; color: var(--muted); }
-.sihirbaz .sadimlar { gap: 4px; }
-.sihirbaz .sadim { gap: 12px; padding: 8px 12px; border: 1px solid transparent; }
-.sihirbaz .sadim.aktif { background: var(--pane-2); border-color: var(--line); box-shadow: inset 3px 0 0 var(--accent); }
-.sihirbaz .sadim.bekliyor.aktif { box-shadow: inset 3px 0 0 var(--select); }
-.sihirbaz .sadim.sirada .sbaslik { color: var(--muted); font-weight: 400; }
-.sihirbaz .sisaret { width: 24px; height: 24px; }
-.sihirbaz .sdurum { font-size: 12px; }
-.sihirbaz .saciklama { margin: 8px 0 0; max-width: 70ch; color: var(--text); }
-.sihirbaz .sgorseller { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-top: 8px; }
-.sihirbaz .sgorseller img { height: 120px; border: 1px solid var(--line); border-radius: var(--radius); }
-.sihirbaz-soru:empty { display: none; }
-.sihirbaz-soru .kanal-soru.docked .kanal-kartlar { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
-@media (prefers-reduced-motion: no-preference) {
-  .sihirbaz:not(.docked) { animation: sihirbaz-gir .2s ease-out; }
-}
-@keyframes sihirbaz-gir { from { transform: translateX(16px); opacity: 0; } }
+.uretim-claude:has(.uretim-soru .kanal-soru:not([hidden])) .uretim-claude-bos { display: none; }
 
 /* docked in the Üretim page's Claude column: part of the column, not floating over the page */
-.sihirbaz.docked { position: static; width: auto; max-height: none; overflow: visible; padding: 0; border: 0; background: none; box-shadow: none; }
-.sihirbaz-cip.docked { position: static; transform: none; max-width: 100%; align-self: flex-start; }
 .uretim-claude .kanal-soru.docked .kanal-kartlar { grid-template-columns: 1fr; }
 
-/* narrow: the project wizard's frame already stacks the columns (panel.css); the page scrolls as one */
+/* narrow: the work page's frame already stacks the columns (panel.css); the page scrolls as one */
 @media (max-width: 760px) {
   #uretim .psih-alt .psih-sutun { flex-wrap: wrap; }
   #uretim .uretim-kararlar { padding: 12px; }
   #uretim .psheets { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-  .sihirbaz { top: auto; right: 8px; left: 8px; bottom: 8px; width: auto; max-height: 70vh; }
 }
-
-/* Claude's step wizard over the editor (sihirbaz.js page()): a full work page like the project wizard.
-   Steps | the current step with its pictures large | Claude's question (where the person picks). */
-.sihirbaz.sayfa { inset: 0; top: 0; right: 0; bottom: 0; left: 0; width: auto; max-height: none; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 0; padding: 0; border: 0; border-radius: 0; background: var(--bg); box-shadow: none; overflow: hidden; animation: none; }
-.sihirbaz.sayfa .psih-alan { display: grid; grid-template-columns: 216px minmax(0, 1fr) 360px; min-height: 0; }
-.sihirbaz.sayfa .psih-sutun { max-width: 880px; }
-.sadim-satir { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: var(--radius); color: var(--muted); }
-.sadim-satir > span:last-child { display: flex; flex-direction: column; min-width: 0; }
-.sadim-satir small { font-size: 12px; color: var(--muted); }
-.sadim-satir.simdi { background: var(--pane-2); color: var(--text); font-weight: 600; }
-.sadim-satir.simdi .padim-no { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
-.sadim-satir.bekliyor.simdi .padim-no { border-color: var(--select); background: var(--select); color: #2a1a00; }
-.sadim-satir.bitti .padim-no { border-color: var(--accent); color: var(--accent); }
-.sadim-satir.hata .padim-no { border-color: var(--err); color: var(--err); }
-.sihirbaz-durum { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--accent); }
-.sihirbaz-durum.bekliyor { color: var(--select); }
-.sihirbaz-durum.hata { color: var(--err); }
-.sihirbaz-resimler { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
-.sihirbaz-resimler figure { margin: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--pane); }
-.sihirbaz-resimler img { width: 100%; height: 280px; object-fit: contain; background: var(--pane-3); border-radius: 6px; }
-.sihirbaz-resimler figcaption { font-size: 12px; color: var(--muted); text-align: center; }
-.sihirbaz.sayfa .psih-claude .sihirbaz-soru:not(:empty) + .sihirbaz-bos { display: none; }
-.sihirbaz.sayfa .sihirbaz-soru .kanal-soru.docked .kanal-kartlar { grid-template-columns: 1fr 1fr; }
-@media (max-width: 1100px) {
-  .sihirbaz.sayfa .psih-alan { grid-template-columns: minmax(0, 1fr) clamp(260px, 34vw, 340px); grid-template-rows: auto minmax(0, 1fr); }
-  .sihirbaz.sayfa .psih-adimlar { grid-column: 1 / -1; border-right: 0; border-bottom: 1px solid var(--line); padding: 8px 16px; }
-  .sihirbaz.sayfa .psih-adimlar ol { flex-direction: row; overflow-x: auto; }
-  .sihirbaz.sayfa .sadim-satir { white-space: nowrap; }
-}
-@media (max-width: 640px) {
-  .sihirbaz.sayfa { top: 0; left: 0; right: 0; bottom: 0; max-height: none; overflow: auto; display: block; }
-  .sihirbaz.sayfa .psih-alan { display: flex; flex-direction: column; }
-  .sihirbaz.sayfa .psih-claude .kanal-soru.docked { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; max-height: 60vh; overflow: auto; border-radius: 12px 12px 0 0; }
-  .sihirbaz-resimler img { height: 200px; }
-}
-/* Claude's state in the step page's Claude column (sihirbaz.js claudeState) */
-.sihirbaz.sayfa .psih-claude .psih-durum { padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--pane-2); }
-.sihirbaz.sayfa .psih-claude .psih-durum.dusunuyor { border-color: var(--accent); }
-.psih-durum.bekliyor { color: var(--select); font-weight: 600; }
-.psih-durum.hata { color: var(--err); font-weight: 600; }
-.psih-durum .nokta.bekliyor { background: var(--select); }
-.psih-durum .nokta.hata { background: var(--err); }
-.sihirbaz-bekliyor { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; border: 1px solid var(--select); border-radius: var(--radius); background: var(--pane-2); }
-.sihirbaz.sayfa .psih-claude .sihirbaz-bekliyor .psih-durum { padding: 0; border: 0; background: none; }
-.sihirbaz-bekliyor p { margin: 0; }
-
-/* a draft picture on the step page can be taken into the library right there */
-.sresim-al { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.sresim-alindi { margin: 0; font-size: 12px; text-align: center; color: var(--ok); }
-.sresim-hata { margin: 0; font-size: 12px; color: var(--err); }

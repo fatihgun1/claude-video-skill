@@ -16,7 +16,7 @@ test("a navigation command is kept with a growing sequence number", () => {
 
 test("navigation is checked: known panels, short fields, at least one thing to do", () => {
   const ch = createChannel();
-  for (const bad of [{}, { sekme: "gizli" }, { shot: "../x" }, { kaydir: "her yer" }, { vurgula: "x".repeat(81) }, { bolum: 5 }, { bolum: "a\nb" }, { renk: "mavi" }]) {
+  for (const bad of [{}, { sekme: "gizli" }, { shot: "../x" }, { kaydir: "her yer" }, { vurgula: "x".repeat(81) }, { bolum: 5 }, { bolum: "a\nb" }, { renk: "mavi" }, { proje: "sokak" }, { proje_adim: "hikaye" }]) {
     assert.throws(() => ch.yonlendir(bad), undefined, JSON.stringify(bad));
   }
   assert.doesNotThrow(() => ch.yonlendir({ vurgula: "Sahne 2028 / 2029 — İç ses" }), "digits and Turkish letters are ordinary text");
@@ -97,78 +97,6 @@ test("the panel routes read the channel and post an answer", () => {
   assert.throws(() => routes["POST /api/kanal/cevap"]({ id: "yok", secim: ["Sokak"] }), (e) => e.code === 400);
 });
 
-const WIZ = { baslik: "Yeni karakter: Sülüman", adimlar: [{ id: "bilgi", baslik: "Bilgiler" }, { id: "konsept", baslik: "Konsept" }, { id: "gorunus", baslik: "Görünüşler" }, { id: "al", baslik: "Kütüphaneye al" }] };
-
-test("a wizard starts with every step waiting", () => {
-  const ch = createChannel();
-  assert.equal(ch.durum().sihirbaz, null);
-  const w = ch.sihirbaz({ sihirbaz: WIZ });
-  assert.equal(w.baslik, "Yeni karakter: Sülüman");
-  assert.deepEqual(w.adimlar.map((a) => a.durum), ["sirada", "sirada", "sirada", "sirada"]);
-  assert.equal(w.aktif, null);
-  assert.deepEqual(ch.durum().sihirbaz, w);
-});
-
-test("Claude moves the wizard on: earlier steps are done, the current one runs or waits", () => {
-  const ch = createChannel();
-  ch.sihirbaz({ sihirbaz: WIZ });
-  const w = ch.sihirbaz({ adim: "gorunus", durum: "calisiyor", aciklama: "Önden ve arkadan çiziliyor", gorsel: ["/kutuphane-taslak/konsept/suluman.svg"] });
-  assert.deepEqual(w.adimlar.map((a) => a.durum), ["bitti", "bitti", "calisiyor", "sirada"]);
-  assert.equal(w.aktif, "gorunus");
-  assert.equal(w.adimlar[2].aciklama, "Önden ve arkadan çiziliyor");
-  assert.deepEqual(w.adimlar[2].gorsel, ["/kutuphane-taslak/konsept/suluman.svg"]);
-  const v = ch.sihirbaz({ adim: "al", durum: "bekliyor", aciklama: "Taslakları al" });
-  assert.equal(v.adimlar[2].durum, "bitti");
-  assert.equal(v.adimlar[3].durum, "bekliyor");
-  assert.ok(v.seq > w.seq);
-});
-
-test("a failed step stays failed when later steps move on", () => {
-  const ch = createChannel();
-  ch.sihirbaz({ sihirbaz: WIZ });
-  ch.sihirbaz({ adim: "konsept", durum: "hata", aciklama: "çizim kontrolden geçmedi" });
-  const w = ch.sihirbaz({ adim: "gorunus" });
-  assert.deepEqual(w.adimlar.map((a) => a.durum), ["bitti", "hata", "calisiyor", "sirada"]);
-});
-
-test("the last step done finishes the wizard; kapat removes it", () => {
-  const ch = createChannel();
-  ch.sihirbaz({ sihirbaz: WIZ });
-  const w = ch.sihirbaz({ adim: "al", durum: "bitti" });
-  assert.equal(w.bitti, true);
-  assert.equal(ch.sihirbaz({ kapat: true }), null);
-  assert.equal(ch.durum().sihirbaz, null);
-});
-
-test("wizard commands are checked", () => {
-  const ch = createChannel();
-  assert.throws(() => ch.sihirbaz({ adim: "bilgi" }), /sihirbaz/); // none open
-  for (const bad of [
-    { sihirbaz: { baslik: "", adimlar: WIZ.adimlar } },
-    { sihirbaz: { baslik: "x", adimlar: [] } },
-    { sihirbaz: { baslik: "x", adimlar: Array.from({ length: 13 }, (_, i) => ({ id: `a${i}`, baslik: "x" })) } },
-    { sihirbaz: { baslik: "x", adimlar: [{ id: "a", baslik: "x" }, { id: "a", baslik: "y" }] } },
-    { sihirbaz: { baslik: "x", adimlar: [{ id: "A B", baslik: "x" }] } },
-    {},
-  ]) assert.throws(() => ch.sihirbaz(bad), undefined, JSON.stringify(bad));
-  ch.sihirbaz({ sihirbaz: WIZ });
-  assert.throws(() => ch.sihirbaz({ adim: "yok" }));
-  assert.throws(() => ch.sihirbaz({ adim: "bilgi", durum: "uyuyor" }));
-  assert.throws(() => ch.sihirbaz({ adim: "bilgi", gorsel: ["file:///C:/a.svg"] }));
-  assert.throws(() => ch.sihirbaz({ adim: "bilgi", aciklama: "x".repeat(501) }));
-});
-
-test("Claude can open the project wizard on an episode being made, at a step", () => {
-  const ch = createChannel();
-  const nav = ch.yonlendir({ proje: "sokaktan-kurtulus", proje_adim: "karakterler" });
-  assert.equal(nav.proje, "sokaktan-kurtulus");
-  assert.equal(nav.proje_adim, "karakterler");
-  assert.doesNotThrow(() => ch.yonlendir({ proje: "sokaktan-kurtulus" }));
-  for (const bad of [{ proje: "../x" }, { proje: "Büyük" }, { proje: "a", proje_adim: "renkler" }, { proje_adim: "hikaye" }]) {
-    assert.throws(() => ch.yonlendir(bad), undefined, JSON.stringify(bad));
-  }
-});
-
 test("after the person answers, Claude is thinking until its next move in the panel (or it times out)", () => {
   let now = 1000;
   const ch = createChannel({ now: () => now });
@@ -183,45 +111,6 @@ test("after the person answers, Claude is thinking until its next move in the pa
   ch.cevapla(q.id, { secim: ["Park"] });
   now += 121_000;
   assert.equal(ch.durum().dusunuyor, false, "the lock lets go when Claude says nothing for two minutes");
-});
-
-test("Claude'a sor reaches Claude's listening call and the panel then waits for Claude", async () => {
-  let t = 1000;
-  const ch = createChannel({ now: () => t });
-  const listening = ch.dinle(5000);
-  assert.equal(ch.durum().dinliyor, true);
-  assert.equal(ch.durum().dusunuyor, false);
-  assert.deepEqual(ch.iste({ proje: "sokak", adim: "kararlar", alan: "istekler.sure", etiket: "Süre" }), { dinliyor: true });
-  assert.deepEqual(await listening, [{ proje: "sokak", adim: "kararlar", alan: "istekler.sure", etiket: "Süre", at: 1000 }]);
-  assert.equal(ch.durum().dinliyor, false);
-  assert.equal(ch.durum().dusunuyor, true, "the wizard locks until Claude asks");
-  ch.sor(Q);
-  assert.equal(ch.durum().dusunuyor, false);
-});
-
-test("an ask while Claude does not listen goes to the idle handler (no lock), or waits for the next listen", async () => {
-  const idle = [];
-  const ch = createChannel({ onIdleAsk: (a) => idle.push(a) });
-  assert.deepEqual(ch.iste({ proje: "sokak", adim: "hikaye" }), { dinliyor: false });
-  assert.equal(idle.length, 1);
-  assert.equal(ch.durum().dusunuyor, false);
-
-  const local = createChannel();
-  local.iste({ proje: "sokak", adim: "hikaye", alan: "fikir" });
-  local.iste({ proje: "sokak", adim: "hikaye", alan: "fikir" }); // the same ask twice is one
-  const got = await local.dinle(10);
-  assert.equal(got.length, 1);
-  assert.deepEqual(await local.dinle(10), [], "nothing more: an empty list when the wait ends");
-});
-
-test("asks are checked: a known step, an episode id and a field name", () => {
-  const ch = createChannel({ onIdleAsk: () => {} });
-  for (const bad of [null, {}, { proje: "../x", adim: "hikaye" }, { proje: "a", adim: "gizli" }, { proje: "a", adim: "hikaye", alan: "a b" }, { proje: "a", adim: "hikaye", etiket: "x".repeat(121) }]) {
-    assert.throws(() => ch.iste(bad), undefined, JSON.stringify(bad));
-  }
-  const routes = channelRoutes(ch);
-  assert.throws(() => routes["POST /api/kanal/iste"]({ proje: 1 }), /proje/);
-  assert.deepEqual(routes["POST /api/kanal/iste"]({ proje: "a", adim: "ses", alan: "istekler.muzik" }), { dinliyor: false });
 });
 
 test("the channel knows whether a browser tab has the panel open (it polls GET /api/kanal)", () => {

@@ -34,20 +34,6 @@ export async function openPanel({ target, library, status, port = DEFAULT_PORT, 
   // Claude moves the panel and asks in it (panel_git, panel_sor). An answer that comes after the tool
   // stopped waiting goes to the request queue, so the hooks hand it to Claude like a panel request.
   const channel = createChannel({
-    // "Claude'a sor" while Claude is not listening (panel_dinle): the hooks hand it over after the turn
-    onIdleAsk: requests ? (ask) => {
-      const what = ask.etiket ? `"${ask.etiket}" alanı` : `"${ask.adim}" adımı`;
-      try {
-        addRequest(requests, {
-          root: space.root, b: `bolumler/${ask.proje}/bolum.json`, hedef: { tur: "bolum", etiket: "Claude'a sor" },
-          metin: `Proje sihirbazında Claude'a sor: ${what} (bolumler/${ask.proje}/hikaye.json, adım ${ask.adim}${ask.alan ? `, alan ${ask.alan}` : ""}).
-cizgi-proje skill'indeki "Claude'a sor" adımıyla: panel_sor ile 2-4 öneri kartı sun, seçileni hikaye.json'a yaz, sonra panel_dinle ile dinlemeye dön.`,
-        });
-      } catch (err) {
-        process.stderr.write(`cizgi panel: istek kuyruğa yazılamadı: ${err.message}
-`);
-      }
-    } : undefined,
     // a message in an object window while Claude is not listening: the hooks hand it over after the turn
     onIdleChat: requests ? (item) => {
       const k = item.konu;
