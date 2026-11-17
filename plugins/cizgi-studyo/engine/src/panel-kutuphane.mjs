@@ -8,6 +8,8 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { ID_PATTERN } from "./util.mjs";
 import { compileEpisode, vanishingPoint } from "./compile.mjs";
+import { readyVoicePreview } from "./ses.mjs";
+import { loadTools, run } from "./tools.mjs";
 
 const label = (x, id) => x?.label?.tr || x?.name?.tr || id;
 
@@ -137,7 +139,8 @@ const KINDS = {
   nesne: { ext: ".svg", type: "image/svg+xml", get: (lib, id) => lib.props.get(id)?.svg },
   ses: { ext: ".wav", type: "audio/wav", get: (lib, id) => (lib.sfx?.get(id) ? readFileSync(lib.sfx.get(id).path) : undefined) },
   muzik: { ext: ".wav", type: "audio/wav", get: (lib, id) => (lib.music?.get(id) ? readFileSync(lib.music.get(id).path) : undefined) },
-  sesler: { ext: ".wav", type: "audio/wav", get: (lib, id) => (lib.voices?.get(id) ? readFileSync(lib.voices.get(id).path) : undefined) },
+  // a ready voice is an Edge preset, not a file: its sample is spoken once and cached (needs internet the first time)
+  sesler: { ext: ".wav", type: "audio/wav", get: (lib, id) => (lib.voices?.has(id) ? readFileSync(readyVoicePreview(lib, loadTools(), { run }, id)) : undefined) },
 };
 
 /**

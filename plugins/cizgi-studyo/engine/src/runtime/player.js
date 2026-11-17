@@ -118,6 +118,8 @@
   const FLOW_NEAR = 0.5;
   const FLOW_FADE = 0.08; // and fades out and in over this much depth, instead of popping
   const FLOW_MARGIN = 300; // a piece walking sideways comes round this far past the frame
+  const FLOW_STEPS = 2; // steps a second of a walking crowd
+  const FLOW_BOB = 6; // world units the crowd rises at each step
   const wrap = (v, lo, hi) => lo + ((((v - lo) % (hi - lo)) + (hi - lo)) % (hi - lo));
   function drawFlow(sid, t) {
     const tau = Math.max(0, t - (sceneStart[sid] || 0));
@@ -127,7 +129,9 @@
       const depth = C.depthOf({ back }, layout);
       const s = f.ratio * depth.shrink * f.olcek;
       const px = C.decorX(x, D.world, D.viewport);
-      const py = D.world.ground_y - depth.rise;
+      // a step bob (two steps a second): walking figures, not cardboard sliding
+      const bob = Math.abs(Math.sin(tau * Math.PI * FLOW_STEPS)) * FLOW_BOB * depth.shrink;
+      const py = D.world.ground_y - depth.rise - bob;
       el.setAttribute("transform", "translate(" + px.toFixed(1) + " " + py.toFixed(1) + ") scale(" + (f.ters ? -s : s).toFixed(4) + " " + s.toFixed(4) + ") translate(" + -f.bx + " " + -f.by + ")");
       if (f.db) el.setAttribute("opacity", Math.max(0, Math.min(1, (back - FLOW_NEAR) / FLOW_FADE, (1 - back) / FLOW_FADE)).toFixed(3));
     }

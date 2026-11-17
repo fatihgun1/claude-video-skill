@@ -483,7 +483,8 @@
     for (const m of cast) {
       const fy = faces && faces[m.id] != null ? faces[m.id] : DEFAULT_FACE_Y;
       const d = depthOf(m, layout);
-      sum += world.ground_y - d.rise - (950 - fy) * layout.scale * d.shrink;
+      // kok_y: the body dropped by its pose (sitting, fallen), so the face is that much lower
+      sum += world.ground_y - d.rise - (950 - fy - (m.kok_y || 0)) * layout.scale * d.shrink;
     }
     return sum / cast.length;
   }

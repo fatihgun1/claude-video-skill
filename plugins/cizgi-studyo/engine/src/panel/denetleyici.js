@@ -15,15 +15,15 @@ import { sceneLight } from "./isik.js";
 import { sceneCaption, lineCaption } from "./altyazi-ayar.js";
 import { episodeSettings } from "./bolum-ayar.js";
 
-/** Short state of a line's listening check (ses/manifest.json). */
+/** Short state of a line's audio (ses/manifest.json); a failed check can only come from the old engine. */
 function listenText(check) {
   if (!check) return "seslendirilmedi";
-  if (check.ok) return "dinleme ✓";
+  if (check.ok) return "seslendirildi ✓";
   return check.accepted ? "dinleme ✗ (kabul edildi)" : "dinleme ✗";
 }
 function listenDetail(check) {
   if (!check) return "Bu replik henüz seslendirilmedi (cizgi ses).";
-  if (check.ok) return `Dinleme kontrolü geçti. Duyulan: “${check.heard}”`;
+  if (check.ok) return "Seslendirildi: Edge metni yazıldığı gibi okur.";
   const how = check.accepted ? "geçmedi ama kabul edildi" : "geçmedi: dinleyip karar ver (cizgi kabul ya da yeniden seslendir)";
   return `Dinleme kontrolü ${how}. Duyulan: “${check.heard}”${check.cer != null ? ` (fark ${Math.round(check.cer * 100)}%)` : ""}`;
 }

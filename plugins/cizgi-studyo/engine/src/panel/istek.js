@@ -166,6 +166,7 @@ export function createRequests(box, ctx) {
           list = res.istekler;
           ctx.storyVersion?.(res.hikaye);
           ctx.draftsVersion?.(res.taslak);
+          ctx.audioVersion?.(res.ses);
           error = "";
           // while a save is on its way the file changes under us: that is not someone else's edit
           if (res.surum && ctx.version() === asked && res.surum !== asked && !ctx.saving()) await onDisk(res.surum);

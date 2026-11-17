@@ -16,10 +16,9 @@ Claude Code için ücretsiz ve açık kaynak bir **2D çizgi film stüdyosu**. K
   - ekran yönünün ters dönmesi
   - önden ya da arkadan görünen karakterin yan yan yürümesi
 - **Anatomi denetimi.** Her karakterin eklem sınırları var. Kolu ya da dizi kıran bir poz render'a ulaşmadan hata verir.
-- **Türkçe seslendirme** (Chatterbox) ve dinleme kontrolü (Whisper):
-  - söylenen yazıya dökülüp metinle karşılaştırılır
-  - tutmayan satır yeniden üretilir
-  - kelime zamanları ve ağız şekilleri otomatik çıkarılır (WhisperX, Rhubarb)
+- **Türkçe seslendirme** (Edge TTS: Microsoft'un ücretsiz çevrimiçi sesleri, internet gerekir, yalnız replik metni gönderilir):
+  - hazır sesler (kadın, erkek, kalın erkek, yaşlı, çocuk), perde ve hız ayarı, duygular
+  - kelime zamanları ve ağız şekilleri otomatik çıkarılır (Edge, Rhubarb)
 - **Kontrol paneli** (`cizgi panel`). Tarayıcıda shot'ları seçip açılır menülerden değiştirir, canlı önizlemede görür ve kaydedersiniz.
 - **Video kontrolü** (`cizgi qa`). Render edilen videodan saniyede 4 kare çıkarır. Hiçbir video kare kare izlenmeden kimseye gösterilmez.
 - **İki biçim:** YouTube için 16:9, Reels ve Shorts için 9:16. Render [HyperFrames](https://github.com/heygen-com/hyperframes) ile yapılır.
@@ -63,23 +62,22 @@ npm install --prefix plugins/cizgi-studyo/engine
 ```
 
 ### Seslendirme için (isteğe bağlı)
-Sessiz bölümler bunlar olmadan da çalışır. Konuşan bölümler için NVIDIA GPU önerilir.
+Sessiz bölümler bunlar olmadan da çalışır. Seslendirme internet ister; GPU gerekmez.
 
-1. **Seslendirme ortamı:** Python 3.12 ve `chatterbox-tts` 0.1.7 (torch 2.6, CUDA 12.4 ile denendi).
-2. **Hizalama ortamı:** ayrı bir Python 3.12 ortamında `whisperx` 3.8.6.
-3. **Ağız şekilleri:** [Rhubarb Lip Sync](https://github.com/DanielSWolf/rhubarb-lip-sync) 1.14.
+1. **Seslendirme ortamı:** bir Python ortamında `pip install edge-tts`.
+2. **Ağız şekilleri:** [Rhubarb Lip Sync](https://github.com/DanielSWolf/rhubarb-lip-sync) 1.14.
+3. **ffmpeg** (PATH'te ya da yolu aşağıda).
 4. Yolları `~/.cizgi-studyo/config.json` dosyasına yazın:
 
 ```json
 {
   "python_tts": "C:/ortamlar/tts/Scripts/python.exe",
-  "python_align": "C:/ortamlar/hiza/Scripts/python.exe",
   "rhubarb": "C:/araclar/rhubarb/rhubarb.exe",
   "ffmpeg": "ffmpeg"
 }
 ```
 
-Aynı değerler ortam değişkenleriyle de verilebilir: `CIZGI_PYTHON_TTS`, `CIZGI_PYTHON_ALIGN`, `CIZGI_RHUBARB`, `CIZGI_FFMPEG`.
+Aynı değerler ortam değişkenleriyle de verilebilir: `CIZGI_PYTHON_TTS`, `CIZGI_RHUBARB`, `CIZGI_FFMPEG`.
 
 ## Kullanım
 Claude'a ne istediğinizi söyleyin, örneğin: *"Ela ile Pamuk'un parkta karşılaştığı kısa bir çizgi film yapalım."* Skill'ler sırayla devreye girer:

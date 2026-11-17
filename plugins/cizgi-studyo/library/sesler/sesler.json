@@ -1,6 +1,8 @@
 {
-  "kadin": { "ad": "Kadın", "not": "Yetişkin kadın, sakin okuma sesi" },
-  "erkek": { "ad": "Erkek", "not": "Yetişkin erkek, açık ve net" },
-  "erkek-kalin": { "ad": "Kalın erkek", "not": "Yetişkin erkek, kalın ve tok" },
-  "cocuk": { "ad": "Çocuk", "not": "Kadın sesinden inceltildi (gerçek bir çocuk kaydı değil)" }
+  "kadin": { "ad": "Kadın", "not": "Yetişkin kadın, sıcak ve net", "edge": "tr-TR-EmelNeural" },
+  "kadin-2": { "ad": "Kadın 2", "not": "Genç kadın, biraz ince ve canlı", "edge": "tr-TR-EmelNeural", "perde": 10, "hiz": 5 },
+  "erkek": { "ad": "Erkek", "not": "Yetişkin erkek, açık ve net", "edge": "tr-TR-AhmetNeural" },
+  "erkek-kalin": { "ad": "Kalın erkek", "not": "Yetişkin erkek, kalın ve tok", "edge": "tr-TR-AhmetNeural", "perde": -12 },
+  "yasli": { "ad": "Yaşlı erkek", "not": "Ağır ve kalın, yavaş konuşur", "edge": "tr-TR-AhmetNeural", "perde": -8, "hiz": -12 },
+  "cocuk": { "ad": "Çocuk", "not": "Kadın sesinden inceltildi (gerçek bir çocuk sesi değil)", "edge": "tr-TR-EmelNeural", "perde": 25, "hiz": 8 }
 }

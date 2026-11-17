@@ -16,10 +16,9 @@ A free, open-source **2D cartoon studio for Claude Code** that keeps you in cont
   - a flipped screen direction
   - a front or back view that walks sideways
 - **Anatomy checks.** Every character declares joint limits. A pose that would break an arm or a knee is an error before anything is rendered.
-- **Turkish voices** (Chatterbox) with a listening check (Whisper):
-  - each line is transcribed and compared with the script
-  - a line that does not match is generated again
-  - word timings and mouth shapes come out automatically (WhisperX, Rhubarb)
+- **Turkish voices** (Edge TTS: Microsoft's free online neural voices; needs internet, only the line text is sent):
+  - ready voices (woman, man, deep man, old man, child), pitch and rate, feelings
+  - word timings and mouth shapes come out automatically (Edge, Rhubarb)
 - **Control panel** (`cizgi panel`). A local web page where you pick shots, change them from library dropdowns, watch a live preview and save.
 - **Video review** (`cizgi qa`). Pulls 4 frames per second out of a rendered video. No video is shown to anyone before it is watched frame by frame.
 - **Two formats:** 16:9 for YouTube, 9:16 for Reels and Shorts. Rendering uses [HyperFrames](https://github.com/heygen-com/hyperframes).
@@ -63,23 +62,22 @@ npm install --prefix plugins/cizgi-studyo/engine
 ```
 
 ### For voices (optional)
-Silent episodes work without these. An NVIDIA GPU is recommended for speaking episodes.
+Silent episodes work without these. Speaking needs internet; no GPU is needed.
 
-1. **Voice environment:** Python 3.12 with `chatterbox-tts` 0.1.7 (tested with torch 2.6, CUDA 12.4).
-2. **Alignment environment:** a separate Python 3.12 environment with `whisperx` 3.8.6.
-3. **Mouth shapes:** [Rhubarb Lip Sync](https://github.com/DanielSWolf/rhubarb-lip-sync) 1.14.
+1. **Voice environment:** a Python environment with `pip install edge-tts`.
+2. **Mouth shapes:** [Rhubarb Lip Sync](https://github.com/DanielSWolf/rhubarb-lip-sync) 1.14.
+3. **ffmpeg** (on PATH, or its path below).
 4. Put the paths in `~/.cizgi-studyo/config.json`:
 
 ```json
 {
   "python_tts": "/envs/tts/bin/python",
-  "python_align": "/envs/align/bin/python",
   "rhubarb": "/tools/rhubarb/rhubarb",
   "ffmpeg": "ffmpeg"
 }
 ```
 
-Environment variables work too: `CIZGI_PYTHON_TTS`, `CIZGI_PYTHON_ALIGN`, `CIZGI_RHUBARB`, `CIZGI_FFMPEG`.
+Environment variables work too: `CIZGI_PYTHON_TTS`, `CIZGI_RHUBARB`, `CIZGI_FFMPEG`.
 
 ## Use
 Tell Claude what you want, for example: *"Let's make a short cartoon where Ela meets Pamuk in the park."* The skills take turns:

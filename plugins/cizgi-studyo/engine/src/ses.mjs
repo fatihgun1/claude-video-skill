@@ -1,23 +1,30 @@
 /**
- * Audio step: speak every line, slow it to the profile tempo, check it, time the words,
- * derive mouth shapes. Only lines whose text or voice changed are redone.
+ * Audio step: speak every line with Microsoft Edge's online neural voices (edge-tts, needs
+ * internet; only the line text goes to the service), time its words, derive mouth shapes. Edge
+ * reads the text as written and reports exact word timings, so there is no listening check.
+ * Only lines whose text, voice or feeling changed are redone. One voice job at a time (ses-kilit.mjs).
  *
  * Per line, next to the episode:  ses/<shot>-<n>.wav  .words.json  .rhubarb.json
- * Bookkeeping:                    ses/manifest.json   {lines: {<shot>-<n>: {fingerprint, cer, heard, ok, attempts}}}
+ * Bookkeeping:                    ses/manifest.json   {lines: {<shot>-<n>: {fingerprint, text, ok, attempts}}}
  */
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, writeFileSync, copyFileSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { homedir } from "node:os";
 import { readJson } from "./util.mjs";
 import { audioPathFor, safeJoin } from "./compile.mjs";
 import { validateEpisode, profileOf, NARRATOR } from "./validate.mjs";
 import { readApprovals, requireGate, scriptFingerprint } from "./onay.mjs";
 import { requireTools } from "./tools.mjs";
+import { withVoiceLock } from "./ses-kilit.mjs";
 
 const PYTHON_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "python");
-const TTS_ENGINE = "chatterbox-mtl/1";
+const TTS_SCRIPT = join(PYTHON_DIR, "tts_edge.py");
+const TTS_ENGINE = "edge-tts/1";
 const MANIFEST = join("ses", "manifest.json");
+/** The voice when a character has no ready voice and the library names none. */
+export const DEFAULT_EDGE_VOICE = "tr-TR-EmelNeural";
 
 function sha(value) {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -54,23 +61,49 @@ export function voiceOwner(episode, id) {
 }
 
 /**
- * How a feeling is spoken: Chatterbox's exaggeration (more = livelier, more expressive) and cfg
- * (less = slower, more drawn out). Without a feeling every line came out the same flat way (Test 16:
- * "duygu aktarımı yok").
+ * How a feeling is spoken. Edge has no speaking styles, so a feeling shifts the speed (rate, %),
+ * the pitch (Hz) and the loudness (volume, %) of the speaker's own voice. Without a feeling every
+ * line came out the same flat way (Test 16: "duygu aktarımı yok").
  */
-export const MOODS = {
-  sakin: { exaggeration: 0.35, cfg: 0.5 },
-  neseli: { exaggeration: 0.75, cfg: 0.4 },
-  heyecanli: { exaggeration: 0.95, cfg: 0.3 },
-  uzgun: { exaggeration: 0.5, cfg: 0.3 },
-  kizgin: { exaggeration: 1.05, cfg: 0.35 },
-  korkmus: { exaggeration: 0.8, cfg: 0.3 },
-};
+export const MOODS = Object.freeze({
+  sakin: { rate: -10, pitch: -3, volume: -5 },
+  neseli: { rate: 8, pitch: 8, volume: 5 },
+  heyecanli: { rate: 18, pitch: 12, volume: 10 },
+  uzgun: { rate: -18, pitch: -10, volume: -12 },
+  kizgin: { rate: 10, pitch: -6, volume: 15 },
+  korkmus: { rate: 12, pitch: 10, volume: -5 },
+});
+const NO_MOOD = { rate: 0, pitch: 0, volume: 0 };
+const RATE_RANGE = [-50, 100];
+const PITCH_RANGE = [-80, 80];
+const VOLUME_RANGE = [-50, 50];
+
+const clamp = (x, [lo, hi]) => Math.min(hi, Math.max(lo, Math.round(x)));
+const signed = (n) => (n < 0 ? String(n) : `+${n}`);
+
+/**
+ * What Edge is asked for one line: the ready voice's Edge voice and presets, the character's own
+ * perde (Hz) and hiz (%), the feeling, and the profile tempo as a rate (0.85 → -15%).
+ * @param {{hazir?:string, perde?:number, hiz?:number}} voice
+ * @param {string|undefined} duygu
+ * @param {{voices?: Map<string, {edge:string, perde?:number, hiz?:number}>}} lib
+ * @param {number} [tempo]
+ * @returns {{voice:string, rate:string, pitch:string, volume:string}}
+ */
+export function edgeSettings(voice, duygu, lib, tempo = 1) {
+  const v = voice || {};
+  const preset = (v.hazir && lib?.voices?.get(v.hazir)) || lib?.voices?.values().next().value || { edge: DEFAULT_EDGE_VOICE };
+  const mood = MOODS[duygu] || NO_MOOD;
+  const rate = clamp((preset.hiz || 0) + (v.hiz || 0) + mood.rate + (tempo - 1) * 100, RATE_RANGE);
+  const pitch = clamp((preset.perde || 0) + (v.perde || 0) + mood.pitch, PITCH_RANGE);
+  const volume = clamp(mood.volume, VOLUME_RANGE);
+  return { voice: preset.edge || DEFAULT_EDGE_VOICE, rate: `${signed(rate)}%`, pitch: `${signed(pitch)}Hz`, volume: `${signed(volume)}%` };
+}
 
 /**
  * Every spoken line of an episode with its voice settings.
  * @param {object} episode
- * @returns {{key:string, shot_id:string, index:number, speaker:string, text:string, path:string, voice:object}[]}
+ * @returns {{key:string, shot_id:string, index:number, speaker:string, text:string, path:string, voice:object, duygu?:string}[]}
  */
 export function linesOf(episode) {
   const voices = voicesOf(episode);
@@ -84,7 +117,8 @@ export function linesOf(episode) {
         speaker: u.speaker,
         text: u.text,
         path: audioPathFor(u, shot, index),
-        voice: u.duygu && MOODS[u.duygu] ? { ...(voices[u.speaker] || {}), ...MOODS[u.duygu] } : voices[u.speaker] || {},
+        voice: voices[u.speaker] || {},
+        ...(u.duygu && MOODS[u.duygu] ? { duygu: u.duygu } : {}),
       })),
     ),
   );
@@ -92,13 +126,13 @@ export function linesOf(episode) {
 
 /**
  * What a line sounds like; any change means it must be spoken again.
- * @param {{text:string, voice:object}} line
+ * @param {{text:string, voice:object, duygu?:string}} line
  * @param {string} language
  * @param {number} tempo
  * @returns {string}
  */
 export function lineFingerprint(line, language, tempo) {
-  return sha({ engine: TTS_ENGINE, text: line.text, language, tempo, voice: line.voice }).slice(0, 16);
+  return sha({ engine: TTS_ENGINE, text: line.text, language, tempo, voice: line.voice, duygu: line.duygu || null }).slice(0, 16);
 }
 
 /**
@@ -127,29 +161,22 @@ export function planAudio(lines, manifest, fingerprintOf, fileExists, opts = {})
   return { todo, keep };
 }
 
-/**
- * The voice as the TTS reads it: the clip to clone is the person's recording (voice.ref, next to
- * the episode) or else a ready voice from the library (voice.hazir).
- */
-export function ttsVoice(voice, abs, lib) {
-  const { hazir, ...rest } = voice || {};
-  if (rest.ref) return { ...rest, ref: abs(rest.ref) };
-  const ready = hazir && lib?.voices?.get(hazir);
-  return ready ? { ...rest, ref: ready.path } : rest;
+/** Speak jobs [{id, text, voice, rate, pitch, volume, out}] with tts_edge.py (wav + words.json each). */
+function speak(jobs, workFile, tools, deps) {
+  writeFileSync(workFile, JSON.stringify(jobs, null, 2));
+  deps.run(tools.pythonTts, [TTS_SCRIPT, workFile, "--ffmpeg", tools.ffmpeg || "ffmpeg"], { liveStderr: true });
 }
 
-/** Stable integer seed per line and attempt, so a rerun reproduces the same take; take > 0 is another one. */
-function seedFor(key, attempt, take = 0) {
-  return parseInt(sha(key).slice(0, 7), 16) + attempt * 7919 + take * 104729;
-}
+const lockOpts = (deps, log) => ({ lockPath: deps.lockPath, waitMs: deps.lockWaitMs, log });
 
 /**
  * Run the audio step for an episode.
  * @param {string} episodePath
  * @param {ReturnType<import("./library.mjs").loadLibrary>} lib
  * @param {ReturnType<import("./tools.mjs").loadTools>} tools
- * @param {{run: (cmd:string, args:string[]) => string, force?: boolean, log?: (msg:string) => void}} deps
- * @returns {{generated: string[], kept: string[], failed: {key:string, cer:number, heard:string}[]}}
+ * @param {{run: (cmd:string, args:string[]) => string, force?: boolean, only?: string, log?: (msg:string) => void,
+ *          lockPath?: string, lockWaitMs?: number}} deps
+ * @returns {{generated: string[], kept: string[], failed: {key:string}[]}}
  */
 export function runAudio(episodePath, lib, tools, deps) {
   const log = deps.log || (() => {});
@@ -162,74 +189,42 @@ export function runAudio(episodePath, lib, tools, deps) {
   const dir = dirname(resolve(episodePath));
   const speech = profileOf(episode, lib).speech;
   const manifestPath = join(dir, MANIFEST);
-  const manifest = existsSync(manifestPath) ? readJson(manifestPath) : { lines: {} };
   const lines = linesOf(episode);
   const fp = (line) => lineFingerprint(line, episode.language, speech.tempo);
   const abs = (rel) => safeJoin(dir, rel);
-  const { todo, keep } = planAudio(lines, manifest, fp, (p) => existsSync(abs(p)), deps);
-  if (!todo.length) return { generated: [], kept: keep.map((l) => l.key), failed: [] };
+  const plan = (manifest) => planAudio(lines, manifest, fp, (p) => existsSync(abs(p)), deps);
+  const readNow = () => (existsSync(manifestPath) ? readJson(manifestPath) : { lines: {} });
+  if (!plan(readNow()).todo.length) return { generated: [], kept: lines.map((l) => l.key), failed: [] };
   // Tools are only needed when there is something to speak (a silent episode needs none).
-  requireTools(tools, ["pythonTts", "pythonAlign", "rhubarb"]);
+  requireTools(tools, ["pythonTts", "rhubarb"]);
 
-  const work = join(dir, ".cizgi", "ses");
-  mkdirSync(work, { recursive: true });
-  for (const line of todo) mkdirSync(dirname(abs(line.path)), { recursive: true });
+  return withVoiceLock(resolve(episodePath), () => {
+    // read again under the lock: a job that ran meanwhile may have spoken these lines already
+    const manifest = readNow();
+    const { todo, keep } = plan(manifest);
+    if (!todo.length) return { generated: [], kept: keep.map((l) => l.key), failed: [] };
+    const work = join(dir, ".cizgi", "ses");
+    mkdirSync(work, { recursive: true });
+    for (const line of todo) mkdirSync(dirname(abs(line.path)), { recursive: true });
 
-  const results = {};
-  let pending = todo;
-  for (let attempt = 0; attempt <= speech.retries && pending.length; attempt++) {
-    log(`attempt ${attempt + 1}: speaking ${pending.length} line(s)`);
-    const raw = (line) => join(work, `${line.key}.raw.wav`);
-    const jobs = pending.map((line) => ({
-      id: line.key,
-      text: line.text,
-      lang: episode.language,
-      out: raw(line),
-      seed: seedFor(line.key, attempt, deps.take || 0),
-      voice: ttsVoice(line.voice, abs, lib),
-    }));
-    writeFileSync(join(work, "tts.json"), JSON.stringify(jobs, null, 2));
-    progress("seslendirme", 0, pending.length); // the model loads first: the step has begun
-    deps.run(tools.pythonTts, [join(PYTHON_DIR, "tts_batch.py"), join(work, "tts.json")], { liveStderr: true });
+    log(`speaking ${todo.length} line(s) with Edge TTS`);
+    const jobs = todo.map((line) => ({ id: line.key, text: line.text, ...edgeSettings(line.voice, line.duygu, lib, speech.tempo), out: abs(line.path) }));
+    speak(jobs, join(work, "tts.json"), tools, deps);
 
-    for (const line of pending) {
-      if (speech.tempo === 1) copyFileSync(raw(line), abs(line.path));
-      else deps.run(tools.ffmpeg, ["-y", "-v", "error", "-i", raw(line), "-filter:a", `atempo=${speech.tempo}`, abs(line.path)]);
-    }
+    progress("agiz", 0, todo.length);
+    todo.forEach((line, i) => {
+      const wav = abs(line.path);
+      deps.run(tools.rhubarb, ["-r", "phonetic", "-f", "json", "--extendedShapes", "GHX", "-q", "-o", wav.replace(/\.wav$/i, ".rhubarb.json"), wav]);
+      progress("agiz", i + 1, todo.length);
+    });
 
-    const checks = pending.map((line) => ({
-      id: line.key,
-      text: line.text,
-      lang: episode.language,
-      audio: abs(line.path),
-      words_out: abs(line.path).replace(/\.wav$/i, ".words.json"),
-    }));
-    writeFileSync(join(work, "check.json"), JSON.stringify(checks, null, 2));
-    progress("kontrol", 0, pending.length);
-    deps.run(tools.pythonAlign, [join(PYTHON_DIR, "check_align.py"), join(work, "check.json"), join(work, "check-results.json")], { liveStderr: true });
-    for (const r of readJson(join(work, "check-results.json"))) results[r.id] = { ...r, attempts: attempt + 1 };
-
-    pending = pending.filter((line) => !(results[line.key]?.cer <= speech.max_cer));
-  }
-
-  progress("agiz", 0, todo.length);
-  todo.forEach((line, i) => {
-    const wav = abs(line.path);
-    deps.run(tools.rhubarb, ["-r", "phonetic", "-f", "json", "--extendedShapes", "GHX", "-q", "-o", wav.replace(/\.wav$/i, ".rhubarb.json"), wav]);
-    progress("agiz", i + 1, todo.length);
-  });
-
-  const nextLines = { ...manifest.lines };
-  for (const line of todo) {
-    const r = results[line.key] || { cer: 1, heard: "", attempts: speech.retries + 1 };
-    nextLines[line.key] = { fingerprint: fp(line), text: line.text, heard: r.heard, cer: r.cer, ok: r.cer <= speech.max_cer, attempts: r.attempts };
-  }
-  const known = new Set(lines.map((l) => l.key));
-  const next = { lines: Object.fromEntries(Object.entries(nextLines).filter(([k]) => known.has(k))) };
-  writeFileSync(manifestPath, `${JSON.stringify(next, null, 2)}\n`);
-
-  const failed = failedLines({ lines: Object.fromEntries(todo.map((l) => [l.key, next.lines[l.key]])) });
-  return { generated: todo.map((l) => l.key), kept: keep.map((l) => l.key), failed };
+    const nextLines = { ...manifest.lines };
+    for (const line of todo) nextLines[line.key] = { fingerprint: fp(line), text: line.text, ok: true, attempts: 1 };
+    const known = new Set(lines.map((l) => l.key));
+    const next = { lines: Object.fromEntries(Object.entries(nextLines).filter(([k]) => known.has(k))) };
+    writeFileSync(manifestPath, `${JSON.stringify(next, null, 2)}\n`);
+    return { generated: todo.map((l) => l.key), kept: keep.map((l) => l.key), failed: [] };
+  }, lockOpts(deps, log));
 }
 
 /**
@@ -242,7 +237,8 @@ export function readManifest(episodePath) {
 }
 
 /**
- * Lines that failed the listening check and were not accepted by the person.
+ * Lines that failed a listening check and were not accepted by the person (Edge lines never do;
+ * a manifest left by the old engine may still list some until they are spoken again).
  * @param {object|null} manifest
  * @returns {{key:string, cer:number, heard:string}[]}
  */
@@ -276,9 +272,9 @@ export const SAMPLE_TEXT = Object.freeze({
 
 /**
  * A voice sample: one sentence in a character's voice settings (characters[].voice, or the
- * narrator's), slowed to the profile tempo, written to cikti/ses-ornegi-<id>.wav. It is for choosing
- * a voice before the lines are spoken: no script approval, no listening check, no mouth shapes, and
- * the episode's own audio (ses/) is left alone.
+ * narrator's), at the profile tempo, written to cikti/ses-ornegi-<id>.wav. It is for choosing a
+ * voice before the lines are spoken: no script approval, no mouth shapes, and the episode's own
+ * audio (ses/) is left alone.
  * @param {{karakter: string, metin?: string}} what  metin: the sentence (default: its first line, else SAMPLE_TEXT)
  * @returns {{karakter: string, metin: string, dosya: string}}
  */
@@ -295,18 +291,35 @@ export function voiceSample(episodePath, lib, tools, deps, { karakter, metin } =
   const dir = dirname(resolve(episodePath));
   const work = join(dir, ".cizgi", "ses-ornek");
   mkdirSync(work, { recursive: true });
-  const raw = join(work, `${karakter}.raw.wav`);
-  const voice = voices[karakter];
-  writeFileSync(join(work, "tts.json"), JSON.stringify([{
-    id: `ornek-${karakter}`, text, lang: episode.language, out: raw, seed: seedFor(`ornek-${karakter}`, 0),
-    voice: ttsVoice(voice, (rel) => safeJoin(dir, rel), lib),
-  }], null, 2));
-  (deps.log || (() => {}))(`ilerleme ${JSON.stringify({ adim: "seslendirme", bitti: 0, toplam: 1 })}`);
-  deps.run(tools.pythonTts, [join(PYTHON_DIR, "tts_batch.py"), join(work, "tts.json")], { liveStderr: true });
+  const raw = join(work, `${karakter}.wav`);
+  const tempo = profileOf(episode, lib).speech.tempo;
+  const log = deps.log || (() => {});
+  withVoiceLock(resolve(episodePath), () => {
+    log(`ilerleme ${JSON.stringify({ adim: "seslendirme", bitti: 0, toplam: 1 })}`);
+    speak([{ id: `ornek-${karakter}`, text, ...edgeSettings(voices[karakter], undefined, lib, tempo), out: raw }], join(work, "tts.json"), tools, deps);
+  }, lockOpts(deps, log));
   const dosya = `cikti/ses-ornegi-${karakter}.wav`;
   mkdirSync(join(dir, "cikti"), { recursive: true });
-  const tempo = profileOf(episode, lib).speech.tempo;
-  if (tempo === 1) copyFileSync(raw, join(dir, dosya));
-  else deps.run(tools.ffmpeg || "ffmpeg", ["-y", "-v", "error", "-i", raw, "-filter:a", `atempo=${tempo}`, join(dir, dosya)]);
+  copyFileSync(raw, join(dir, dosya));
   return { karakter, metin: text, dosya };
+}
+
+/** The sentence a ready voice says when the person listens to it in the panel. */
+export const PREVIEW_TEXT = "Merhaba! Ben bu sesle konuşurum. Nasıl, beğendin mi?";
+
+/**
+ * A ready voice heard before it is chosen (the panel's ▶ on a voice card): one sentence, cached in
+ * ~/.cizgi-studyo/ses-onizleme so each preset is fetched from Edge once.
+ * @param {string} hazir a ready voice id
+ * @returns {string|null} the WAV's path, or null when there is no such voice
+ */
+export function readyVoicePreview(lib, tools, deps, hazir, cacheDir = join(homedir(), ".cizgi-studyo", "ses-onizleme")) {
+  if (!lib.voices?.has(hazir)) return null;
+  const settings = edgeSettings({ hazir }, undefined, lib);
+  const out = join(cacheDir, `${hazir}-${sha({ engine: TTS_ENGINE, settings, text: PREVIEW_TEXT }).slice(0, 12)}.wav`);
+  if (existsSync(out)) return out;
+  requireTools(tools, ["pythonTts"]);
+  mkdirSync(cacheDir, { recursive: true });
+  speak([{ id: `onizleme-${hazir}`, text: PREVIEW_TEXT, ...settings, out }], join(cacheDir, "tts.json"), tools, deps);
+  return out;
 }

@@ -240,6 +240,20 @@ export function sceneTransition(episode, sceneId) {
   return same ? "kesme" : "kararma";
 }
 
+/**
+ * A cast member with kok_y: how far its body has dropped (rig units, + down) once its actions have
+ * played out in this shot. The camera looks there: a close-up of someone sitting on the ground
+ * framed the empty air where a standing face would be (Köşe Başı: a caption, nobody on screen).
+ */
+function settled(member, shot, lib) {
+  const C = globalThis.CizgiCore;
+  const t = Math.max(0, shot.end - shot.start);
+  const seg = C.segmentAt(member, t);
+  const action = lib.actions.get(seg.action);
+  const drop = action ? C.sampleAction(action, seg.time).root_y || 0 : 0;
+  return Math.abs(drop) < 1 ? member : { ...member, kok_y: Math.round(drop) };
+}
+
 /** Decor this far back (0-1) is part of the background: soft in a close framing, like it. */
 const DECOR_FAR = 0.3;
 
@@ -541,7 +555,7 @@ export function compileEpisode(episodePath, lib, outDir, opts = {}) {
     layers: Object.fromEntries(usedBgs.map((bg) => [bg, lib.layers.get(bg).map((l) => ({ id: l.id, derinlik: l.derinlik }))])),
     decor: decor.scenes, // scenes with a decor group (dekor-<scene>)
     shots: timeline.shots.map((s, i) => ({
-      shot_id: s.shot_id, scene_id: s.scene_id, bg: s.bg, start: s.start, end: s.end, cast: s.cast, camera: s.camera,
+      shot_id: s.shot_id, scene_id: s.scene_id, bg: s.bg, start: s.start, end: s.end, cast: s.cast.map((m) => settled(m, s, lib)), camera: s.camera,
       ...(sceneOf.get(s.scene_id)?.katmanlar ? { katmanlar: sceneOf.get(s.scene_id).katmanlar } : {}),
       ...(sceneOf.get(s.scene_id)?.isik ? { isik: sceneOf.get(s.scene_id).isik } : {}),
       gecis: sceneTransition(episode, s.scene_id),

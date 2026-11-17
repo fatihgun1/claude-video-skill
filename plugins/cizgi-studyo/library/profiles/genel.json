@@ -11,9 +11,7 @@
     "min_shot": 0.6
   },
   "speech": {
-    "tempo": 1,
-    "max_cer": 0.05,
-    "retries": 2
+    "tempo": 1
   },
   "rules": {}
 }

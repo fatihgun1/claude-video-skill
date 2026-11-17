@@ -130,8 +130,6 @@ export function checkProfile(profile, name) {
   }
   const sp = profile.speech || {};
   if (!isNum(sp.tempo) || sp.tempo < 0.5 || sp.tempo > 1.5) errors.push(`${name}: speech.tempo must be 0.5..1.5`);
-  if (!isNum(sp.max_cer) || sp.max_cer < 0 || sp.max_cer > 1) errors.push(`${name}: speech.max_cer must be 0..1`);
-  if (!Number.isInteger(sp.retries) || sp.retries < 0 || sp.retries > 5) errors.push(`${name}: speech.retries must be 0..5`);
   const rules = profile.rules || {};
   for (const r of INT_RULES) {
     if (rules[r] !== undefined && !(Number.isInteger(rules[r]) && rules[r] > 0)) errors.push(`${name}: rules.${r} must be a positive integer`);
@@ -335,11 +333,6 @@ function loadProjectRigs(project, characters, actions, errors) {
  * @returns {{dir:string, world:object, cameras:object, characters:Map<string,{meta:object,svg:string}>, actions:Map<string,object>, backgrounds:Map<string,string>, profiles:Map<string,object>}}
  * @throws when any asset breaks the specification
  */
-const rank = (order, file) => {
-  const i = order.indexOf(basename(file, ".wav"));
-  return i < 0 ? order.length : i;
-};
-
 export function loadLibrary(dir, opts = {}) {
   const world = readJson(join(dir, "world.json"));
   const cameras = readJson(join(dir, "cameras.json"));
@@ -425,15 +418,15 @@ export function loadLibrary(dir, opts = {}) {
     }
   }
 
-  // Ready voices: short reference clips a character can speak with (voice.hazir), named in sesler.json.
+  // Ready voices a character can speak with (voice.hazir): an Edge voice with pitch and rate presets, in sesler/sesler.json
   const voices = new Map();
-  const voiceNames = existsSync(join(dir, "sesler", "sesler.json")) ? readJson(join(dir, "sesler", "sesler.json")) : {};
-  const named = Object.keys(voiceNames); // the order sesler.json gives, then any others
-  const files = entries(join(dir, "sesler"), ".wav").sort((x, y) => rank(named, x) - rank(named, y));
-  for (const file of files) {
-    const id = basename(file, ".wav");
+  const voiceList = existsSync(join(dir, "sesler", "sesler.json")) ? readJson(join(dir, "sesler", "sesler.json")) : {};
+  for (const [id, v] of Object.entries(voiceList)) {
     checkId("voice", id, errors);
-    voices.set(id, { path: join(dir, "sesler", file), ad: voiceNames[id]?.ad || id, not: voiceNames[id]?.not || "" });
+    const bad = !v || typeof v.edge !== "string" || !/^[a-z]{2}-[A-Z]{2}-\w+Neural$/.test(v.edge)
+      || (v.perde !== undefined && !isNum(v.perde)) || (v.hiz !== undefined && !isNum(v.hiz));
+    if (bad) errors.push(`voice ${id}: needs "edge" (an Edge voice such as tr-TR-EmelNeural) and numeric "perde"/"hiz" if given`);
+    else voices.set(id, { edge: v.edge, perde: v.perde || 0, hiz: v.hiz || 0, ad: v.ad || id, not: v.not || "" });
   }
 
   const profiles = new Map();

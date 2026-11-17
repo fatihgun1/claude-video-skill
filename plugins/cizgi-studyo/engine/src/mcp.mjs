@@ -22,11 +22,15 @@ import { queueOf, takeRequests, updateRequest, describe, episodeFile, ANSWERS, M
 
 // The Claude session this server belongs to: requests from its panel are for it alone (istekler.mjs).
 const SESSION_ID = process.env.CLAUDE_CODE_SESSION_ID || null;
-const SERVER_INFO = { name: "cizgi-studyo", version: "2.14.0" };
+const SERVER_INFO = { name: "cizgi-studyo", version: "2.15.0" };
 // panel-kanal.mjs PANELS (not imported: engine modules load on first use)
 const PANEL_TABS = ["projeler", "uretim", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"];
 const WAIT_DEFAULT_S = 600;
 const WAIT_MAX_S = 1800;
+// panel_dinle waits shorter: a chat message reaches Claude only when the call returns (Köşe Başı:
+// "onayladım devam et" waited 3.5 minutes behind a 10-minute listen)
+const LISTEN_DEFAULT_S = 120;
+const LISTEN_MAX_S = 180;
 const PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 const LIBRARY = fileURLToPath(new URL("../../library", import.meta.url));
 const ENGINE = fileURLToPath(new URL("..", import.meta.url));
@@ -141,7 +145,7 @@ const TOOLS = [
   {
     name: "panel_dinle",
     description:
-      "Listen for what the person does in the open editor panel. This call waits (bekle seconds, default 600) and returns {istekler: [...]}; " +
+      "Listen for what the person does in the open editor panel. This call waits (bekle seconds, default 120, at most 180, so chat messages are not held long) and returns {istekler: [...]}; " +
       "an empty list means nothing came: call it again while an episode is open in the panel. " +
       "Keep calling it in studio mode (an episode open in the panel): the person clicks something on the stage and writes to you in its " +
       "object window. Such an item is {tur: 'sohbet', konu: {tur, id, ad?, bolum?, shot?, oyuncu?}, metin}; tur and id: karakter <rig>, nesne <prop>, " +
@@ -300,7 +304,7 @@ function queuedRequests() {
 
 async function panelDinle({ bekle } = {}) {
   const p = openPanelOrThrow();
-  const seconds = Math.min(Math.max(Number.isFinite(bekle) ? bekle : WAIT_DEFAULT_S, 0), WAIT_MAX_S);
+  const seconds = Math.min(Math.max(Number.isFinite(bekle) ? bekle : LISTEN_DEFAULT_S, 0), LISTEN_MAX_S);
   const until = Date.now() + seconds * 1000;
   const answer = (list) => ({ istekler: list, not: "tur 'istek' olanları yap ve panel_yanitla {id} ile cevapla; ötekileri her zamanki gibi. Sonra panel_dinle ile dinlemeye dön." });
   // requests that waited in the queue come first: they would otherwise wait for a turn's end

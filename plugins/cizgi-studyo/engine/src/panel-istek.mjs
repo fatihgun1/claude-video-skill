@@ -13,6 +13,17 @@ import { addRequest, readRequests, isStale } from "./istekler.mjs";
 import { HttpError } from "./panel-proje.mjs";
 import { storyVersion } from "./panel-hikaye.mjs";
 import { draftsSignature } from "./proje-kutuphane.mjs";
+import { statSync } from "node:fs";
+import { dirname, join } from "node:path";
+
+/** When the episode's voices were last written (ses/manifest.json), or null when it has none. */
+function audioVersion(episodePath) {
+  try {
+    return String(statSync(join(dirname(episodePath), "ses", "manifest.json")).mtimeMs);
+  } catch {
+    return null;
+  }
+}
 
 const SHOWN = 12;
 
@@ -39,6 +50,7 @@ export function requestRoutes({ requests, root, episodeOf, versionOf, project = 
         surum: versionNow(ep),
         hikaye: storyVersion(ep.path), // the story cards' file, so an open story window can follow Claude's edits
         taslak: draftsSignature(project), // the project library's drafts, so the library tabs can show a new one
+        ses: audioVersion(ep.path), // the voices, made outside the panel too (cizgi ses): the preview plays them at once
       };
     },
     "POST /api/istek": (body) => {

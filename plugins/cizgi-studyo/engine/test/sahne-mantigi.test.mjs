@@ -73,3 +73,74 @@ test("a piece of decor with akis carries what the player needs to walk it by", (
   ep.scenes[1].dekor[0].akis = { dx: 9999 };
   assert.equal(validateEpisode(ep, lib).ok, false);
 });
+
+test("a close-up of someone sitting looks down at their face, not at the standing height", () => {
+  const C = globalThis.CizgiCore;
+  const vp = { width: 1080, height: 1920 };
+  const stand = { cast: [{ id: "a", action: "bekle", mark: "orta" }], camera: { framing: "close", target: "a" } };
+  const sit = { ...stand, cast: [{ ...stand.cast[0], kok_y: 300 }] };
+  const up = C.shotCamera(stand, 0, lib.world, lib.cameras, vp, { a: 125 });
+  const down = C.shotCamera(sit, 0, lib.world, lib.cameras, vp, { a: 125 });
+  assert.ok(down.cy > up.cy + 50, `the camera goes down with the face (${up.cy.toFixed(0)} → ${down.cy.toFixed(0)})`);
+});
+
+test("compiled shots carry how far a sitting member has dropped", () => {
+  const ep = fresh();
+  const shot = ep.scenes[1].shots[0];
+  const side = ep.characters.find((c) => lib.characters.get(c.rig)?.meta?.view?.startsWith("profile"));
+  shot.cast = [{ id: side.id, action: "oturuyor", mark: "orta" }];
+  const dir = mkdtempSync(join(tmpdir(), "kok-"));
+  compileEpisode(SOKAK, lib, dir, { episode: ep, missingAudio: "estimate" });
+  const html = readFileSync(join(dir, "index.html"), "utf8");
+  const data = JSON.parse(/window\.__CIZGI__ = (\{[\s\S]*?\});\s*<\/script>/.exec(html)[1]);
+  const m = data.shots.find((s) => s.shot_id === shot.shot_id).cast[0];
+  assert.ok(m.kok_y > 50, `kok_y ${m.kok_y}`);
+});
+
+test("a crowd walks the way it faces, and into depth only on a deep street", () => {
+  const ep = fresh();
+  const flat = ep.scenes.find((s) => s.bg === "sokak");
+  flat.dekor = [{ id: "k1", prop: "kalabalik-uzaklasan", x: 600, back: 0.7, akis: { back: 0.04 } }, { id: "k2", prop: "kalabalik-gelen", x: 900, back: 0.7, akis: { dx: 30 } }];
+  const w = filmWarnings(ep, lib).join("\n");
+  assert.match(w, /"k1" walks into depth on "sokak", a flat street/);
+  assert.match(w, /"k2" \(kalabalik-gelen\) faces the camera or away from it but slides sideways/);
+  flat.dekor = [{ id: "k3", prop: "kalabalik-yandan", x: 900, back: 0.7, akis: { dx: 30 } }];
+  assert.doesNotMatch(filmWarnings(ep, lib).join("\n"), /k3/);
+});
+
+test("someone sitting at the end of a shot does not stand at the start of the next", () => {
+  const ep = fresh();
+  const scene = ep.scenes.find((s) => s.shots.length >= 2) || ep.scenes[0];
+  const side = ep.characters.find((c) => lib.characters.get(c.rig)?.meta?.view?.startsWith("profile"));
+  scene.shots[0].cast = [{ id: side.id, action: "otur", mark: "orta" }];
+  scene.shots[1].cast = [{ id: side.id, action: "bekle-yan", mark: "orta" }];
+  assert.ok(filmWarnings(ep, lib).some((w) => w.includes(`shot ${scene.shots[1].shot_id}`) && /stands at once/.test(w)));
+  scene.shots[1].cast = [{ id: side.id, action: "kalk", mark: "orta" }];
+  assert.ok(!filmWarnings(ep, lib).some((w) => /stands at once/.test(w)));
+});
+
+test("nobody stands inside a bench; sitting on it is fine", () => {
+  const ep = fresh();
+  const scene = ep.scenes[1];
+  const side = ep.characters.find((c) => lib.characters.get(c.rig)?.meta?.view?.startsWith("profile"));
+  scene.dekor = [{ id: "b1", prop: "bank", x: 960 }];
+  scene.shots[0].cast = [{ id: side.id, action: "bekle-yan", mark: "orta" }];
+  assert.ok(filmWarnings(ep, lib).some((w) => /stands inside the bank "b1"/.test(w)));
+  scene.shots[0].cast = [{ id: side.id, action: "oturuyor", mark: "orta" }];
+  assert.ok(!filmWarnings(ep, lib).some((w) => w.includes(`shot ${scene.shots[0].shot_id}:`) && /stands inside/.test(w)));
+});
+
+test("a grown-up drawing does not do a child's action", () => {
+  const ep = fresh();
+  const side = ep.characters.find((c) => lib.characters.get(c.rig)?.meta?.view?.startsWith("profile"));
+  ep.scenes[1].shots[0].cast = [{ id: side.id, action: "kos-cocuk", mark: "orta" }];
+  assert.ok(filmWarnings(ep, lib).some((w) => /grown-up drawing but does the child's action "kos-cocuk"/.test(w)));
+});
+
+test("garbled Turkish (UTF-8 read as Windows-1252) is refused; real Turkish passes", () => {
+  const ep = fresh();
+  ep.title = "Köşe Başı: ıİğĞüÜşŞöÖçÇ";
+  assert.deepEqual(validateEpisode(ep, lib).errors.filter((e) => /garbled/.test(e)), []);
+  ep.title = "KÃ¶ÅŸe BaÅŸÄ±";
+  assert.match(validateEpisode(ep, lib).errors.join("\n"), /\/title: the text looks garbled/);
+});

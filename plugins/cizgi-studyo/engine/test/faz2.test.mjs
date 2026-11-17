@@ -13,7 +13,8 @@ import { loadTools, requireTools, run } from "../src/tools.mjs";
 import { parseArgs, status } from "../src/cli.mjs";
 
 const lib = loadLibrary(fileURLToPath(new URL("../../library", import.meta.url)));
-const TOOLS = { pythonTts: "py-tts", pythonAlign: "py-align", rhubarb: "rhubarb", ffmpeg: "ffmpeg", configPath: "x" };
+const TOOLS = { pythonTts: "py-tts", rhubarb: "rhubarb", ffmpeg: "ffmpeg", configPath: "x" };
+const LOCK = join(mkdtempSync(join(tmpdir(), "cizgi-kilit-")), "ses.lock"); // not the real ~/.cizgi-studyo one
 
 function silentWav(seconds = 1) {
   const rate = 8000;
@@ -30,7 +31,7 @@ function makeEpisode(overrides = {}) {
     episode: "deneme",
     language: "tr",
     profile: "pedagoji-0-3",
-    characters: [{ id: "pamuk", rig: "pamuk", voice: { exaggeration: 0.6 } }],
+    characters: [{ id: "pamuk", rig: "pamuk", voice: { hazir: "erkek", perde: -5 } }],
     scenes: [
       {
         scene_id: "s1",
@@ -50,23 +51,16 @@ function makeEpisode(overrides = {}) {
 
 const save = (path, ep) => writeFileSync(path, JSON.stringify(ep, null, 2));
 
-/** Fake external tools: records calls; CER per line and attempt comes from `cerOf`. */
-function fakeRunner(cerOf = () => 0) {
+/** Fake external tools: records calls; the TTS writes each line's WAV and word timings. */
+function fakeRunner() {
   const calls = [];
-  const attempts = {};
   const runFn = (cmd, args, opts) => {
     calls.push({ cmd, args, opts });
     if (cmd === "py-tts") {
-      for (const job of JSON.parse(readFileSync(args[1], "utf8"))) writeFileSync(job.out, silentWav(1));
-    } else if (cmd === "ffmpeg") {
-      copyFileSync(args[args.indexOf("-i") + 1], args.at(-1));
-    } else if (cmd === "py-align") {
-      const results = JSON.parse(readFileSync(args[1], "utf8")).map((job) => {
-        attempts[job.id] = (attempts[job.id] || 0) + 1;
-        writeFileSync(job.words_out, JSON.stringify([{ word: job.text, start: 0.1, end: 0.5 }]));
-        return { id: job.id, heard: job.text, cer: cerOf(job.id, attempts[job.id]) };
-      });
-      writeFileSync(args[2], JSON.stringify(results));
+      for (const job of JSON.parse(readFileSync(args[1], "utf8"))) {
+        writeFileSync(job.out, silentWav(1));
+        writeFileSync(job.out.replace(/\.wav$/, ".words.json"), JSON.stringify([{ word: job.text, start: 0.1, end: 0.5 }]));
+      }
     } else if (cmd === "rhubarb") {
       writeFileSync(args[args.indexOf("-o") + 1], JSON.stringify({ mouthCues: [{ start: 0, end: 0.2, value: "B" }] }));
     } else if (cmd === "npx") {
@@ -81,13 +75,13 @@ function fakeRunner(cerOf = () => 0) {
     }
     return "";
   };
-  return { run: runFn, calls };
+  return { run: runFn, calls, lockPath: LOCK };
 }
 
 test("profiles load and checkProfile catches bad values", () => {
   assert.ok(lib.profiles.has("genel") && lib.profiles.has("pedagoji-0-3"));
-  const errs = checkProfile({ timing: { lead: -1 }, speech: { tempo: 3, max_cer: 2, retries: 9 }, rules: { max_cast: 0, min_hold: "x", allowed_moves: "static" } }, "p").join("\n");
-  for (const s of ["timing.lead", "timing.gap", "speech.tempo", "speech.max_cer", "speech.retries", "rules.max_cast", "rules.min_hold", "rules.allowed_moves"]) {
+  const errs = checkProfile({ timing: { lead: -1 }, speech: { tempo: 3 }, rules: { max_cast: 0, min_hold: "x", allowed_moves: "static" } }, "p").join("\n");
+  for (const s of ["timing.lead", "timing.gap", "speech.tempo", "rules.max_cast", "rules.min_hold", "rules.allowed_moves"]) {
     assert.ok(errs.includes(s), s);
   }
 });
@@ -144,11 +138,11 @@ test("approvals are recorded, become stale and are enforced", () => {
 });
 
 test("linesOf assigns default audio paths and voices", () => {
-  const { ep } = makeEpisode({ narrator_voice: { cfg: 0.6 } });
+  const { ep } = makeEpisode({ narrator_voice: { hazir: "kadin" } });
   const lines = linesOf(ep);
   assert.deepEqual(lines.map((l) => [l.key, l.path]), [["a-0", "ses/a-0.wav"], ["b-0", "ses/b-0.wav"], ["b-1", "ses/b-1.wav"]]);
-  assert.deepEqual(lines[1].voice, { cfg: 0.6 });
-  assert.deepEqual(lines[2].voice, { exaggeration: 0.6 });
+  assert.deepEqual(lines[1].voice, { hazir: "kadin" });
+  assert.deepEqual(lines[2].voice, { hazir: "erkek", perde: -5 });
   assert.notEqual(lineFingerprint(lines[0], "tr", 1), lineFingerprint(lines[0], "tr", 0.85));
 });
 
@@ -158,7 +152,8 @@ test("a line's feeling sets how it is spoken and makes only that line be spoken 
   const u = ep.scenes[0].shots.flatMap((sh) => sh.utterances || [])[2];
   u.duygu = "heyecanli";
   const lines = linesOf(ep);
-  assert.deepEqual(lines[2].voice, { exaggeration: 0.95, cfg: 0.3 });
+  assert.equal(lines[2].duygu, "heyecanli");
+  assert.deepEqual(lines[2].voice, { hazir: "erkek", perde: -5 }, "the feeling is kept apart from the voice");
   const after = lines.map((l) => lineFingerprint(l, "tr", 1));
   assert.deepEqual(after.map((x, i) => x === before[i]), [true, true, false]);
 });
@@ -187,28 +182,32 @@ test("runAudio refuses before the script is approved and without tools", () => {
   assert.throws(() => runAudio(path, lib, TOOLS, fake), /episode is invalid/);
 });
 
-test("runAudio speaks, slows to profile tempo, retries bad takes and is incremental", () => {
+test("runAudio speaks every line in one Edge call, tempo as rate, mouth shapes per line, and is incremental", () => {
   const { path, ep, dir } = makeEpisode();
   approve(path, "senaryo", scriptFingerprint(ep));
-  const fake = fakeRunner((id, attempt) => (id === "b-0" && attempt === 1 ? 0.4 : 0.01));
+  const fake = fakeRunner();
   const logged = [];
   const res = runAudio(path, lib, TOOLS, { ...fake, log: (m) => logged.push(m) });
   assert.deepEqual(res.generated, ["a-0", "b-0", "b-1"]);
   assert.deepEqual(res.failed, []);
-  // progress for the panel: each step starts at 0, mouth shapes count line by line
+  // progress for the panel: the mouth shapes count line by line (the TTS writes its own progress)
   const progress = logged.filter((m) => m.startsWith("ilerleme ")).map((m) => JSON.parse(m.slice(9)));
-  assert.deepEqual(progress[0], { adim: "seslendirme", bitti: 0, toplam: 3 });
-  assert.ok(progress.some((p) => p.adim === "kontrol" && p.bitti === 0));
   assert.deepEqual(progress.at(-1), { adim: "agiz", bitti: 3, toplam: 3 });
-  // the Python steps write their own progress straight through
-  assert.ok(fake.calls.filter((c) => c.cmd === "py-tts" || c.cmd === "py-align").every((c) => c.opts?.liveStderr === true));
-  const ffmpeg = fake.calls.filter((c) => c.cmd === "ffmpeg");
-  assert.ok(ffmpeg.length >= 3 && ffmpeg[0].args.includes("atempo=0.85"));
+  const tts = fake.calls.filter((c) => c.cmd === "py-tts");
+  assert.equal(tts.length, 1, "one call speaks every line");
+  assert.ok(tts[0].args[0].endsWith("tts_edge.py") && tts[0].opts?.liveStderr === true);
+  assert.deepEqual(tts[0].args.slice(-2), ["--ffmpeg", "ffmpeg"]);
+  assert.equal(fake.calls.filter((c) => c.cmd === "ffmpeg").length, 0, "the tempo is Edge's rate, not atempo");
+  assert.equal(fake.calls.filter((c) => c.cmd === "rhubarb").length, 3);
   const ttsJobs = JSON.parse(readFileSync(join(dir, ".cizgi", "ses", "tts.json"), "utf8"));
-  assert.deepEqual(ttsJobs.map((j) => j.id), ["b-0"], "only the bad take is retried");
+  // pedagoji-0-3 speaks at tempo 0.85: -15%; pamuk is "erkek" (Ahmet) with perde -5
+  assert.deepEqual(ttsJobs.find((j) => j.id === "a-0"), {
+    id: "a-0", text: "Merhaba!", voice: "tr-TR-AhmetNeural", rate: "-15%", pitch: "-5Hz", volume: "+0%", out: join(dir, "ses", "a-0.wav"),
+  });
   const m = readManifest(path);
-  assert.equal(m.lines["b-0"].attempts, 2);
+  assert.deepEqual(m.lines["b-0"], { fingerprint: m.lines["b-0"].fingerprint, text: "Alkışla!", ok: true, attempts: 1 });
   assert.ok(existsSync(join(dir, "ses", "b-1.rhubarb.json")) && existsSync(join(dir, "ses", "a-0.words.json")));
+  assert.ok(!existsSync(LOCK), "the lock is let go");
 
   const again = fakeRunner();
   assert.deepEqual(runAudio(path, lib, TOOLS, again).generated, []);
@@ -224,14 +223,18 @@ test("runAudio speaks, slows to profile tempo, retries bad takes and is incremen
   assert.deepEqual(Object.keys(readManifest(path).lines).sort(), ["a-0", "b-0"], "removed lines leave the manifest");
 });
 
-test("runAudio reports lines that stay wrong after all retries; tempo 1 copies", () => {
-  const { path, ep } = makeEpisode({ profile: "genel" });
+test("lines of the old engine count as changed and are spoken again", () => {
+  const { path, ep, dir } = makeEpisode({ profile: "genel" });
   approve(path, "senaryo", scriptFingerprint(ep));
-  const fake = fakeRunner((id) => (id === "a-0" ? 0.5 : 0));
-  const res = runAudio(path, lib, TOOLS, fake);
-  assert.deepEqual(res.failed.map((f) => f.key), ["a-0"]);
-  assert.equal(readManifest(path).lines["a-0"].attempts, 3);
-  assert.equal(fake.calls.filter((c) => c.cmd === "ffmpeg").length, 0);
+  mkdirSync(join(dir, "ses"));
+  const old = { lines: {} };
+  for (const k of ["a-0", "b-0", "b-1"]) {
+    writeFileSync(join(dir, "ses", `${k}.wav`), silentWav(1));
+    old.lines[k] = { fingerprint: "chatterbox", text: "x", heard: "y", cer: 0.5, ok: false, attempts: 3 };
+  }
+  writeFileSync(join(dir, "ses", "manifest.json"), JSON.stringify(old));
+  assert.equal(runAudio(path, lib, TOOLS, fakeRunner()).generated.length, 3);
+  assert.ok(Object.values(readManifest(path).lines).every((l) => l.ok && l.attempts === 1 && !("cer" in l)));
 });
 
 test("a draft render is a preview: no script approval and no recorded lines needed; the final one still is gated", () => {
@@ -307,10 +310,10 @@ test("status walks the gates in order", () => {
   approve(path, "senaryo", scriptFingerprint(ep));
   const s1 = status(path, lib);
   assert.match(s1.next, /cizgi ses \(3 line/);
-  runAudio(path, lib, TOOLS, fakeRunner((id) => (id === "b-1" ? 0.9 : 0)));
+  runAudio(path, lib, TOOLS, fakeRunner());
   const s2 = status(path, lib);
   assert.match(s2.next, /cizgi storyboard/);
-  assert.deepEqual(s2.audio.failed.map((f) => f.key), ["b-1"]);
+  assert.deepEqual(s2.audio.failed, []);
   approve(path, "storyboard", storyboardFingerprint(ep, readManifest(path), libraryFingerprint(ep, lib)));
   assert.equal(status(path, lib).next, "cizgi render");
   const bad = { ...ep, scenes: [{ ...ep.scenes[0], bg: "uzay" }] };
@@ -337,7 +340,7 @@ test("loadTools: env wins over config file; requireTools names what is missing",
   const t = loadTools({ CIZGI_PYTHON_TTS: "env" }, home);
   assert.equal(t.pythonTts, "env");
   assert.equal(t.rhubarb, "r");
-  assert.throws(() => requireTools(t, ["pythonTts", "pythonAlign"]), /CIZGI_PYTHON_ALIGN/);
+  assert.throws(() => requireTools({ configPath: "c" }, ["pythonTts", "rhubarb"]), /CIZGI_PYTHON_TTS[\s\S]*CIZGI_RHUBARB/);
   requireTools(t, ["pythonTts"]);
 });
 
@@ -347,18 +350,22 @@ test("run returns stdout and reports failures", () => {
   assert.throws(() => run("cizgi-olmayan-komut-xyz", []), /cizgi-olmayan-komut-xyz/);
 });
 
-test("an accepted take leaves the failed list until the line is regenerated", async () => {
+test("an accepted take of the old engine leaves the failed list until the line is regenerated", async () => {
   const { acceptLine, failedLines } = await import("../src/ses.mjs");
-  const { path, ep } = makeEpisode({ profile: "genel" });
+  const { path, ep, dir } = makeEpisode({ profile: "genel" });
   approve(path, "senaryo", scriptFingerprint(ep));
-  runAudio(path, lib, TOOLS, fakeRunner((id) => (id === "a-0" ? 0.5 : 0)));
+  runAudio(path, lib, TOOLS, fakeRunner());
+  // a manifest the old engine left: one take failed its listening check
+  const m = readManifest(path);
+  m.lines["a-0"] = { ...m.lines["a-0"], ok: false, cer: 0.5, heard: "x" };
+  writeFileSync(join(dir, "ses", "manifest.json"), JSON.stringify(m));
   assert.deepEqual(failedLines(readManifest(path)).map((f) => f.key), ["a-0"]);
   assert.throws(() => acceptLine(path, "zz-9"), /no generated line/);
   assert.equal(acceptLine(path, "a-0").accepted, true);
   assert.deepEqual(failedLines(readManifest(path)), []);
   assert.deepEqual(status(path, lib).audio.failed, []);
-  runAudio(path, lib, TOOLS, { ...fakeRunner((id) => (id === "a-0" ? 0.5 : 0)), force: true });
-  assert.deepEqual(failedLines(readManifest(path)).map((f) => f.key), ["a-0"], "a new take needs a new decision");
+  runAudio(path, lib, TOOLS, { ...fakeRunner(), force: true });
+  assert.deepEqual(failedLines(readManifest(path)), [], "Edge takes always pass");
 });
 
 test("framing check catches two characters outside a portrait frame (the Faz 2 storyboard bug)", async () => {

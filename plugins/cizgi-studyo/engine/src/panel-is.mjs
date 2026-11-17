@@ -36,7 +36,7 @@ export const JOB_FORMATS = new Set(["16:9", "9:16"]);
 const LOG_TAIL = 4000; // characters of output kept for the panel
 const MAX_OUT = 1_000_000; // the CLI's JSON answer is small; more than this is not an answer
 const TIMEOUT_MS = 30 * 60 * 1000; // a job still running after this is stuck
-// speech may first download its models (several GB) and retries bad takes
+// speech talks to the Edge service and runs Rhubarb on every line
 const TIMEOUTS_MS = { ses: 90 * 60 * 1000, satir: 30 * 60 * 1000 };
 
 /** End a process and every process it started (on Windows kill() would leave the children running). */

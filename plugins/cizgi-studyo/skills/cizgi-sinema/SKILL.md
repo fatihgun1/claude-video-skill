@@ -38,7 +38,9 @@ Sources: [continuity editing (StudioBinder)](https://www.studiobinder.com/blog/w
 - **Wide:** only when entering a new place, or when movement across the place matters.
 - **Talk:** shot / reverse shot in `gogus` or `close`, over the shoulder for the listener.
 - **A feeling or a reaction:** `close`, or `detay` on the face or hands.
-- Never the same framing more than twice in a row.
+- **Talk:** frame both speakers of a conversation **the same size**, and change size for both together. In Köşe Başı the reverse shots jumped close → detay → chest → close at every cut, and the person said "yüz yakınlaştırma devamlılığı garip". `dogrula` warns.
+- Do not repeat the same framing on **the same person** more than twice in a row. Alternating two speakers in matched close-ups is right.
+- `push_in` at most once or twice a scene, at its peak. Use `detay` on a face only for the one strongest moment; never give `detay` to someone with no line.
 
 Framings are measured on the person, the same in 16:9 and 9:16, however tall the drawing:
 - `close`: head and shoulders.

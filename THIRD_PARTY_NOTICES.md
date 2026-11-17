@@ -14,12 +14,9 @@ is an external tool that you install yourself; it is listed here so you know its
 | Tool | License | Use |
 |---|---|---|
 | [HyperFrames](https://github.com/heygen-com/hyperframes) 0.8.229 | Apache-2.0 | HTML to MP4 rendering, run through `npx` |
-| [Chatterbox](https://github.com/resemble-ai/chatterbox) (`chatterbox-tts`) | MIT (code and weights) | Text to speech. The model embeds an inaudible watermark in its output. |
-| [WhisperX](https://github.com/m-bain/whisperX) | BSD-2-Clause | Listening check and word timings |
-| [faster-whisper](https://github.com/SYSTRAN/faster-whisper) | MIT | Speech recognition used by WhisperX |
+| [edge-tts](https://github.com/rany2/edge-tts) | LGPL-3.0 (installed separately, run as its own process) | Text to speech and word timings through Microsoft Edge's online read-aloud service (no API key; the line text is sent to Microsoft) |
 | [Rhubarb Lip Sync](https://github.com/DanielSWolf/rhubarb-lip-sync) 1.14 | MIT | Mouth shapes |
 | [FFmpeg](https://ffmpeg.org) | LGPL-2.1+ (GPL in some builds) | Audio conversion and review pages |
-| Turkish alignment model `mpoyraz/wav2vec2-xls-r-300m-cv7-turkish` | See its model card | Downloaded by WhisperX on first use |
 
 GSAP is deliberately not used: its license forbids visual, no-code animation tools,
 which the control panel is.

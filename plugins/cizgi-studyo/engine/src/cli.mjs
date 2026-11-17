@@ -6,8 +6,8 @@
  *   cizgi durum      <bolum.json>                    gates, audio state, next step
  *   cizgi senaryo    <bolum.json>                    the script table to show at the senaryo gate
  *   cizgi onayla     senaryo|storyboard <bolum.json> record a human approval (only after a yes)
- *   cizgi ses        <bolum.json> [--hepsi]          speak, check and time changed lines
- *   cizgi ses        <bolum.json> <shot>-<n>         speak that one line again (a new take)
+ *   cizgi ses        <bolum.json> [--hepsi]          speak (Edge TTS, internet) and time changed lines
+ *   cizgi ses        <bolum.json> <shot>-<n>         speak that one line again
  *   cizgi ses-ornek  <bolum.json> <karakter> [--metin "…"]  one sentence in that voice (cikti/ses-ornegi-<id>.wav), no approval
  *   cizgi kabul      <bolum.json> <line-key>         keep a take that failed the listening check (only after a yes)
  *   cizgi storyboard <bolum.json> [--format 16:9]    stills of every shot for review
@@ -33,6 +33,7 @@ import { GATES, readApprovals, gateStatus, scriptFingerprint, storyboardFingerpr
 import { runAudio, readManifest, linesOf, planAudio, lineFingerprint, failedLines, acceptLine, voiceSample } from "./ses.mjs";
 import { storyboard, sceneStills, render, qaPages } from "./uretim.mjs";
 import { loadTools, run } from "./tools.mjs";
+import { lockHolder, pidAlive, defaultLockPath } from "./ses-kilit.mjs";
 import { openPanel } from "./panel-baslat.mjs";
 import { projectLibraryOf, listDrafts, approveDraft } from "./proje-kutuphane.mjs";
 import { decisionProblems } from "./kararlar.mjs";
@@ -107,7 +108,10 @@ export function status(episodePath, lib) {
   else if (plan.todo.length) next = `cizgi ses (${plan.todo.length} line(s) to speak)`;
   else if (gates.storyboard !== "onayli") next = "cizgi storyboard, show the stills, then: cizgi onayla storyboard";
   else next = "cizgi render";
-  return { valid: true, warnings, kararlar, gates, audio: { lines: lines.length, todo: plan.todo.map((l) => l.key), failed }, next };
+  // a voice job running right now (the panel's or another `cizgi ses`): never start a second one
+  const held = lockHolder(defaultLockPath());
+  const running = held && pidAlive(held.pid) ? { bolum: held.bolum, pid: held.pid, since: held.since } : null;
+  return { valid: true, warnings, kararlar, gates, audio: { lines: lines.length, todo: plan.todo.map((l) => l.key), failed, running }, next };
 }
 
 function print(value) {
@@ -157,8 +161,8 @@ function main(argv) {
       return 0;
     }
     case "ses": {
-      // one line: a new take every time (another seed), the other lines stay as they are
-      const one = a2 ? { only: a2, take: 1 + Math.floor(Math.random() * 1000) } : {};
+      // one line spoken again, the other lines stay as they are
+      const one = a2 ? { only: a2 } : {};
       const res = runAudio(a1, lib, loadTools(), { ...deps, force: flags.has("--hepsi"), ...one });
       print(res);
       return res.failed.length ? 3 : 0;

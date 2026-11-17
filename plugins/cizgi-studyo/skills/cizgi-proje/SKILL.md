@@ -35,8 +35,14 @@ The episode is made **with** the person. You never decide a matter of taste for 
 - After the scene pass, ask one approval.
 - Everything else you choose yourself: time of day, decor, actions, camera, feelings. Say it in one chat line; the person changes it by clicking on the stage.
 - **One choice per question.** Never ask two things in one question ("pick one Selin and one Kerem", "effects / captions plain / captions coloured" as a multi-select). The person ticked all four concepts and a follow-up question was needed. Two characters = two questions. Options that exclude each other are single-choice cards. `coklu` is only for "which of these" lists (stand-ins to draw, scenes to change).
-- **Places as one plan:** `panel_sor` "Mekân planım: …" with your proposal for every scene as the first card. List the scenes and their places in its `aciklama`, one card per alternative place (with its picture), and "Yeni mekân çiz" for any of them. Never one question per scene.
-- **Music with sound:** every music card carries its track as `ses: "/kutuphane/muzik/<id>.wav"`, so the person listens on the card. The person picked a track blind once ("dinleme seçeneğim yok"). Effects and captions: one single-choice question with the four combinations as cards.
+- **Places as one plan:** `panel_sor` "Mekân planım: …". Every card must be a complete answer:
+  - first, "Planım uygun", with your place for every scene in its `aciklama` and the main picture;
+  - then "Şu sahnenin mekânını değiştir" (the person writes which on the card);
+  - then "Yeni mekân çiz".
+  A card that only names one place ("Öğrenci odası (s4)") left the person guessing whether it meant keep or change. Never one question per scene.
+- **Music with sound:** every music card carries its track as `ses: "/kutuphane/muzik/<id>.wav"`, so the person listens on the card. The person picked a track blind once ("dinleme seçeneğim yok"). Effects and captions: one single-choice question with the combinations as cards: effects yes/no × captions none / plain / in the speaker's colour. Record exactly what was picked. Never assume coloured captions.
+
+**Write files in UTF-8.** Write JSON with the Write tool or Node's `fs`. Never use PowerShell `Set-Content`/`Out-File`/`>`: it garbled the episode's title into "KÃ¶ÅŸe BaÅŸÄ±". `dogrula` now refuses garbled Turkish.
 
 **Write long code to files.** A drawing script, a scene generator or anything over a few lines goes into a file with the Write tool, then runs with `node <file>`. Never put it in `node -e` or a shell heredoc: Turkish apostrophes (Kerem'in) break the shell quoting, and the same 9 000-character script had to be written twice.
 
@@ -56,6 +62,7 @@ The episode is made **with** the person. You never decide a matter of taste for 
    - Write the scene into `bolum.json`, run `dogrula` and fix its `film:` warnings. Take the scene's stills (`cli.mjs storyboard <bolum.json> --sahne <id> --format <the episode's format>`) and look at every one yourself. Fix what is plainly wrong (out of frame, a prop held wrong, a frozen crowd) before showing it.
    - Then go straight on to the next scene. Do not ask about a detail (a line, an action, a camera) in between: choose it and note it.
    - **Keep to the length.** Plan the shot count from the asked length: about one shot per 3-4 seconds. Köşe Başı grew to 37 shots and 152 s for a 2-minute wish. If a scene runs long, merge shots instead of trimming lines.
+   - **Fix one scene at a time.** Edit only the scene that needs it and take only its stills again. A generator that rewrites every scene made one small fix retake all six scenes.
    - **One check round.** Look at the stills once, fix what is plainly wrong, take only the changed scenes' stills again, and hand over. Polishing in loops kept the person waiting with nothing new to see.
    - **One approval at the end.** When every scene is in, `panel_git` to the first shot and ask one `panel_sor`: "Bütün sahneler kuruldu, uygun mu?". List the scenes in a few words each and what you noticed. Offer options such as "Uygun, senaryoya geç" / "Değiştireceğim (panelde)" / "Şu sahneyi değiştir…" (multi-select over the scenes). Fix what they name, then go on.
 8. **Anything missing** (a character, action, place, prop or sound the library lacks, or something the engine cannot show, such as an expression other than a smile: angry, crying, surprised):
@@ -74,7 +81,11 @@ The episode is made **with** the person. You never decide a matter of taste for 
 10. **Hand the stage to the person** whenever you finish a job: `panel_git` to the first shot (never to the Üretim page). Ask one `panel_sor` "Bölüm sahnede. Ne yapmak istersin?" with two options:
    - "Sahnede bir şeye tıklayıp düzelteceğim": a character, the place, a line or the shot opens its window.
    - "Videoyu çıkar": the top bar's **🎬 Video çıkar**. Point at it with `panel_git {vurgula: "Video çıkar"}`; the person presses it.
-   - Then go into studio mode: `panel_dinle`, with `bekle` 600 at most, so messages from other sessions are not held for long.
+   - Then go into studio mode: `panel_dinle`, with `bekle` 120, so the person's chat messages and other sessions' messages are not held long.
+   - **The script and the voices happen in the chat.** When the person wants the video:
+     - Show the script in the chat (`cizgi-senaryo`) and record it on their yes.
+     - Then generate the voices **once** (`cizgi-ses`); the panel may already be doing it: `cli.mjs durum` / the voice lock tells you, so never start a second voice job.
+     - Tell them in one line when the voices are ready.
 
 ## Library reference and episode format
 

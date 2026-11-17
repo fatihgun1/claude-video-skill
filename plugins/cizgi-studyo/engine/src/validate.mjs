@@ -197,17 +197,53 @@ export function viewWarnings(episode, lib) {
 }
 
 /**
+ * Turkish written as UTF-8 and read back as Windows-1252 ("Köşe" → "KÃ¶ÅŸe"): a file written by a
+ * tool that does not keep UTF-8 (PowerShell Set-Content). Köşe Başı's title came out so in the panel.
+ * @returns {string[]} one error per text that looks garbled
+ */
+const GARBLED = /[ÃÄÅ][\u0080-¿ŒœŠšŸŽžƒˆ˜–-›€™]/;
+function garbledText(episode) {
+  const out = [];
+  const walk = (v, path) => {
+    if (typeof v === "string") {
+      if (GARBLED.test(v)) out.push(`${path}: the text looks garbled ("${v.slice(0, 40)}"): the file was not written as UTF-8; write it again in UTF-8 (the Write tool or Node fs, never PowerShell Set-Content)`);
+    } else if (Array.isArray(v)) v.forEach((x, i) => walk(x, `${path}/${i}`));
+    else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) walk(x, `${path}/${k}`);
+  };
+  walk(episode, "");
+  return out;
+}
+
+// voice settings of the old engine (Chatterbox): no longer read, dropped with a warning
+const OLD_VOICE_FIELDS = ["ref", "exaggeration", "cfg"];
+function withoutOldVoiceFields(episode) {
+  const notes = [];
+  const clean = (v, who) => {
+    if (!v || typeof v !== "object" || Array.isArray(v)) return v;
+    const old = OLD_VOICE_FIELDS.filter((k) => Object.hasOwn(v, k));
+    if (!old.length) return v;
+    notes.push(`${who}: voice ${old.join(", ")} no longer used (Edge TTS), ignored; remove it`);
+    return Object.fromEntries(Object.entries(v).filter(([k]) => !old.includes(k)));
+  };
+  if (!episode || typeof episode !== "object" || !Array.isArray(episode.characters)) return { episode, notes };
+  const next = { ...episode, characters: episode.characters.map((c) => (c && c.voice ? { ...c, voice: clean(c.voice, `character "${c.id}"`) } : c)) };
+  if (episode.narrator_voice) next.narrator_voice = clean(episode.narrator_voice, "narrator");
+  return { episode: next, notes };
+}
+
+/**
  * Validate an episode against the schema and the library.
  * @param {unknown} episode parsed episode JSON
  * @param {ReturnType<import("./library.mjs").loadLibrary>} lib
  * @returns {{ok: boolean, errors: string[], warnings: string[]}}
  */
-export function validateEpisode(episode, lib) {
+export function validateEpisode(input, lib) {
+  const { episode, notes } = withoutOldVoiceFields(input);
   if (!checkSchema(episode)) {
     const errors = checkSchema.errors.map((e) => `schema ${e.instancePath || "/"}: ${e.message}`);
     return { ok: false, errors, warnings: [] };
   }
-  const errors = [];
+  const errors = [...garbledText(episode)];
   const profileId = episode.profile || "genel";
   const profile = lib.profiles.get(profileId);
   if (!profile) errors.push(`profile "${profileId}" is not in the library (${list(lib.profiles.keys())})`);
@@ -273,7 +309,7 @@ export function validateEpisode(episode, lib) {
       errors.push(...checkShot(shot, `shot ${shot.shot_id}`, { lib, characterIds, rigOf }));
     }
   }
-  const warnings = profile ? ruleWarnings(episode, profile.rules || {}) : [];
+  const warnings = [...notes, ...(profile ? ruleWarnings(episode, profile.rules || {}) : [])];
   if (errors.length === 0) warnings.push(...viewWarnings(episode, lib), ...filmWarnings(episode, lib));
   return { ok: errors.length === 0, errors, warnings };
 }

@@ -3,7 +3,7 @@
 // Claude drew (taken in with one click), quick actions, and a short chat (panel-sohbet.mjs).
 // Everything from Claude is drawn as text; pictures are only the panel's own drawings.
 import { el, svg } from "./dom.js";
-import { startRecording, fileToWav, MAX_RECORD_S } from "./kayit.js";
+import { valueSlider } from "./denetleyici-alan.js";
 
 // a line's feelings (ses.mjs MOODS); "" = none, the character's own flat voice
 const MOODS = [["", "Normal"], ["sakin", "Sakin"], ["neseli", "Neşeli"], ["heyecanli", "Heyecanlı"], ["uzgun", "Üzgün"], ["kizgin", "Kızgın"], ["korkmus", "Korkmuş"]];
@@ -47,8 +47,7 @@ export function createObjectWindow(ctx) {
   let error = "";
   let taking = ""; // "al" | "reddet" while a draft action runs
   let shownSeq = -1;
-  let voice = { phase: "idle" }; // the character's voice: idle | recording | recorded | busy, and what to show
-  let recorder = null;
+  let voice = { phase: "idle" }; // the character's voice: idle | busy, and what to show
   let line = { busy: false, msg: "", take: 0 }; // a line spoken again from its window
   let drawn = 0;
   let shotNote = null; // what the last recipe did, or why it could not // bumped when a drawing changes under the same address, so the browser does not show the old one
@@ -279,44 +278,35 @@ export function createObjectWindow(ctx) {
           : el("p", { class: "npencere-hata", text: (draft.errors || []).join("; ").slice(0, 300) })));
   }
 
-  /** The character's voice, right here: record your own, hear a sample. Nothing waits for Claude. */
+  /** The character's voice, right here: a ready voice, its pitch and speed, a sample. Nothing waits for Claude. */
   function voiceSection() {
     const info = ctx.voiceInfo?.(topic.oyuncu);
     if (!info) return null;
     const shared = info.owner !== topic.oyuncu ? el("p", { class: "muted small", text: `Bu görünüş ${info.ad} ile aynı sesi kullanır.` }) : null;
-    const parts = [shared, readyVoices(info)]; // the fold's title says the voice now
-    if (voice.phase === "recording") {
-      parts.push(
-        el("div", { class: "kayit-olcer", "aria-hidden": "true" }, el("span", { style: { width: "0%" } })),
-        el("p", { class: "small kayit-sure", role: "status", text: `Kaydediliyor: 0 / ${MAX_RECORD_S} sn. Bir iki cümle oku, sonra durdur.` }),
-        el("button", { class: "btn primary small", type: "button", text: "■ Durdur", on: { click: stopRecording } }));
-    } else if (voice.phase === "recorded") {
-      parts.push(
-        el("audio", { class: "kanal-ses", controls: "", src: voice.url, "aria-label": "Kaydını dinle" }),
-        el("div", { class: "row" },
-          el("button", { class: "btn primary small", type: "button", text: "Bu sesi kullan", on: { click: useRecording } }),
-          el("button", { class: "btn small", type: "button", text: "Yeniden kaydet", on: { click: record } })));
-    } else {
-      parts.push(el("div", { class: "row" },
-        el("button", { class: "btn small", type: "button", text: "🎙 Sesimi kaydet", title: `${MAX_RECORD_S} saniyeye kadar: bu karakter senin sesinle konuşur`, on: { click: record } }),
-        el("label", { class: "btn small", title: "Telefonda kaydettiğin bir ses dosyası (m4a, mp3, wav): ilk 20 saniyesi alınır" }, "📁 Dosyadan seç",
-          el("input", { type: "file", accept: "audio/*", class: "gizli", on: { change: (e) => fromFile(e.target.files?.[0]) } })),
-        el("button", { class: "btn small", type: "button", "aria-busy": voice.phase === "busy" ? "true" : null, text: voice.phase === "busy" ? "Hazırlanıyor…" : "▶ Örnek dinle", title: "Bu sesle bir cümle (ses modeli yüklenirken 1-2 dakika)", on: { click: sample } })));
-    }
+    const signed = (unit) => (x) => `${x > 0 ? "+" : ""}${Math.round(x)} ${unit}`;
+    const parts = [shared, readyVoices(info), // the fold's title says the voice now
+      el("div", { class: "npencere-ayar" },
+        el("span", { class: "muted small", text: "Perde (kalın – ince)" }),
+        valueSlider(info.perde, { min: -30, max: 30, step: 1, label: "Ses perdesi (Hz)", show: signed("Hz"), onSet: (x) => tune("perde", x) })),
+      el("div", { class: "npencere-ayar" },
+        el("span", { class: "muted small", text: "Hız (yavaş – hızlı)" }),
+        valueSlider(info.hiz, { min: -30, max: 30, step: 1, label: "Konuşma hızı (%)", show: signed("%"), onSet: (x) => tune("hiz", x) })),
+      el("div", { class: "row" },
+        el("button", { class: "btn small", type: "button", "aria-busy": voice.phase === "busy" ? "true" : null, text: voice.phase === "busy" ? "Hazırlanıyor…" : "▶ Örnek dinle", title: "Bu sesle bir cümle (birkaç saniye; internet gerekir)", on: { click: sample } }))];
     if (voice.phase === "busy") parts.push(el("p", { class: "npencere-durum", role: "status" }, el("span", { class: "cark", "aria-hidden": "true" }), voice.msg || "Hazırlanıyor…"));
     else if (voice.msg) parts.push(el("p", { class: voice.error ? "npencere-hata" : "muted small", role: "status", text: voice.msg }));
     if (voice.sampleUrl && voice.phase === "idle") parts.push(el("audio", { class: "kanal-ses", controls: "", autoplay: "", src: voice.sampleUrl, "aria-label": "Ses örneği" }));
-    parts.push(el("p", { class: "muted small", text: "Yalnız kendi sesini ya da kullanma hakkın olan bir sesi kaydet." }));
+    parts.push(el("p", { class: "muted small", text: "Sesler Microsoft Edge'in çevrimiçi sesleriyle yapılır: yalnız replik metni gönderilir." }));
     return el("section", { class: "npencere-ses", "aria-label": "Ses" }, ...parts.filter(Boolean));
   }
 
   /** The library's ready voices: hear each one, pick one with a click. */
   function readyVoices(info) {
-    if (!info.voices.length || voice.phase === "recording" || voice.phase === "recorded") return null;
+    if (!info.voices.length) return null;
     return el("ul", { class: "hazir-sesler", "aria-label": "Hazır sesler" }, info.voices.map((v) => {
       const on = info.hazir === v.id;
       return el("li", { class: on ? "secili" : "" },
-        el("button", { class: "btn icon small", type: "button", "aria-label": `${v.label} sesini dinle`, title: "Dinle", text: "▶", on: { click: () => preview(v.id) } }),
+        el("button", { class: "btn icon small", type: "button", "aria-label": `${v.label} sesini dinle`, title: "Dinle (ilk seferde birkaç saniye)", text: "▶", on: { click: () => preview(v.id) } }),
         el("span", {}, el("strong", { text: v.label }), v.note ? el("small", { class: "muted", text: v.note }) : null),
         on ? el("span", { class: "small", text: "✓ seçili" })
           : el("button", { class: "btn small", type: "button", disabled: voice.phase === "busy" ? "" : null, text: "Seç", on: { click: () => pickReady(v.id) } }));
@@ -327,7 +317,10 @@ export function createObjectWindow(ctx) {
   function preview(id) {
     player?.pause();
     player = new Audio(`/kutuphane/sesler/${encodeURIComponent(id)}.wav`);
-    player.play().catch(() => {});
+    player.play().catch(() => {
+      voice = { phase: "idle", error: true, msg: "Örnek çalınamadı: internet bağlantısını denetle." };
+      render();
+    });
   }
 
   async function pickReady(id) {
@@ -342,59 +335,10 @@ export function createObjectWindow(ctx) {
     render();
   }
 
-  async function record() {
-    if (recorder || voice.phase === "busy") return;
-    voice = { phase: "recording" };
-    render();
+  /** The pitch (perde, Hz) or speed (hiz, %) of this character's voice, on top of its ready voice. */
+  async function tune(key, value) {
     try {
-      const rec = await startRecording({ onLevel: (level, secs) => {
-        // update in place: a redraw every few milliseconds would drop the person's clicks
-        const meter = box.querySelector(".kayit-olcer span");
-        if (meter) meter.style.width = `${Math.round(Math.min(1, level * 2) * 100)}%`;
-        const note = box.querySelector(".kayit-sure");
-        if (note) note.textContent = `Kaydediliyor: ${secs.toFixed(0)} / ${MAX_RECORD_S} sn. Bir iki cümle oku, sonra durdur.`;
-      } });
-      if (voice.phase !== "recording") return rec.cancel(); // the window moved on meanwhile
-      recorder = rec;
-      recorder.onLimit = () => stopRecording();
-    } catch (err) {
-      // the app's built-in browser blocks the microphone: say how to record anyway
-      const blocked = err?.name === "NotAllowedError" || /denied|permission/i.test(err?.message || "");
-      voice = { phase: "idle", error: true, msg: blocked
-        ? `Bu pencerede mikrofon kapalı. Kaydı telefonunla yapıp “Dosyadan seç” ile ekle, ya da paneli Chrome'da aç: ${location.origin}`
-        : `Mikrofon açılamadı: ${err.message}` };
-      render();
-    }
-  }
-
-  async function fromFile(file) {
-    if (!file) return;
-    voice = { phase: "busy", msg: "Dosya okunuyor…" };
-    render();
-    try {
-      const out = await fileToWav(file);
-      voice = { phase: "recorded", url: URL.createObjectURL(out.blob), base64: out.base64 };
-    } catch (err) {
-      voice = { phase: "idle", error: true, msg: err.message };
-    }
-    render();
-  }
-
-  async function stopRecording() {
-    if (!recorder) return;
-    const rec = recorder;
-    recorder = null;
-    const out = await rec.stop();
-    voice = { phase: "recorded", url: URL.createObjectURL(out.blob), base64: out.base64 };
-    render();
-  }
-
-  async function useRecording() {
-    const base64 = voice.base64;
-    voice = { phase: "busy", msg: "Kayıt karakterin sesi yapılıyor…" };
-    render();
-    try {
-      voice = { phase: "idle", msg: await ctx.useRecording(topic.oyuncu, base64) };
+      voice = { phase: "idle", msg: await ctx.tuneVoice(topic.oyuncu, key, value) };
     } catch (err) {
       voice = { phase: "idle", error: true, msg: `Olmadı: ${err.message}` };
     }
@@ -403,7 +347,7 @@ export function createObjectWindow(ctx) {
 
   async function sample() {
     if (voice.phase === "busy") return;
-    voice = { phase: "busy", msg: "Ses örneği hazırlanıyor (ses modeli yüklenirken 1-2 dakika)…" };
+    voice = { phase: "busy", msg: "Ses örneği hazırlanıyor…" };
     render();
     try {
       voice = { phase: "idle", sampleUrl: await ctx.sample(topic.oyuncu) };
@@ -529,8 +473,6 @@ export function createObjectWindow(ctx) {
   }
 
   function close() {
-    recorder?.cancel();
-    recorder = null;
     voice = { phase: "idle" };
     topic = null;
     error = "";
@@ -549,8 +491,6 @@ export function createObjectWindow(ctx) {
         error = "";
         shotNote = null;
         input.value = "";
-        recorder?.cancel();
-        recorder = null;
         voice = { phase: "idle" };
         line = { busy: false, msg: "", take: 0 };
       }

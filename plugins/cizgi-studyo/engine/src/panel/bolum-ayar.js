@@ -15,7 +15,7 @@ const LOOKS_3D = [
   { id: "pastel", label: "Pastel" }, { id: "golge", label: "Toon + gölge, kontursuz" },
 ];
 
-const twoDecimals = (x) => x.toFixed(2);
+const signed = (unit) => (x) => `${x > 0 ? "+" : ""}${Math.round(x)} ${unit}`;
 
 /** Each speaker's voice settings (characters[].voice, narrator_voice) and a sample to hear them. */
 function voices(ep, ctx) {
@@ -33,9 +33,8 @@ function voices(ep, ctx) {
     const status = el("span", { class: "muted small", role: "status" });
     return el("div", { class: "voice-row" },
       el("b", { text: sp.label }),
-      labelled("İfade", valueSlider(v.exaggeration ?? 0.5, { min: 0.25, max: 1.5, label: `${sp.label}: ifade gücü`, show: twoDecimals, onSet: (x) => set("exaggeration", x, 0.5) })),
-      labelled("Düzgünlük", valueSlider(v.cfg ?? 0.5, { min: 0.4, max: 1, label: `${sp.label}: düzgünlük`, show: twoDecimals, onSet: (x) => set("cfg", x, 0.5) })),
-      v.ref ? el("p", { class: "field-hint", text: `Örnek kayıt: ${v.ref}` }) : null,
+      labelled("Perde", valueSlider(v.perde ?? 0, { min: -30, max: 30, step: 1, label: `${sp.label}: ses perdesi (Hz)`, show: signed("Hz"), onSet: (x) => set("perde", x, 0) })),
+      labelled("Hız", valueSlider(v.hiz ?? 0, { min: -30, max: 30, step: 1, label: `${sp.label}: konuşma hızı (%)`, show: signed("%"), onSet: (x) => set("hiz", x, 0) })),
       el("div", { class: "row-inline" },
         el("button", { class: "btn small", type: "button", disabled: !ctx.sample, on: { click: () => ctx.sample(sp.id, (t) => { status.textContent = t; }) } }, "▶ Örnek dinle"),
         status));

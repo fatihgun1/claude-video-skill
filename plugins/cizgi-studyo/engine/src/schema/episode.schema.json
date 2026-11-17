@@ -326,7 +326,7 @@
               "duygu": {
                 "type": "string",
                 "enum": ["sakin", "neseli", "heyecanli", "uzgun", "kizgin", "korkmus"],
-                "description": "How the line is said. Without it the speaker's own voice settings (flat)."
+                "description": "How the line is said: shifts the speaker's rate, pitch and loudness (ses.mjs MOODS). Without it the speaker's own voice (flat)."
               },
               "altyazi": {
                 "type": "boolean",
@@ -551,26 +551,24 @@
     "voice": {
       "type": "object",
       "additionalProperties": false,
+      "description": "How a character speaks (Edge TTS): a ready voice and small changes to it.",
       "properties": {
-        "ref": {
-          "type": "string",
-          "description": "Reference clip (about 10 s, episode-relative) for voice cloning."
-        },
         "hazir": {
           "type": "string",
           "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
-          "description": "A ready voice from the library (library/sesler/<id>.wav: kadin, erkek, erkek-kalin, cocuk). voice.ref wins when both are set."
+          "description": "A ready voice from the library (library/sesler/sesler.json: kadin, kadin-2, erkek, erkek-kalin, yasli, cocuk). Without it the library's first voice."
         },
-        "exaggeration": {
+        "perde": {
           "type": "number",
-          "minimum": 0.25,
-          "maximum": 1.5
+          "minimum": -40,
+          "maximum": 40,
+          "description": "Pitch shift in Hz on top of the ready voice (-: deeper, +: higher)."
         },
-        "cfg": {
+        "hiz": {
           "type": "number",
-          "minimum": 0.4,
-          "maximum": 1,
-          "description": "Below 0.4 Chatterbox starts adding or mangling words (Faz 0)."
+          "minimum": -40,
+          "maximum": 40,
+          "description": "Speaking rate change in % on top of the ready voice and the profile tempo."
         }
       }
     }

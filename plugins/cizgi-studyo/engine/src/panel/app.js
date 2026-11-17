@@ -238,7 +238,7 @@ function respeak(ownerId) {
       refreshPreview();
     })
     .catch((err) => note(`Yeni ses üretilemedi: ${err.message}`));
-  return "Replikleri şimdi bu sesle yeniden seslendiriliyor (birkaç dakika); bitince sahnede duyarsın.";
+  return "Replikleri şimdi bu sesle yeniden seslendiriliyor (yarım dakika kadar); bitince sahnede duyarsın.";
 }
 
 /** Run a production job on the saved episode and wait for it: its result, or throws why it failed. */
@@ -278,28 +278,31 @@ const objectWindow = createObjectWindow({
     const owner = voiceOwner(id);
     if (!owner) return null;
     const v = owner.voice || {};
-    const ready = (state.vocab?.voices || []).find((x) => x.id === v.hazir);
-    const now = v.ref ? "kendi kaydın" : ready ? `hazır ses: ${ready.label}` : "varsayılan ses (herkesle aynı)";
-    return { owner: owner.id, ad: labelOf(owner.id), now, hazir: v.ref ? null : v.hazir || null, voices: state.vocab?.voices || [] };
+    const voices = state.vocab?.voices || [];
+    const ready = voices.find((x) => x.id === v.hazir) || (v.hazir ? null : voices[0]);
+    const tuned = v.perde || v.hiz ? " (ayarlı)" : "";
+    const now = ready ? `${ready.label}${tuned}` : "varsayılan ses";
+    return { owner: owner.id, ad: labelOf(owner.id), now, hazir: ready?.id || null, perde: v.perde || 0, hiz: v.hiz || 0, voices };
   },
-  // the person's recording becomes that character's voice: saved next to the episode, then the episode is saved
-  useRecording: async (id, base64) => {
-    const owner = voiceOwner(id);
-    const res = await api("/api/ses-kayit", { b: state.path, karakter: owner.id, wav: base64 });
-    owner.voice = { ...(owner.voice || {}), ref: res.ref };
-    changed(true);
-    await save();
-    return `${labelOf(owner.id)} artık senin kaydınla konuşacak (${res.sure} sn). ${respeak(owner.id)}`;
-  },
-  // a ready voice from the library becomes that person's voice (a recording of their own is dropped)
+  // a ready voice from the library becomes that person's voice
   useReady: async (id, hazir) => {
     const owner = voiceOwner(id);
-    const { ref, ...rest } = owner.voice || {};
-    owner.voice = { ...rest, hazir };
+    owner.voice = { ...(owner.voice || {}), hazir };
     changed(true);
     await save();
     const label = (state.vocab?.voices || []).find((x) => x.id === hazir)?.label || hazir;
     return `${labelOf(owner.id)} artık “${label}” sesiyle konuşacak. ${respeak(owner.id)}`;
+  },
+  // the pitch (perde, Hz) or speed (hiz, %) of that person's voice; 0 = the ready voice as it is
+  tuneVoice: async (id, key, value) => {
+    const owner = voiceOwner(id);
+    const next = { ...(owner.voice || {}), [key]: Math.round(value) };
+    if (!next[key]) delete next[key];
+    owner.voice = Object.keys(next).length ? next : undefined;
+    if (!owner.voice) delete owner.voice;
+    changed(true);
+    await save();
+    return `Kaydedildi. “▶ Örnek dinle” ile duy. ${respeak(owner.id)}`;
   },
   sample: async (id) => {
     const owner = voiceOwner(id);
@@ -448,7 +451,7 @@ const inspector = createInspector($("inspector"), {
     try {
       if (dirty()) await save();
       if (dirty()) return report("Önce kaydet: örnek kayıtlı ses ayarlarıyla yapılır.");
-      report("Ses örneği hazırlanıyor (ses modeli yüklenirken 1-2 dakika sürebilir)…");
+      report("Ses örneği hazırlanıyor…");
       await api("/api/is", { b: state.path, kind: "ornek", format: state.format, sahne: id });
       for (;;) {
         await new Promise((r) => setTimeout(r, 1500));
@@ -1097,6 +1100,16 @@ const requests = createRequests($("claude"), {
   saving: () => saving,
   storyVersion: (v) => story.diskVersion(v),
   draftsVersion: (v) => drafts.onSignature(v),
+  // voices made outside the panel (Claude ran cizgi ses): the preview picks them up without a reload
+  // (Köşe Başı: the lines played one by one but the stage stayed silent until the page was reloaded)
+  audioVersion: (v) => {
+    const known = state.audioSeen;
+    state.audioSeen = { path: state.path, v };
+    if (known && known.path === state.path && known.v !== v) {
+      refreshPreview();
+      note("Sesler güncellendi: sahnede oynatınca duyarsın.");
+    }
+  },
   reload: () => open(state.path),
   note,
   api,

@@ -2,8 +2,7 @@
  * External tools (Python environments, Rhubarb, ffmpeg, HyperFrames) and a process runner.
  *
  * Paths come from environment variables, else from ~/.cizgi-studyo/config.json:
- *   CIZGI_PYTHON_TTS    python of the environment with chatterbox-tts   (python_tts)
- *   CIZGI_PYTHON_ALIGN  python of the environment with whisperx         (python_align)
+ *   CIZGI_PYTHON_TTS    python of the environment with edge-tts         (python_tts)
  *   CIZGI_RHUBARB       rhubarb executable                              (rhubarb)
  *   CIZGI_FFMPEG        ffmpeg executable, default "ffmpeg"              (ffmpeg)
  */
@@ -17,7 +16,6 @@ export const HYPERFRAMES = "hyperframes@0.8.229";
 
 const KEYS = {
   pythonTts: ["CIZGI_PYTHON_TTS", "python_tts"],
-  pythonAlign: ["CIZGI_PYTHON_ALIGN", "python_align"],
   rhubarb: ["CIZGI_RHUBARB", "rhubarb"],
   ffmpeg: ["CIZGI_FFMPEG", "ffmpeg"],
 };
@@ -25,7 +23,7 @@ const KEYS = {
 /**
  * @param {Record<string,string|undefined>} [env]
  * @param {string} [home]
- * @returns {{pythonTts?:string, pythonAlign?:string, rhubarb?:string, ffmpeg:string, configPath:string}}
+ * @returns {{pythonTts?:string, rhubarb?:string, ffmpeg:string, configPath:string}}
  */
 export function loadTools(env = process.env, home = homedir()) {
   const configPath = join(home, ".cizgi-studyo", "config.json");
