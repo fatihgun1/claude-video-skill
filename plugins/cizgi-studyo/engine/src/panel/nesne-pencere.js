@@ -117,6 +117,7 @@ export function createObjectWindow(ctx) {
   /** The thing itself: its drawing (and a new version), or a line's words and voice, an effect, a shot's camera. */
   function body() {
     if (topic.tur === "karakter") return el("div", { class: "npencere-govde" }, drawings(), viewRow(), voiceSection());
+    if (topic.tur === "mekan") return el("div", { class: "npencere-govde" }, drawings(), transitionRow());
     if (DRAWN.has(topic.tur)) return drawings();
     const g = topic.goster || {};
     if (topic.tur === "replik") {
@@ -141,6 +142,19 @@ export function createObjectWindow(ctx) {
       problems(g.sorunlar || []),
       recipes(g.tarifler || [], g.kisi || 0),
       shotNote ? el("p", { class: shotNote.error ? "npencere-hata" : "muted small", role: "status", text: shotNote.text }) : null);
+  }
+
+  /** How this scene begins after the previous one: a short dip to black, or a hard cut. */
+  function transitionRow() {
+    const g = topic.goster || {};
+    if (g.ilk || !ctx.setTransition) return null; // the first scene has nothing before it
+    const options = [["kararma", "Kararma", "Önceki sahneden kısa bir kararmayla geçer"], ["kesme", "Kesme", "Doğrudan kesilir"]];
+    return el("div", { class: "npencere-gorunus", role: "radiogroup", "aria-label": "Sahneye geçiş" },
+      el("span", { class: "small", text: "Sahneye geçiş:" }),
+      ...options.map(([k, t, tip]) => el("button", {
+        class: `btn small${g.gecis === k ? " primary" : ""}`, type: "button", role: "radio", "aria-checked": String(g.gecis === k), title: tip, text: t,
+        on: { click: () => { if (g.gecis !== k) ctx.setTransition(k); } },
+      })));
   }
 
   /** The person in another view, in this shot: one click, no waiting. */

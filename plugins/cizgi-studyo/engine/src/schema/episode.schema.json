@@ -171,6 +171,10 @@
               "boyut": { "enum": ["kucuk", "orta", "buyuk"] }
             }
           },
+          "gecis": {
+            "description": "How the scene begins: kararma (default) dips to black and back over about 0.6 s around the cut, kesme is a hard cut.",
+            "enum": ["kararma", "kesme"]
+          },
           "isik": {
             "description": "Light and time of day of the scene: a colour grade over its world (not the captions). ogle is the drawing as it is; guc is how strongly (default 1).",
             "type": "object",

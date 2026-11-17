@@ -14,6 +14,7 @@ import { validateEpisode, profileOf } from "./validate.mjs";
 import { buildTimeline, wavDuration } from "./timing.mjs";
 import { readJson, has } from "./util.mjs";
 import { readWav, writeWav, mixMusic } from "./muzik.mjs";
+import { gateCues, silencesOfFile } from "./dudak.mjs";
 import { captionPlace, captionShown, speakerColor } from "./altyazi.mjs";
 
 const RUNTIME_DIR = join(dirname(fileURLToPath(import.meta.url)), "runtime");
@@ -88,7 +89,8 @@ export function readAudioInfo(wavPath) {
   return {
     duration: wavDuration(readFileSync(wavPath)),
     words: readWords(`${base}.words.json`),
-    cues: readCues(`${base}.rhubarb.json`),
+    // the mouth closes where the line is quiet (Rhubarb alone kept it moving through pauses)
+    cues: gateCues(readCues(`${base}.rhubarb.json`), silencesOfFile(wavPath)),
   };
 }
 
@@ -387,6 +389,7 @@ function pageHtml({ episode, timeline, viewport, lib, audioTags, data, props, de
           ${chars.join("\n          ")}
         </g>
         </g>
+        <rect id="gecis" x="0" y="0" width="${viewport.width}" height="${viewport.height}" fill="#000" opacity="0" pointer-events="none"/>
       </svg>
       <div id="altyazilar">
       ${timeline.shots.map((s) => captionMarkup(s, episode, portrait ? "9:16" : "16:9")).join("\n      ")}
@@ -513,6 +516,7 @@ export function compileEpisode(episodePath, lib, outDir, opts = {}) {
       shot_id: s.shot_id, scene_id: s.scene_id, bg: s.bg, start: s.start, end: s.end, cast: s.cast, camera: s.camera,
       ...(sceneOf.get(s.scene_id)?.katmanlar ? { katmanlar: sceneOf.get(s.scene_id).katmanlar } : {}),
       ...(sceneOf.get(s.scene_id)?.isik ? { isik: sceneOf.get(s.scene_id).isik } : {}),
+      ...(sceneOf.get(s.scene_id)?.gecis ? { gecis: sceneOf.get(s.scene_id).gecis } : {}),
       utterances: s.utterances.map((u) => ({ speaker: u.speaker, start: u.start, end: u.end, words: u.words, cues: u.cues })),
       props: props.data[i],
       anchors: props.anchors[i],

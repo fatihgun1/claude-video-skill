@@ -422,6 +422,29 @@
     return hi - lo + 2 * (RIG_HALF_WIDTH * layout.scale + CAST_MARGIN);
   }
 
+  /** Half of a scene change's dip to black, in seconds (out, then back in). */
+  const TRANSITION_HALF = 0.3;
+
+  /**
+   * How dark the picture is at time t (0 clear, 1 black): it dips to black around each change of
+   * scene (unless that scene begins with gecis "kesme"), so scenes no longer jump into each other.
+   * The film's first and last frames stay clear: the panel opens on the first one.
+   * @param {{scene_id:string, start:number, end:number, gecis?:string}[]} shots
+   */
+  function transitionAlpha(shots, t) {
+    if (!shots.length) return 0;
+    const cuts = [];
+    for (let i = 1; i < shots.length; i++) {
+      if (shots[i].scene_id !== shots[i - 1].scene_id && shots[i].gecis !== "kesme") cuts.push(shots[i].start);
+    }
+    let a = 0;
+    for (const c of cuts) {
+      const d = Math.abs(t - c);
+      if (d < TRANSITION_HALF) a = Math.max(a, 1 - d / TRANSITION_HALF);
+    }
+    return a;
+  }
+
   /** Default rig face height (rig units) when a character does not declare one. */
   const DEFAULT_FACE_Y = 400;
 
@@ -586,6 +609,8 @@
     keepWidthFor,
     shotCamera,
     outOfFrame,
+    transitionAlpha,
+    TRANSITION_HALF,
     hoseGeometry,
     secondaryMotion,
     LAG,

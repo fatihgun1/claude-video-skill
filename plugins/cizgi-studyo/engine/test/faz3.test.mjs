@@ -208,3 +208,31 @@ test("propLayer: the camera looks at a held prop in the holder's hand, not where
   const free = propLayer(buildTimeline(loose, () => ({ duration: 0 })), loose, lib, { width: 1920, height: 1080 });
   assert.equal(free.anchors[0].s[0], lib.world.marks.orta, "a prop nobody holds: still its floor spot");
 });
+
+test("a change of scene dips to black and back; a hard cut and the film's first frame stay clear", () => {
+  const shots = [
+    { scene_id: "s1", start: 0, end: 3 },
+    { scene_id: "s1", start: 3, end: 5 },
+    { scene_id: "s2", start: 5, end: 8 },
+    { scene_id: "s3", start: 8, end: 10, gecis: "kesme" },
+  ];
+  const a = (t) => C.transitionAlpha(shots, t);
+  assert.equal(a(0), 0, "the first frame (the panel opens on it) is clear");
+  assert.equal(a(3), 0, "no dip inside a scene");
+  assert.equal(a(5), 1, "black at the change of scene");
+  assert.ok(a(4.85) > 0 && a(4.85) < 1 && a(5.15) > 0 && a(5.15) < 1, "out and back in around it");
+  assert.ok(a(5 + C.TRANSITION_HALF) < 1e-9, "clear again after the dip");
+  assert.equal(a(8), 0, "gecis kesme: a hard cut");
+  assert.equal(a(10), 0);
+});
+
+test("the compiled page has the fade layer above the world, and a scene's gecis reaches the player", () => {
+  const dir = mkdtempSync(join(tmpdir(), "cizgi-gecis-"));
+  const ep = episode();
+  ep.scenes.push({ scene_id: "s2", bg: "sokak", gecis: "kesme", shots: [{ shot_id: "c", cast: [{ id: "genc", action: "bak", mark: "sol" }], camera: { framing: "wide" } }] });
+  writeFileSync(join(dir, "bolum.json"), JSON.stringify(ep));
+  compileEpisode(join(dir, "bolum.json"), lib, join(dir, "p"));
+  const html = readFileSync(join(dir, "p", "index.html"), "utf8");
+  assert.match(html, /<\/g>\s*<\/g>\s*<rect id="gecis"[^>]*fill="#000" opacity="0"/);
+  assert.ok(html.includes('"gecis":"kesme"'));
+});

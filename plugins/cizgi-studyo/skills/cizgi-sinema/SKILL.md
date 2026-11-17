@@ -28,6 +28,8 @@ Sources: [continuity editing (StudioBinder)](https://www.studiobinder.com/blog/w
 | **Eyeline match** | After a character looks somewhere, the next shot shows what is there, framed from roughly their side of the axis. | – plan it |
 | **Lead room** | A moving or looking character has more space in front of them than behind. | – camera `follow` keeps the walker left of centre when walking right |
 
+**Between scenes:** every scene begins with a short dip to black by default, about 0.3 s out and 0.3 s in. That is `scene.gecis`, `kararma`; use `kesme` for a hard cut, for example to keep a chase going. The person changes it in the place window (**Sahneye geçiş**).
+
 ## 3. Camera vocabulary (library: `cameras.json`)
 - **wide**: geography and who is where; also the release at the end.
 - **medium** (anchor: body): actions with the hands, decisions.

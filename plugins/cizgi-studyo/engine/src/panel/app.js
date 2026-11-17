@@ -292,6 +292,14 @@ const objectWindow = createObjectWindow({
     const res = await runJob("ornek", owner.id);
     return `${state.outputsUrl || ""}${res.dosya}?v=${Date.now()}`;
   },
+  // how this scene begins: a dip to black (default) or a hard cut
+  setTransition: (kind) => {
+    const f = find(state.sel.shot);
+    if (!f) return;
+    setKey(f.scene, "gecis", kind === "kararma" ? undefined : kind);
+    changed(true);
+    objectWindow.open(placeTopic());
+  },
   // the same person in another view, in this shot (side, front 3/4, back 3/4)
   setView: (oyuncu, kind) => {
     const f = find(state.sel.shot);
@@ -360,7 +368,7 @@ function topicOf(kind, index) {
 /** The place of the shot on screen (a click on the empty stage). */
 function placeTopic() {
   const f = find(state.sel.shot);
-  return f ? { tur: "mekan", id: f.scene.bg, ad: `Mekân: ${f.scene.bg}`, bolum: state.path, shot: f.shot.shot_id } : null;
+  return f ? { tur: "mekan", id: f.scene.bg, ad: `Mekân: ${f.scene.bg}`, bolum: state.path, shot: f.shot.shot_id, goster: { gecis: f.scene.gecis || "kararma", ilk: state.draft.scenes[0] === f.scene } } : null;
 }
 /** The shot itself: its camera and composition. */
 function shotTopic() {

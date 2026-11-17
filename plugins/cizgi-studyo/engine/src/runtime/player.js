@@ -95,6 +95,7 @@
   // the scene light (scene.isik): a colour matrix over the world group, off when the scene has none
   const lightGroup = byId("isik-g");
   const lightMatrixEl = byId("isik-m");
+  const fade = byId("gecis"); // the dip to black between scenes
   let lightKey = null;
   const backgrounds = {};
   for (const bg of D.backgrounds) backgrounds[bg] = byId("bg-" + bg);
@@ -327,6 +328,8 @@
       const pose = C.secondaryMotion(poseFor(idx, member, local), poseFor(idx, member, Math.max(0, local - C.LAG)));
       drawCharacter(rig, member, pose, t, speaking, local, shot.end - shot.start);
     }
+
+    if (fade) fade.setAttribute("opacity", C.transitionAlpha(D.shots, t).toFixed(3));
 
     const p = (t - shot.start) / (shot.end - shot.start);
     const cam = C.shotCamera(shot, p, D.world, D.cameras, D.viewport, D.faces);

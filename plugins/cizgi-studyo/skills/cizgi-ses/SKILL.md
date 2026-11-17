@@ -22,6 +22,8 @@ For every line that is new or changed, the engine:
 
 Results go to `ses/<shot>-<n>.wav` plus `.words.json`, `.rhubarb.json` and `ses/manifest.json`.
 
+Lip sync: Rhubarb does not know Turkish and kept the mouth moving through pauses. The engine therefore closes the mouth wherever the line's audio is quiet for 80 ms or more (`dudak.mjs`, at compile time). In the KPSS episode this raised the mouth-to-sound match from 0.22 to 0.73. Nothing to do on your side; regenerating is not needed.
+
 ## Reading the result
 The command prints `{generated, kept, failed}` and exits with **3** when some lines stayed wrong after all retries. For each failed line, show the person what was expected and what was heard (`heard`, `cer`), then offer three options:
 - try again: `ses` (new seeds)
