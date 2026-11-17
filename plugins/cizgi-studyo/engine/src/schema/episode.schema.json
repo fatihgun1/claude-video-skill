@@ -407,6 +407,7 @@
                 "properties": {
                   "dx": {
                     "type": "number",
+                    "description": "Direction and length of the walk: positive walks to the right, negative to the left (someone coming in from the right walks with a negative dx). Set the cast.dx start so the walk ends where they should stop.",
                     "minimum": -1500,
                     "maximum": 1500
                   },

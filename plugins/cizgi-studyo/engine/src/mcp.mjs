@@ -22,7 +22,7 @@ import { queueOf, takeRequests, updateRequest, describe, episodeFile, ANSWERS, M
 
 // The Claude session this server belongs to: requests from its panel are for it alone (istekler.mjs).
 const SESSION_ID = process.env.CLAUDE_CODE_SESSION_ID || null;
-const SERVER_INFO = { name: "cizgi-studyo", version: "2.4.10" };
+const SERVER_INFO = { name: "cizgi-studyo", version: "2.4.11" };
 // panel-kanal.mjs PANELS (not imported: engine modules load on first use)
 const PANEL_TABS = ["projeler", "uretim", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"];
 const WAIT_DEFAULT_S = 600;
@@ -122,7 +122,7 @@ const TOOLS = [
             type: "object",
             properties: {
               etiket: { type: "string", description: "The option, short (at most 80 characters)." },
-              aciklama: { type: "string", description: "One or two sentences under it (optional)." },
+              aciklama: { type: "string", description: "One or two sentences under it (optional, at most 300 characters)." },
               gorsel: { type: "string", description: "A drawing the panel serves (see above), shown on the card (optional)." },
             },
             required: ["etiket"],

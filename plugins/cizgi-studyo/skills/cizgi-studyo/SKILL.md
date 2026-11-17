@@ -53,6 +53,9 @@ A draft next to `bolum.json`, before the script: the idea, the audience, the cha
 - Turning cards into the script ("Senaryoya dönüştür"): one scene per card, in card order. A card with `sahne` updates that scene; one without gets a new scene, and you write its `scene_id` into the card. Write shots, actions and lines with the `cizgi-senaryo` and `cizgi-sinema` skills, library only, validate after each edit. Ask before anything outside the library. Then show the script in chat; the script approval stays with the person.
 
 ## Drawing new drawings: places, props, characters, actions (drafts)
+
+**Write drawings with a script (Bash / node), never with the Write tool.** In the Claude desktop app a `.svg` written with Write opens in the browser pane as a `file://` tab, in front of the person's panel.
+
 New drawings for a project go to its own library, `<project>/kutuphane` (the nearest `kutuphane/` at or above the episodes; `panel_ac` returns the panel's folder, and a panel request names the path). The plugin's library is never written to: plugin updates replace it. Everything you draw starts as a **draft** in `kutuphane/taslak/`; episodes cannot use it until the person takes it in from the panel (Mekân, Nesne, Karakter or Hareket panel → **Kütüphaneye al**). Never move a draft out of `taslak/` yourself.
 
 - A place: `kutuphane/taslak/backgrounds/<id>/mekan.json` plus one SVG per layer (format in the `cizgi-proje` skill, "Read the library"). Usual layers, back to front: `gok` (0: sky, sun, clouds), `uzak` (0.2-0.4: far hills, skyline), `orta` (0.5-0.8: trees, houses, fences behind the path), `zemin` (1: the ground the characters stand on). Every layer is full frame, `viewBox="0 0 1920 1080"`; draw the far layers a few hundred units wider on each side (from x -600 to 2520) so a scene can move them.

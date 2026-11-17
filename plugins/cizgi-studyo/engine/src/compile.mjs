@@ -102,6 +102,7 @@ export function facesOf(episode, lib) {
 
 /** Rig units per world unit at the landscape base scale (rigs are 900 units tall). */
 const rigUnitsPerWorld = (lib) => 900 / lib.world.character_height;
+const RIG_FEET_Y = 950; // where a rig's feet stand, in rig units (core.js RIG_HEIGHT notes)
 
 /**
  * Seconds a line takes to say, guessed from its text: the spoken lines of the examples run
@@ -192,6 +193,13 @@ export function propLayer(timeline, episode, lib, viewport) {
       const hand = pr.hand || "L";
       const handGroup = parseGroups(lib.characters.get(rigOf[pr.holder]).svg).get(`hand_${hand}`);
       const [gx, gy] = (handGroup.attrs["data-grip"] || handGroup.attrs["data-pivot"]).split(",").map(Number);
+      // A held prop is in the hand for the shot: the camera looks at the holder's hand height, over
+      // the holder (its mid-shot place), not at the spot on the floor it was picked up from.
+      const dur = shot.end != null && shot.start != null ? shot.end - shot.start : 1;
+      anchors[si][pr.id] = [
+        globalThis.CizgiCore.memberX(holderMember, layout, dur / 2, dur),
+        lib.world.ground_y - depth.rise - (RIG_FEET_Y - gy) * layout.scale * depth.shrink,
+      ];
       // A hand holds a bottle or handle across the palm, perpendicular to the forearm:
       // data-grip-angle turns the prop in the hand (90 = across a hand that hangs down).
       const gripAngle = Number(handGroup.attrs["data-grip-angle"] || 0);

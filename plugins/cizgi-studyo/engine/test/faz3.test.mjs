@@ -193,3 +193,18 @@ test("depth props live inside the background and need a mark or depth", () => {
   const errs = validateEpisode(bad, lib).errors.join("\n");
   assert.ok(errs.includes("needs a mark or a depth") && errs.includes("cannot be held"));
 });
+
+test("propLayer: the camera looks at a held prop in the holder's hand, not where it lay on the floor", () => {
+  const ep = episode();
+  const timeline = buildTimeline(ep, () => ({ duration: 0 }));
+  const { anchors } = propLayer(timeline, ep, lib, { width: 1920, height: 1080 });
+  const scale = lib.world.character_height / 900;
+  const handY = lib.world.ground_y - (950 - 583) * scale; // genc's hand_L data-grip y
+  for (const a of anchors) {
+    assert.equal(a.sise[0], lib.world.marks.sol, "over the holder, not at the floor spot (sol + 178)");
+    assert.ok(Math.abs(a.sise[1] - handY) < 1e-6, "at hand height");
+  }
+  const loose = { ...ep, scenes: [{ ...ep.scenes[0], shots: [{ ...ep.scenes[0].shots[0], props: [{ id: "s", prop: "plastik-sise", mark: "orta" }] }] }] };
+  const free = propLayer(buildTimeline(loose, () => ({ duration: 0 })), loose, lib, { width: 1920, height: 1080 });
+  assert.equal(free.anchors[0].s[0], lib.world.marks.orta, "a prop nobody holds: still its floor spot");
+});
