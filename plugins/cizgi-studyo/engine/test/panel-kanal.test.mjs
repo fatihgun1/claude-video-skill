@@ -233,3 +233,12 @@ test("the channel knows whether a browser tab has the panel open (it polls GET /
   t += 7000;
   assert.equal(ch.izleniyor(), false, "a few seconds of silence: the tab is gone");
 });
+
+test("a question can carry a spoken line to play; only an episode's ses/*.wav is accepted", () => {
+  const ch = createChannel();
+  ch.sor({ ...Q, ses: "bolumler/kpss/ses/s1_sh4-0.wav" });
+  assert.equal(ch.durum().soru.ses, "bolumler/kpss/ses/s1_sh4-0.wav");
+  for (const bad of ["../x/ses/a.wav", "bolumler/kpss/ses/a.mp3", "bolumler/kpss/cikti/a.wav", "/etc/ses/a.wav", "ses/a.wav"]) {
+    assert.throws(() => createChannel().sor({ ...Q, ses: bad }), /ses bir replik sesi/, bad);
+  }
+});

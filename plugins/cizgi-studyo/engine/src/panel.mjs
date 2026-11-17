@@ -46,7 +46,7 @@ import { HttpError, MAX_EPISODES, findEpisodes, episodePathOf, summarize, create
 import { requestRoutes } from "./panel-istek.mjs";
 import { storyRoutes } from "./panel-hikaye.mjs";
 import { draftRoutes, draftFile } from "./panel-taslak.mjs";
-import { createChannel, channelRoutes } from "./panel-kanal.mjs";
+import { createChannel, channelRoutes, LINE_AUDIO } from "./panel-kanal.mjs";
 import { makingRoutes } from "./panel-yapim.mjs";
 import { approveEpisode } from "./onayla.mjs";
 import { scriptTable } from "./senaryo-tablo.mjs";
@@ -401,6 +401,15 @@ export function createPanel(opts) {
       const dir = previews.get(shown[1]);
       if (!dir) throw new HttpError(404, "open the episode first");
       return sendFile(res, safeJoin(dir, decode(shown[2])));
+    }
+    // a spoken line Claude plays in a question (panel_sor ses): only <episode>/ses/<file>.wav next to a bolum.json
+    if (path.startsWith("/satir-ses/")) {
+      const rel = decode(path.slice(11));
+      if (!LINE_AUDIO.test(rel)) throw new HttpError(404, "not found");
+      const file = safeJoin(root, rel);
+      if (!existsSync(file) || !existsSync(join(dirname(dirname(file)), "bolum.json"))) throw new HttpError(404, "not found");
+      insideReally(root, file);
+      return sendRanged(req, res, file);
     }
     if (path.startsWith("/hareket-onizleme/")) return sendFile(res, safeJoin(actionDir, decode(path.slice(18))));
     // Production outputs: /uretim/<key>/storyboard/... or /uretim/<key>/cikti/... of an opened episode.

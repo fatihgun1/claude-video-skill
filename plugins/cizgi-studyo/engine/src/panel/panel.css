@@ -766,3 +766,4 @@ div.pitem { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
 .psahne { margin-top: 8px; border-color: var(--accent); }
 .psahne h4 { margin: 0; font-size: 16px; font-weight: 600; }
 .psahne .pitem-ust { flex-wrap: wrap; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.kanal-ses { width: 100%; margin: 4px 0 8px; }

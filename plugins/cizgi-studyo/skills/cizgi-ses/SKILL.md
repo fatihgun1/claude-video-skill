@@ -27,6 +27,8 @@ The command prints `{generated, kept, failed}` and exits with **3** when some li
 - rephrase the line: back to **cizgi-senaryo**. Changing text needs a new script approval.
 - accept it as it is. Proper names often fail only because the recogniser does not know them, so ask the person to listen first. Only after they accept it, record that with `$CLI kabul <bolum.json> <line-key>`. A regenerated line needs a new decision.
 
+Ask in the panel with `panel_sor` and put the line's audio in the question: `ses: "<episode folder>/ses/<line-key>.wav"` (relative to the panel folder, e.g. `bolumler/kus/ses/s1_sh4-0.wav`). The question then plays it, so the person listens right where they answer. Do not send the panel to the shot (`panel_git`, or `bolum` on the question) for this: the page moves away and there is nothing to play there. Never offer "Dinledim" without the audio in the question.
+
 Do not hide a failed line and do not move on silently.
 
 ## Voices

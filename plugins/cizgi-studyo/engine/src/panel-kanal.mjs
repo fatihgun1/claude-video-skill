@@ -27,6 +27,8 @@ export const PROJECT_STEPS = Object.freeze(["hikaye", "kararlar", "karakterler",
 const PROJECT_ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const SHOT = /^[a-z0-9_-]{1,40}$/;
 // a library drawing or a draft (incl. concept sketches), as the panel serves them
+// a spoken line of an episode, relative to the panel folder: <episode folder>/ses/<shot>-<n>.wav
+export const LINE_AUDIO = /^(?:[A-Za-z0-9_-]+\/){1,6}ses\/[A-Za-z0-9_-]{1,80}\.wav$/;
 const PICTURE = /^\/(kutuphane|kutuphane-taslak)\/(karakter|mekan|nesne|konsept)\/[a-z0-9_-]{1,60}\.svg$/;
 const MAX_OPTIONS = 8;
 const FIELD = /^[a-z0-9_.-]{1,60}$/; // a wizard field: baslik, istekler.sure, kartlar.k2.mekan…
@@ -117,7 +119,8 @@ function cleanQuestion(q) {
   });
   if (new Set(secenekler.map((o) => o.etiket)).size !== secenekler.length) throw new Error("seçeneklerin etiketleri farklı olmalı");
   const bolum = text(q.bolum, "bolum", 300, { optional: true }); // the episode it is about (a late answer names it)
-  return { soru, secenekler, coklu: q.coklu === true, serbest: q.serbest !== false, ...(bolum ? { bolum } : {}) };
+  if (q.ses !== undefined && (typeof q.ses !== "string" || !LINE_AUDIO.test(q.ses))) throw new Error("ses bir replik sesi olmalı: <bölüm klasörü>/ses/<shot>-<n>.wav");
+  return { soru, secenekler, coklu: q.coklu === true, serbest: q.serbest !== false, ...(bolum ? { bolum } : {}), ...(q.ses ? { ses: q.ses } : {}) };
 }
 
 /**

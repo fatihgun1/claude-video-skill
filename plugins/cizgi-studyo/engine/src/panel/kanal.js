@@ -136,6 +136,8 @@ export function createChannel(ctx) {
         el("span", { class: "kanal-kim", text: "Claude soruyor" }),
         el("button", { class: "btn small", type: "button", text: "Sonra", title: "Soruyu kenara koy; üstteki düğmeyle geri gelir", on: { click: () => { later = true; render(); } } })),
       el("h3", { id: "kanal-soru-baslik", text: question.soru }),
+      // a spoken line to judge: played right here, so the person listens where they answer
+      question.ses ? el("audio", { class: "kanal-ses", controls: "", preload: "auto", src: `/satir-ses/${question.ses.split("/").map(encodeURIComponent).join("/")}`, "aria-label": "Repliği dinle" }) : null,
       question.coklu ? el("p", { class: "muted small", text: "Birden çok seçebilirsin." }) : null,
       el("div", { class: "kanal-kartlar" }, question.secenekler.map(card)),
       note,
