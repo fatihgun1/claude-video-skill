@@ -24,7 +24,7 @@ import { createDrafts } from "./taslak.js";
 import { createObjectWindow } from "./nesne-pencere.js";
 import { createVideoButton } from "./video-cikar.js";
 import { createQuickStart } from "./hizli-basla.js";
-import { setView, applyRecipe, viewsOf, viewKindOf, shotProblems, RECIPES } from "./kompozisyon.js";
+import { setView, applyRecipe, viewsOf, viewKindOf, shotProblems, warningText, RECIPES } from "./kompozisyon.js";
 import { decorId } from "./dekor.js";
 import {
   addShotAfter, duplicateShot, deleteShot, moveShot, createHistory, rowOfMessage,
@@ -756,7 +756,7 @@ function studioHint(listening) {
   if (show && box.hidden) {
     box.replaceChildren(
       el("span", { class: "nokta acik", "aria-hidden": "true" }),
-      el("span", { text: "Claude dinliyor. Sahnede bir şeye tıkla (karakter, mekân, altyazı): yanında pencere açılır, ne istediğini oraya yaz. Bitince sağ üstte 🎬 Video çıkar." }),
+      el("span", { text: "Claude dinliyor. Sahnede bir şeye tıkla (karakter, mekân, altyazı) ya da kamera için 🎥 Bu çekim: yanında pencere açılır, ne istediğini oraya yaz. Bitince sağ üstte 🎬 Video çıkar." }),
       el("button", { class: "btn icon small", type: "button", "aria-label": "İpucunu kapat", text: "✕", on: { click: () => { hintClosed = true; box.hidden = true; } } }));
   }
   box.hidden = !show;
@@ -777,6 +777,12 @@ const videoButton = createVideoButton({
   },
   openProduction: () => production.show(),
   after: () => refreshPreview(), // the lines' audio is new: the stage plays it
+});
+$("stage-cekim").addEventListener("click", () => {
+  const t = shotTopic();
+  if (!t) return;
+  views?.closeLeft();
+  objectWindow.open(t);
 });
 $("video-cikar").addEventListener("click", () => {
   if (state.draft) videoButton.open();
@@ -827,20 +833,28 @@ function messagesOf(shotId) {
   const pick = (list, level) => (list || []).filter((m) => shotOfMessage(m) === shotId).map((text) => ({ level, text }));
   return [...pick(v?.errors, "err"), ...pick(v?.warnings, "warn")];
 }
+let warningsOpen = false; // the person opened the warnings: they stay open across redraws
 function renderMessages(preview) {
   const v = state.validation;
-  const items = [
+  const problems = [
     ...(v?.errors || []).map((m) => ["err", "Hata", m]),
     ...(preview && !preview.ok && v?.ok ? [[state.look === "3b" ? "warn" : "err", state.look === "3b" ? "3B önizleme" : "Önizleme", tr(preview.error)]] : []),
-    ...(v?.warnings || []).map((m) => ["warn", "Uyarı", m]),
   ];
-  if (!items.length) return $("msgs").replaceChildren(); // nothing to say: the line takes no room under the stage
-  $("msgs").replaceChildren(el("ul", {}, items.map(([cls, kind, m]) => {
+  const warnings = (v?.warnings || []).map((m) => ["warn", "", m]);
+  if (!problems.length && !warnings.length) return $("msgs").replaceChildren(); // nothing to say: the line takes no room under the stage
+  const item = ([cls, kind, m]) => {
     const id = shotOfMessage(m);
+    const text = `${kind ? `${kind}: ` : ""}${cls === "warn" ? warningText(m, labelOf) : m}`;
     return el("li", { class: cls }, id
-      ? el("a", { href: "#", on: { click: (e) => { e.preventDefault(); goToMessage(id, m); } } }, `${kind}: ${m}`)
-      : `${kind}: ${m}`);
-  })));
+      ? el("a", { href: "#", on: { click: (e) => { e.preventDefault(); goToMessage(id, m); } } }, text)
+      : text);
+  };
+  // errors stay in view (they block saving); warnings fold into one line: they only advise
+  const folded = warnings.length ? el("details", { class: "msgs-uyarilar", open: warningsOpen ? "" : null },
+    el("summary", { text: `${warnings.length} öneri (çekim kuralları, hareketler): göster` }),
+    el("ul", {}, warnings.map(item))) : null;
+  folded?.addEventListener("toggle", () => { warningsOpen = folded.open; });
+  $("msgs").replaceChildren(...[problems.length ? el("ul", {}, problems.map(item)) : null, folded].filter(Boolean));
 }
 
 /* ---------- edit cycle ---------- */

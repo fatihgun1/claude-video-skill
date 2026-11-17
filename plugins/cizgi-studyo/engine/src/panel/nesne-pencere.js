@@ -123,9 +123,7 @@ export function createObjectWindow(ctx) {
 
   /** The thing itself: its drawing (and a new version), or a line's words and voice, an effect, a shot's camera. */
   function body() {
-    if (topic.tur === "karakter") return el("div", { class: "npencere-govde" }, drawings(), viewRow(), voiceSection());
-    if (topic.tur === "mekan") return el("div", { class: "npencere-govde" }, drawings(), transitionRow());
-    if (DRAWN.has(topic.tur)) return drawings();
+    if (DRAWN.has(topic.tur)) return drawings(); // the views, the voice, the transition: folded under the chat (extras)
     const g = topic.goster || {};
     if (topic.tur === "replik") {
       return el("div", { class: "npencere-kart" },
@@ -149,6 +147,33 @@ export function createObjectWindow(ctx) {
       problems(g.sorunlar || []),
       recipes(g.tarifler || [], g.kisi || 0),
       shotNote ? el("p", { class: shotNote.error ? "npencere-hata" : "muted small", role: "status", text: shotNote.text }) : null);
+  }
+
+  /**
+   * What is not the main thing, folded below the chat: the chat and its box come first and stay in
+   * view (usability test 1: the box sat 776 px down a 640 px window). A fold remembers whether the
+   * person opened it; its title says what is set now.
+   */
+  function extras() {
+    if (topic.tur === "karakter") {
+      const info = ctx.voiceInfo?.(topic.oyuncu);
+      const views = { yan: "yandan", on: "önden", arka: "arkadan" }[topic.goster?.simdi] || "";
+      return [
+        fold("gorunus", `Görünüş ve yer${views ? ` · ${views}` : ""}`, viewRow()),
+        info ? fold("ses", `Ses · ${info.now}`, voiceSection()) : null,
+      ];
+    }
+    if (topic.tur === "mekan") return [transitionRow()];
+    return [];
+  }
+
+  const openFolds = new Set(); // which folds the person opened (kept across redraws and windows)
+  function fold(key, title, content) {
+    if (!content) return null;
+    const node = el("details", { class: "npencere-katlanir", open: openFolds.has(key) ? "" : null },
+      el("summary", { text: title }), content);
+    node.addEventListener("toggle", () => (node.open ? openFolds.add(key) : openFolds.delete(key)));
+    return node;
   }
 
   /** How this scene begins after the previous one: a short dip to black, or a hard cut. */
@@ -253,7 +278,7 @@ export function createObjectWindow(ctx) {
     const info = ctx.voiceInfo?.(topic.oyuncu);
     if (!info) return null;
     const shared = info.owner !== topic.oyuncu ? el("p", { class: "muted small", text: `Bu görünüş ${info.ad} ile aynı sesi kullanır.` }) : null;
-    const parts = [el("h3", { text: "Ses" }), el("p", { class: "small", text: `Şimdi: ${info.now}` }), shared, readyVoices(info)];
+    const parts = [shared, readyVoices(info)]; // the fold's title says the voice now
     if (voice.phase === "recording") {
       parts.push(
         el("div", { class: "kayit-olcer", "aria-hidden": "true" }, el("span", { style: { width: "0%" } })),
@@ -429,15 +454,16 @@ export function createObjectWindow(ctx) {
           topic.tur === "mekan" && ctx.openShot ? el("button", { class: "btn small", type: "button", text: "Bu çekimin kamerası", title: "Kamera ve kompozisyon", on: { click: () => ctx.openShot() } }) : null,
           el("button", { class: "btn icon", type: "button", "aria-label": "Pencereyi kapat", title: "Kapat (Esc)", text: "✕", on: { click: close } }))),
       body(),
-      el("div", { class: "npencere-hizli", role: "group", "aria-label": "Hızlı istekler" },
-        QUICK[topic.tur].map((q) => el("button", { class: "btn small", type: "button", text: q.replace(/: $/, ""), on: { click: () => quick(q) } }))),
+      error ? el("p", { class: "npencere-hata", role: "alert", text: error }) : null,
       list,
       working,
       offline,
-      error ? el("p", { class: "npencere-hata", role: "alert", text: error }) : null,
       el("div", { class: "npencere-yaz" },
         input,
         el("button", { class: "btn primary", type: "button", "aria-busy": sending ? "true" : null, text: sending ? "Gönderiliyor…" : "Gönder", on: { click: () => send() } })),
+      el("div", { class: "npencere-hizli", role: "group", "aria-label": "Hızlı istekler" },
+        QUICK[topic.tur].map((q) => el("button", { class: "btn small", type: "button", text: q.replace(/: $/, ""), on: { click: () => quick(q) } }))),
+      ...extras(),
     ].filter(Boolean)); // replaceChildren would write "null" for a part left out
     input.value = typed;
     if (typing) {
@@ -468,6 +494,7 @@ export function createObjectWindow(ctx) {
   return {
     /** Open (or move) the window on what the person clicked. */
     open(t) {
+      document.getElementById("studyo-ipucu")?.setAttribute("hidden", ""); // the window says the rest: the hint goes at once
       const same = topic && t && t.tur === topic.tur && t.id === topic.id;
       topic = t;
       if (!same) {

@@ -146,6 +146,17 @@ export function createVideoButton(ctx) {
       other.length ? el("button", { class: "btn small", type: "button", text: "Üretim sayfasını aç", on: { click: () => { box.close(); ctx.openProduction(); } } }) : null);
   }
 
+  /** Pressed with decisions still open: show where, instead of a button that does nothing. */
+  function pointAtDecisions() {
+    const area = box.querySelector(".vcikar-kararlar");
+    if (!area) return;
+    area.classList.remove("vurgu");
+    void area.offsetWidth; // restart the highlight
+    area.classList.add("vurgu");
+    area.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    area.querySelector("button")?.focus();
+  }
+
   function stepList() {
     const MARK = { bitti: "✓", atlandi: "✓", hata: "!", calisiyor: "", sirada: "" };
     const TEXT = { bitti: "tamam", atlandi: "zaten hazırdı", hata: "olmadı", calisiyor: progress || "çalışıyor…", sirada: "sırada" };
@@ -171,7 +182,9 @@ export function createVideoButton(ctx) {
           el("p", { text: `Bu düğmeyle senaryoyu (${lines} replik) ve kareleri onaylamış olursun. Sonra sesler üretilir ve video çıkar: birkaç dakika sürer, bu pencerede izlersin.` }),
           el("p", { class: "muted small", text: "Sonra istediğin şeyi yine değiştirebilirsin; değişince video yeniden çıkarılır." }),
           open,
-          el("button", { class: "btn primary", type: "button", disabled: open ? "" : null, title: open ? "Önce yukarıdaki kararları seç" : null, text: "Onayla ve videoyu çıkar", on: { click: run } }));
+          el("button", { class: "btn primary", type: "button", text: "Onayla ve videoyu çıkar", on: { click: () => (open ? pointAtDecisions() : run()) } }),
+          // the five steps one by one, for whoever wants them (the old stage chips are gone from the bar)
+          el("button", { class: "btn ghost small", type: "button", text: "Ayrıntılı üretim (adım adım)", on: { click: () => { box.close(); ctx.openProduction(); } } }));
       }
     } else {
       parts.push(stepList());

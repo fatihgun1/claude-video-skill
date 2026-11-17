@@ -191,6 +191,21 @@ const PROBLEMS = [
 ];
 
 /**
+ * One validation warning as the person reads it: the film rules' findings and an action drawn for
+ * another view in Turkish; anything else as the engine says it. Usability test 1: eight English
+ * engine lines under the stage read as errors nobody could act on.
+ */
+export function warningText(w, nameOf = (id) => id) {
+  const shot = /^(?:film: )?shot ([^:]+): /.exec(w)?.[1];
+  const where = shot ? `${shot}: ` : "";
+  const film = PROBLEMS.find(([re]) => re.test(w));
+  if (film) return where + film[1];
+  const view = /"([^"]+)" is made for .* views, but ([^ ]+) \(/.exec(w);
+  if (view) return `${where}“${view[1]}” hareketi ${nameOf(view[2])} görünüşü için çizilmemiş; yine de oynar, biraz farklı durabilir.`;
+  return w;
+}
+
+/**
  * The film warnings about this shot, and those about its whole scene (told on the scene's first
  * shot, naming the scene), in Turkish.
  * @param {string[]} warnings validation warnings

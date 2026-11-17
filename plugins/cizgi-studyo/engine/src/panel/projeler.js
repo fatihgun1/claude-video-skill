@@ -44,7 +44,7 @@ export function createProjects(page, ctx) {
   let error = "";
   let busy = false;
   let creating = false; // the "Boş bölüm" form is open
-  const search = el("input", { type: "search", id: "hsearch", class: "hsearch", placeholder: "park-gunu", autocomplete: "off", "aria-keyshortcuts": "/" });
+  const search = el("input", { type: "search", id: "hsearch", class: "hsearch", placeholder: "Bölüm ara", autocomplete: "off", "aria-keyshortcuts": "/" });
   search.addEventListener("input", () => renderGrid());
 
   page.tabIndex = -1; // focus lands on the page itself, so its keys work from the first moment
@@ -115,29 +115,32 @@ export function createProjects(page, ctx) {
 
   function duration(e) {
     if (!e.valid) return null;
-    return e.duration == null ? "süre: ses bekleniyor" : `${e.duration.toFixed(1)} sn`;
+    if (e.duration == null) return "henüz ses yok";
+    return e.duration >= 90 ? `yaklaşık ${Math.round(e.duration / 60)} dk` : `${Math.round(e.duration)} sn`;
   }
 
   function card(e) {
     const here = e.path === ctx.current();
     const thumb = el("div", { class: "pthumb" }, e.bg ? el("img", { src: `/kutuphane/mekan/${e.bg}.svg`, alt: "", loading: "lazy" }) : null,
       here ? el("span", { class: "badge", text: "Açık" }) : null);
-    const facts = e.ok ? [`${e.shots} shot`, duration(e)].filter(Boolean).join(" · ") : null;
+    const facts = e.ok ? [`${e.shots} çekim`, duration(e)].filter(Boolean).join(" · ") : null;
+    // one plain state instead of the two gates ("Senaryo onaysız" read as a fault); the gates stay in the title
+    const both = e.gates && e.gates.senaryo === "onayli" && e.gates.storyboard === "onayli";
     const gates = e.ok && e.gates
-      ? el("span", { class: "gates" }, GATES.map(([k, name]) => {
-        const state = GATE_TEXT[e.gates[k]] || e.gates[k];
-        return el("span", { class: `gate ${e.gates[k]}`, title: `${name} onayı: ${state}` }, `${name} ${state}`);
-      }))
+      ? el("span", { class: "gates" }, el("span", {
+        class: `gate ${both ? "onayli" : "yok"}`,
+        title: GATES.map(([k, name]) => `${name}: ${GATE_TEXT[e.gates[k]] || e.gates[k]}`).join(" · "),
+      }, both ? "Videoya hazır" : "Üzerinde çalışılıyor"))
       : null;
     const problem = !e.ok ? e.error : !e.valid ? `${e.errors} hata: panelde düzelt` : null;
     return el("button", {
-      class: `pcard${here ? " current" : ""}`, type: "button", disabled: busy,
+      class: `pcard${here ? " current" : ""}`, type: "button", disabled: busy, title: e.path, // where the file is: on hover, not on the card
       "aria-current": here ? "true" : null,
       on: { click: () => choose(e.path) },
     },
     thumb,
     el("span", { class: "ptitle", text: nameOf(e) }),
-    el("span", { class: "ppath", text: e.path }),
+
     facts ? el("span", { class: "meta", text: facts }) : null,
     gates,
     problem ? el("span", { class: "why", text: problem }) : null,
@@ -293,7 +296,7 @@ export function createProjects(page, ctx) {
         el("p", { class: "muted", title: list?.root, text: list ? `“${folderName(list.root)}” klasöründeki bölümler. Birini aç ya da yeni bir bölüm başlat.` : "Bu klasördeki bölümler. Birini aç ya da yeni bir bölüm başlat." })),
       el("div", { class: "hactions" },
         back,
-        el("button", { class: "btn", type: "button", text: "Boş bölüm", title: "Sihirbazsız: tek sahne, tek shot", "aria-expanded": String(creating), "aria-controls": "hnew", on: { click: toggleNew } }),
+        el("button", { class: "btn ghost small", type: "button", text: "Hikâyesiz başla", title: "Hikâye yazmadan: tek sahne, tek çekimle boş bir bölüm", "aria-expanded": String(creating), "aria-controls": "hnew", on: { click: toggleNew } }),
         el("button", { class: "btn primary", type: "button", text: "+ Yeni bölüm", title: "Hikâyeni yaz, formatı ve süreyi seç: gerisini Claude kurar", on: { click: () => ctx.wizard() } })));
   }
 
