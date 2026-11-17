@@ -261,8 +261,9 @@ const objectWindow = createObjectWindow({
     const owner = voiceOwner(id);
     if (!owner) return null;
     const v = owner.voice || {};
-    const now = v.ref ? "kendi kaydın" : "varsayılan ses (herkesle aynı)";
-    return { owner: owner.id, ad: labelOf(owner.id), now };
+    const ready = (state.vocab?.voices || []).find((x) => x.id === v.hazir);
+    const now = v.ref ? "kendi kaydın" : ready ? `hazır ses: ${ready.label}` : "varsayılan ses (herkesle aynı)";
+    return { owner: owner.id, ad: labelOf(owner.id), now, hazir: v.ref ? null : v.hazir || null, voices: state.vocab?.voices || [] };
   },
   // the person's recording becomes that character's voice: saved next to the episode, then the episode is saved
   useRecording: async (id, base64) => {
@@ -272,6 +273,16 @@ const objectWindow = createObjectWindow({
     changed(true);
     await save();
     return `${labelOf(owner.id)} artık senin kaydınla konuşacak (${res.sure} sn). Replikleri yeniden seslendirmek için Üretim'de “Sesleri üret”e bas ya da bir repliğe tıklayıp “Yeniden seslendir” de.`;
+  },
+  // a ready voice from the library becomes that person's voice (a recording of their own is dropped)
+  useReady: async (id, hazir) => {
+    const owner = voiceOwner(id);
+    const { ref, ...rest } = owner.voice || {};
+    owner.voice = { ...rest, hazir };
+    changed(true);
+    await save();
+    const label = (state.vocab?.voices || []).find((x) => x.id === hazir)?.label || hazir;
+    return `${labelOf(owner.id)} artık “${label}” sesiyle konuşacak. Bir repliğine tıklayıp “Yeniden seslendir” de ya da Üretim'de sesleri üret.`;
   },
   sample: async (id) => {
     const owner = voiceOwner(id);

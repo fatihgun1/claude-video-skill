@@ -335,6 +335,11 @@ function loadProjectRigs(project, characters, actions, errors) {
  * @returns {{dir:string, world:object, cameras:object, characters:Map<string,{meta:object,svg:string}>, actions:Map<string,object>, backgrounds:Map<string,string>, profiles:Map<string,object>}}
  * @throws when any asset breaks the specification
  */
+const rank = (order, file) => {
+  const i = order.indexOf(basename(file, ".wav"));
+  return i < 0 ? order.length : i;
+};
+
 export function loadLibrary(dir, opts = {}) {
   const world = readJson(join(dir, "world.json"));
   const cameras = readJson(join(dir, "cameras.json"));
@@ -420,6 +425,17 @@ export function loadLibrary(dir, opts = {}) {
     }
   }
 
+  // Ready voices: short reference clips a character can speak with (voice.hazir), named in sesler.json.
+  const voices = new Map();
+  const voiceNames = existsSync(join(dir, "sesler", "sesler.json")) ? readJson(join(dir, "sesler", "sesler.json")) : {};
+  const named = Object.keys(voiceNames); // the order sesler.json gives, then any others
+  const files = entries(join(dir, "sesler"), ".wav").sort((x, y) => rank(named, x) - rank(named, y));
+  for (const file of files) {
+    const id = basename(file, ".wav");
+    checkId("voice", id, errors);
+    voices.set(id, { path: join(dir, "sesler", file), ad: voiceNames[id]?.ad || id, not: voiceNames[id]?.not || "" });
+  }
+
   const profiles = new Map();
   for (const file of entries(join(dir, "profiles"), ".json")) {
     const id = basename(file, ".json");
@@ -431,5 +447,5 @@ export function loadLibrary(dir, opts = {}) {
   if (!profiles.has("genel")) errors.push('profiles/genel.json is required (the default profile)');
 
   if (errors.length) throw new Error(`library is invalid:\n- ${errors.join("\n- ")}`);
-  return { dir, world, cameras, characters, actions, backgrounds, layers, backgroundNames, profiles, props, sfx, music, projectErrors };
+  return { dir, world, cameras, characters, actions, backgrounds, layers, backgroundNames, profiles, props, sfx, music, voices, projectErrors };
 }

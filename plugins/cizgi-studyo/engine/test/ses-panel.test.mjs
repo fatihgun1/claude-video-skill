@@ -78,3 +78,23 @@ test("a line job speaks one line again: its key goes after the episode", () => {
   calls[0].child.emit("close", 3);
   assert.equal(jobs.get("/e/bolum.json").status, "done", "a take that failed the check is still a finished job");
 });
+
+test("a ready voice from the library is cloned unless the person's own recording is set", async () => {
+  const { ttsVoice } = await import("../src/ses.mjs");
+  const lib = { voices: new Map([["kadin", { path: "/lib/sesler/kadin.wav" }]]) };
+  const abs = (rel) => `/ep/${rel}`;
+  assert.deepEqual(ttsVoice({ hazir: "kadin", exaggeration: 0.7 }, abs, lib), { exaggeration: 0.7, ref: "/lib/sesler/kadin.wav" });
+  assert.deepEqual(ttsVoice({ hazir: "kadin", ref: "sesler/a.wav" }, abs, lib), { ref: "/ep/sesler/a.wav" }, "the person's recording wins");
+  assert.deepEqual(ttsVoice({}, abs, lib), {});
+});
+
+test("the shipped library has the ready voices, and an unknown one is an error", async () => {
+  const { loadLibrary } = await import("../src/library.mjs");
+  const { validateEpisode } = await import("../src/validate.mjs");
+  const lib = loadLibrary(new URL("../../library", import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1"));
+  assert.deepEqual([...lib.voices.keys()].sort(), ["cocuk", "erkek", "erkek-kalin", "kadin"]);
+  assert.equal(lib.voices.get("kadin").ad, "Kadın");
+  const ep = { episode: "x", language: "tr", characters: [{ id: "genc", rig: "genc", voice: { hazir: "yok" } }],
+    scenes: [{ scene_id: "s1", bg: "sokak", shots: [{ shot_id: "a", cast: [{ id: "genc", action: "bekle-yan", mark: "orta" }], camera: { framing: "wide" } }] }] };
+  assert.ok(validateEpisode(ep, lib).errors.some((e) => e.includes('ready voice "yok"')));
+});

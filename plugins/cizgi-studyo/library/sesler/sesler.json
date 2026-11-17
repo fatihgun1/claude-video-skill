@@ -1,0 +1,6 @@
+{
+  "kadin": { "ad": "Kadın", "not": "Yetişkin kadın, sakin okuma sesi" },
+  "erkek": { "ad": "Erkek", "not": "Yetişkin erkek, açık ve net" },
+  "erkek-kalin": { "ad": "Kalın erkek", "not": "Yetişkin erkek, kalın ve tok" },
+  "cocuk": { "ad": "Çocuk", "not": "Kadın sesinden inceltildi (gerçek bir çocuk kaydı değil)" }
+}

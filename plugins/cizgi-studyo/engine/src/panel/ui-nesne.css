@@ -46,3 +46,7 @@
 .kayit-olcer span { display: block; height: 100%; background: var(--accent); transition: width .1s linear; }
 @media (prefers-reduced-motion: reduce) { .kayit-olcer span { transition: none; } }
 .npencere .gizli { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.hazir-sesler { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.hazir-sesler li { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 6px; }
+.hazir-sesler li.secili { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.hazir-sesler li span:nth-child(2) { display: flex; flex-direction: column; }

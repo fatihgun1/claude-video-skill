@@ -113,6 +113,17 @@ export function planAudio(lines, manifest, fingerprintOf, fileExists, opts = {})
   return { todo, keep };
 }
 
+/**
+ * The voice as the TTS reads it: the clip to clone is the person's recording (voice.ref, next to
+ * the episode) or else a ready voice from the library (voice.hazir).
+ */
+export function ttsVoice(voice, abs, lib) {
+  const { hazir, ...rest } = voice || {};
+  if (rest.ref) return { ...rest, ref: abs(rest.ref) };
+  const ready = hazir && lib?.voices?.get(hazir);
+  return ready ? { ...rest, ref: ready.path } : rest;
+}
+
 /** Stable integer seed per line and attempt, so a rerun reproduces the same take; take > 0 is another one. */
 function seedFor(key, attempt, take = 0) {
   return parseInt(sha(key).slice(0, 7), 16) + attempt * 7919 + take * 104729;
@@ -161,7 +172,7 @@ export function runAudio(episodePath, lib, tools, deps) {
       lang: episode.language,
       out: raw(line),
       seed: seedFor(line.key, attempt, deps.take || 0),
-      voice: { ...line.voice, ...(line.voice.ref ? { ref: abs(line.voice.ref) } : {}) },
+      voice: ttsVoice(line.voice, abs, lib),
     }));
     writeFileSync(join(work, "tts.json"), JSON.stringify(jobs, null, 2));
     progress("seslendirme", 0, pending.length); // the model loads first: the step has begun
@@ -274,7 +285,7 @@ export function voiceSample(episodePath, lib, tools, deps, { karakter, metin } =
   const voice = voices[karakter];
   writeFileSync(join(work, "tts.json"), JSON.stringify([{
     id: `ornek-${karakter}`, text, lang: episode.language, out: raw, seed: seedFor(`ornek-${karakter}`, 0),
-    voice: { ...voice, ...(voice.ref ? { ref: safeJoin(dir, voice.ref) } : {}) },
+    voice: ttsVoice(voice, (rel) => safeJoin(dir, rel), lib),
   }], null, 2));
   (deps.log || (() => {}))(`ilerleme ${JSON.stringify({ adim: "seslendirme", bitti: 0, toplam: 1 })}`);
   deps.run(tools.pythonTts, [join(PYTHON_DIR, "tts_batch.py"), join(work, "tts.json")], { liveStderr: true });

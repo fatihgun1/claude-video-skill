@@ -538,6 +538,11 @@
           "type": "string",
           "description": "Reference clip (about 10 s, episode-relative) for voice cloning."
         },
+        "hazir": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "description": "A ready voice from the library (library/sesler/<id>.wav: kadin, erkek, erkek-kalin, cocuk). voice.ref wins when both are set."
+        },
         "exaggeration": {
           "type": "number",
           "minimum": 0.25,

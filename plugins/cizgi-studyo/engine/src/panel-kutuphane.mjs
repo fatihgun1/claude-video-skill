@@ -54,6 +54,7 @@ export function vocabulary(lib) {
     props: [...lib.props].map(([id, p]) => ({ id, label: id, holdable: !!p.grip })),
     sfx: [...(lib.sfx || new Map())].map(([id, s]) => ({ id, label: SFX_LABELS[id] || id, duration: Math.round(s.duration * 100) / 100 })),
     music: [...(lib.music || new Map())].map(([id, s]) => ({ id, label: id, duration: Math.round(s.duration * 10) / 10 })),
+    voices: [...(lib.voices || new Map())].map(([id, v]) => ({ id, label: v.ad, note: v.not })), // ready voices (voice.hazir)
     framings: Object.entries(lib.cameras.framings).map(([id, v]) => ({ id, label: label(v, id), zoom: v.zoom ?? 1, anchor: v.anchor || null })),
     moves: Object.entries(lib.cameras.moves).map(([id, v]) => ({
       id, label: label(v, id),
@@ -136,6 +137,7 @@ const KINDS = {
   nesne: { ext: ".svg", type: "image/svg+xml", get: (lib, id) => lib.props.get(id)?.svg },
   ses: { ext: ".wav", type: "audio/wav", get: (lib, id) => (lib.sfx?.get(id) ? readFileSync(lib.sfx.get(id).path) : undefined) },
   muzik: { ext: ".wav", type: "audio/wav", get: (lib, id) => (lib.music?.get(id) ? readFileSync(lib.music.get(id).path) : undefined) },
+  sesler: { ext: ".wav", type: "audio/wav", get: (lib, id) => (lib.voices?.get(id) ? readFileSync(lib.voices.get(id).path) : undefined) },
 };
 
 /**

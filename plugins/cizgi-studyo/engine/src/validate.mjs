@@ -215,6 +215,9 @@ export function validateEpisode(episode, lib) {
   for (const c of episode.characters) {
     if (characterIds.has(c.id)) errors.push(`character id "${c.id}" is used twice`);
     characterIds.add(c.id);
+    if (c.voice?.hazir && !lib.voices?.has(c.voice.hazir)) {
+      errors.push(`character "${c.id}": ready voice "${c.voice.hazir}" is not in the library (${list((lib.voices || new Map()).keys())})`);
+    }
     const rig = lib.characters.get(c.rig);
     if (!rig) {
       errors.push(`character "${c.id}": rig "${c.rig}" is not in the library (${list(lib.characters.keys())})`);

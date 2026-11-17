@@ -162,7 +162,7 @@ export function createObjectWindow(ctx) {
     const info = ctx.voiceInfo?.(topic.oyuncu);
     if (!info) return null;
     const shared = info.owner !== topic.oyuncu ? el("p", { class: "muted small", text: `Bu görünüş ${info.ad} ile aynı sesi kullanır.` }) : null;
-    const parts = [el("h3", { text: "Ses" }), el("p", { class: "small", text: `Şimdi: ${info.now}` }), shared];
+    const parts = [el("h3", { text: "Ses" }), el("p", { class: "small", text: `Şimdi: ${info.now}` }), shared, readyVoices(info)];
     if (voice.phase === "recording") {
       parts.push(
         el("div", { class: "kayit-olcer", "aria-hidden": "true" }, el("span", { style: { width: "0%" } })),
@@ -186,6 +186,38 @@ export function createObjectWindow(ctx) {
     if (voice.sampleUrl && voice.phase === "idle") parts.push(el("audio", { class: "kanal-ses", controls: "", autoplay: "", src: voice.sampleUrl, "aria-label": "Ses örneği" }));
     parts.push(el("p", { class: "muted small", text: "Yalnız kendi sesini ya da kullanma hakkın olan bir sesi kaydet." }));
     return el("section", { class: "npencere-ses", "aria-label": "Ses" }, ...parts.filter(Boolean));
+  }
+
+  /** The library's ready voices: hear each one, pick one with a click. */
+  function readyVoices(info) {
+    if (!info.voices.length || voice.phase === "recording" || voice.phase === "recorded") return null;
+    return el("ul", { class: "hazir-sesler", "aria-label": "Hazır sesler" }, info.voices.map((v) => {
+      const on = info.hazir === v.id;
+      return el("li", { class: on ? "secili" : "" },
+        el("button", { class: "btn icon small", type: "button", "aria-label": `${v.label} sesini dinle`, title: "Dinle", text: "▶", on: { click: () => preview(v.id) } }),
+        el("span", {}, el("strong", { text: v.label }), v.note ? el("small", { class: "muted", text: v.note }) : null),
+        on ? el("span", { class: "small", text: "✓ seçili" })
+          : el("button", { class: "btn small", type: "button", disabled: voice.phase === "busy" ? "" : null, text: "Seç", on: { click: () => pickReady(v.id) } }));
+    }));
+  }
+
+  let player = null;
+  function preview(id) {
+    player?.pause();
+    player = new Audio(`/kutuphane/sesler/${encodeURIComponent(id)}.wav`);
+    player.play().catch(() => {});
+  }
+
+  async function pickReady(id) {
+    player?.pause();
+    voice = { phase: "busy", msg: "Ses seçiliyor…" };
+    render();
+    try {
+      voice = { phase: "idle", msg: await ctx.useReady(topic.oyuncu, id) };
+    } catch (err) {
+      voice = { phase: "idle", error: true, msg: `Olmadı: ${err.message}` };
+    }
+    render();
   }
 
   async function record() {
