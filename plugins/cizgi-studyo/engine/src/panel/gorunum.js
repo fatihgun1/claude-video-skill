@@ -80,4 +80,8 @@ export function installViews(ctx) {
     box.addEventListener("change", () => ctx.editor.setLayer(key, box.checked));
     return el("label", {}, box, text);
   }));
+  return {
+    /** Close the left pane (an object window opened: the library would offer to replace the person). */
+    closeLeft: () => rail.close(),
+  };
 }

@@ -586,7 +586,10 @@ function choose(id) {
 function select(kind, index = -1, seg = undefined) {
   state.sel = { ...state.sel, kind, index, seg };
   const topic = topicOf(kind, index);
-  if (topic) objectWindow.open(topic); // a click on a character or prop opens its window
+  if (topic) {
+    views?.closeLeft(); // its cards would replace what was clicked; the stage gets the room
+    objectWindow.open(topic); // a click on a character or prop opens its window
+  }
   requests.renderTarget();
   inspector.render();
   library.render();
@@ -952,6 +955,9 @@ async function open(rel) {
   renderAll();
   requests.start();
   say("");
+  // a new episode is shown in its own frame: editing a vertical film in 16:9 showed a framing it will never have
+  const own = res.episode?.format;
+  if (!same && own && own !== state.format) $(`fmt-${own.replace(":", "x")}`)?.click();
 }
 
 // unsaved story cards count too: switching episodes would drop them
@@ -1160,7 +1166,7 @@ function removeSelected() {
   } else shotOp("del");
 }
 /* ---------- view choices (left pane, timeline, frame, safe areas, hidden layers) ---------- */
-installViews({
+const views = installViews({
   timeline,
   editor,
   library,

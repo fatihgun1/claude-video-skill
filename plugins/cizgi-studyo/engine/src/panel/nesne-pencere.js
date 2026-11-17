@@ -66,11 +66,18 @@ export function createObjectWindow(ctx) {
   const key = () => (topic ? `${topic.tur}:${topic.id}` : "");
   const chat = () => chats.sohbetler.find((c) => `${c.konu.tur}:${c.konu.id}` === key()) || null;
 
+  /**
+   * At the window's right edge, over the properties pane (it shows the same thing), beside the
+   * stage: over the stage it hid the very thing that was clicked (usability test 1). When the
+   * clicked thing would still be under it, the window goes to the other side.
+   */
   function place() {
     const s = ctx.stageBox();
     const width = Math.min(WIDTH, window.innerWidth - 2 * GAP);
-    const left = s ? Math.max(GAP, Math.min(s.right - width - GAP, window.innerWidth - width - GAP)) : window.innerWidth - width - GAP;
-    const top = s ? Math.max(GAP, s.top + GAP) : 80;
+    let left = window.innerWidth - width - GAP;
+    const sel = document.querySelector("#edit .ebox.sel")?.getBoundingClientRect();
+    if (sel && left < sel.right + GAP && left + width > sel.left - GAP) left = Math.max(GAP, Math.min(sel.left - width - GAP, (s?.left ?? GAP)));
+    const top = s ? Math.max(GAP, s.top) : 80;
     Object.assign(box.style, { left: `${left}px`, top: `${top}px`, width: `${width}px`, maxHeight: `${Math.max(320, Math.min(MAX_HEIGHT, window.innerHeight - top - GAP))}px` });
   }
 

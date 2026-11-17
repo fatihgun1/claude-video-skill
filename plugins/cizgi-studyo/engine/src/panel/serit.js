@@ -76,7 +76,7 @@ export function installRail(ctx) {
 
   let stored = "karakter";
   try {
-    stored = localStorage.getItem(KEY) ?? "karakter";
+    stored = localStorage.getItem(KEY) ?? ""; // first time: closed, the stage comes first
   } catch {
     /* storage off */
   }

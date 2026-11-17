@@ -93,7 +93,13 @@
 .edisari.sag { right: 8px; }
 
 .stage-box { position: relative; }
-.studyo-ipucu { position: absolute; z-index: 6; top: 8px; left: 50%; transform: translateX(-50%); width: min(720px, calc(100% - 32px)); box-sizing: border-box; display: flex; align-items: center; gap: 8px; margin: 0; box-shadow: 0 6px 18px rgb(0 0 0 / .35); padding: 8px 12px; font-size: 13px; border-radius: var(--radius); background: color-mix(in srgb, var(--accent) 14%, var(--pane)); border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.studyo-ipucu { position: absolute; z-index: 6; bottom: 8px; left: 50%; transform: translateX(-50%); width: min(720px, calc(100% - 32px)); box-sizing: border-box; display: flex; align-items: center; gap: 8px; margin: 0; box-shadow: 0 6px 18px rgb(0 0 0 / .35); padding: 8px 12px; font-size: 13px; border-radius: var(--radius); background: color-mix(in srgb, var(--accent) 14%, var(--pane)); border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); }
 .studyo-ipucu[hidden] { display: none; }
 .studyo-ipucu span:nth-child(2) { flex: 1; }
 .studyo-ipucu .nokta { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+/* a narrow window (the desktop app's browser pane): the bar keeps what matters, Video çıkar always in view */
+#video-cikar { flex: none; }
+@media (max-width: 1180px) {
+  .bar > .steps, .bar #revert { display: none; }
+  .bar .ep-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
