@@ -9,6 +9,7 @@ description: Generate the voice track of an approved Çizgi Stüdyo episode — 
 CLI="node ${CLAUDE_PLUGIN_ROOT}/engine/src/cli.mjs"
 $CLI ses <bolum.json>          # only new or changed lines
 $CLI ses <bolum.json> --hepsi  # redo every line
+$CLI ses <bolum.json> s1_sh3-0 # a new take of that one line (another seed); the others stay
 ```
 
 The step refuses to run until the script gate (`senaryo`) is approved for the current text.
@@ -32,6 +33,8 @@ Ask in the panel with `panel_sor` and put the line's audio in the question: `ses
 Do not hide a failed line and do not move on silently.
 
 ## Voices
+- **Every character needs a voice of its own.** Without one, every character speaks with the same default voice (a woman and a man sound alike). Before the audio step, make sure each speaking person has a `voice`: a recording (`voice.ref`, made in the panel's karakter window: **Ses** → record or pick a file) or at least its own `exaggeration`/`cfg`. Ask the person in the panel if none is set.
+- A person's front and back views (rig `<rig>-on`, `<rig>-arka` of a character with rig `<rig>`) speak with that character's voice unless they have their own: set the voice once, on the profile character.
 - **Let the person hear a voice before the lines are spoken.** `$CLI ses-ornek <bolum.json> <character id or anlatici> [--metin "…"]` speaks one sentence (its first line, else a sample sentence) with that voice into `cikti/ses-ornegi-<id>.wav`: no script approval, no listening check, the episode's audio untouched (about a minute while the model loads; run it in the background). In the panel the person does the same in **Bölüm ayarları → Sesler** (sliders for `exaggeration` and `cfg`, **▶ Örnek dinle**). Offer this when choosing voices instead of guessing settings.
 - `voice.exaggeration` is 0.25–1.5 (default 0.5) and controls expressiveness.
 - `voice.cfg` is 0.4–1 (default 0.5). Lower values made Chatterbox add or mangle words in testing.

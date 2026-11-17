@@ -7,6 +7,7 @@
  *   cizgi senaryo    <bolum.json>                    the script table to show at the senaryo gate
  *   cizgi onayla     senaryo|storyboard <bolum.json> record a human approval (only after a yes)
  *   cizgi ses        <bolum.json> [--hepsi]          speak, check and time changed lines
+ *   cizgi ses        <bolum.json> <shot>-<n>         speak that one line again (a new take)
  *   cizgi ses-ornek  <bolum.json> <karakter> [--metin "…"]  one sentence in that voice (cikti/ses-ornegi-<id>.wav), no approval
  *   cizgi kabul      <bolum.json> <line-key>         keep a take that failed the listening check (only after a yes)
  *   cizgi storyboard <bolum.json> [--format 16:9]    stills of every shot for review
@@ -155,7 +156,9 @@ function main(argv) {
       return 0;
     }
     case "ses": {
-      const res = runAudio(a1, lib, loadTools(), { ...deps, force: flags.has("--hepsi") });
+      // one line: a new take every time (another seed), the other lines stay as they are
+      const one = a2 ? { only: a2, take: 1 + Math.floor(Math.random() * 1000) } : {};
+      const res = runAudio(a1, lib, loadTools(), { ...deps, force: flags.has("--hepsi"), ...one });
       print(res);
       return res.failed.length ? 3 : 0;
     }

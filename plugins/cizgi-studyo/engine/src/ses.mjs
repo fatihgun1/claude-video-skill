@@ -23,13 +23,43 @@ function sha(value) {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
+// a character's other views: the same person, drawn from the front or the back (rig "kiz-on" of "kiz")
+const VIEW_SUFFIX = /-(on|arka)$/;
+
+/**
+ * Each character's voice. A view of a person (its rig is "<rig>-on" or "<rig>-arka" of another
+ * character's rig) that has no voice of its own speaks with that person's voice, so one voice
+ * choice covers every view.
+ * @param {object} episode
+ * @returns {Record<string, object>}
+ */
+export function voicesOf(episode) {
+  const byRig = new Map(episode.characters.map((c) => [c.rig, c]));
+  const out = {};
+  for (const c of episode.characters) {
+    const person = !c.voice && VIEW_SUFFIX.test(c.rig) ? byRig.get(c.rig.replace(VIEW_SUFFIX, "")) : null;
+    out[c.id] = c.voice || person?.voice || {};
+  }
+  return out;
+}
+
+/**
+ * The character whose voice a character speaks with: itself, or the person it is a view of.
+ * @returns {string} character id
+ */
+export function voiceOwner(episode, id) {
+  const c = episode.characters.find((x) => x.id === id);
+  if (!c || c.voice || !VIEW_SUFFIX.test(c.rig)) return id;
+  return episode.characters.find((x) => x.rig === c.rig.replace(VIEW_SUFFIX, ""))?.id || id;
+}
+
 /**
  * Every spoken line of an episode with its voice settings.
  * @param {object} episode
  * @returns {{key:string, shot_id:string, index:number, speaker:string, text:string, path:string, voice:object}[]}
  */
 export function linesOf(episode) {
-  const voices = Object.fromEntries(episode.characters.map((c) => [c.id, c.voice || {}]));
+  const voices = voicesOf(episode);
   voices[NARRATOR] = episode.narrator_voice || {};
   return episode.scenes.flatMap((scene) =>
     scene.shots.flatMap((shot) =>
@@ -67,6 +97,11 @@ export function lineFingerprint(line, language, tempo) {
  * @returns {{todo: object[], keep: object[]}}
  */
 export function planAudio(lines, manifest, fingerprintOf, fileExists, opts = {}) {
+  if (opts.only) {
+    // one line spoken again (a new take), the others left as they are
+    if (!lines.some((l) => l.key === opts.only)) throw new Error(`no line "${opts.only}" in this episode`);
+    return { todo: lines.filter((l) => l.key === opts.only), keep: lines.filter((l) => l.key !== opts.only) };
+  }
   const known = manifest?.lines || {};
   const todo = [];
   const keep = [];
@@ -78,9 +113,9 @@ export function planAudio(lines, manifest, fingerprintOf, fileExists, opts = {})
   return { todo, keep };
 }
 
-/** Stable integer seed per line and attempt, so a rerun reproduces the same take. */
-function seedFor(key, attempt) {
-  return parseInt(sha(key).slice(0, 7), 16) + attempt * 7919;
+/** Stable integer seed per line and attempt, so a rerun reproduces the same take; take > 0 is another one. */
+function seedFor(key, attempt, take = 0) {
+  return parseInt(sha(key).slice(0, 7), 16) + attempt * 7919 + take * 104729;
 }
 
 /**
@@ -125,7 +160,7 @@ export function runAudio(episodePath, lib, tools, deps) {
       text: line.text,
       lang: episode.language,
       out: raw(line),
-      seed: seedFor(line.key, attempt),
+      seed: seedFor(line.key, attempt, deps.take || 0),
       voice: { ...line.voice, ...(line.voice.ref ? { ref: abs(line.voice.ref) } : {}) },
     }));
     writeFileSync(join(work, "tts.json"), JSON.stringify(jobs, null, 2));
@@ -226,7 +261,7 @@ export function voiceSample(episodePath, lib, tools, deps, { karakter, metin } =
   const episode = readJson(episodePath);
   const { ok, errors } = validateEpisode(episode, lib);
   if (!ok) throw new Error(`episode is invalid:\n- ${errors.join("\n- ")}`);
-  const voices = Object.fromEntries(episode.characters.map((c) => [c.id, c.voice || {}]));
+  const voices = voicesOf(episode); // a view speaks with its person's voice
   voices[NARRATOR] = episode.narrator_voice || {};
   if (!Object.hasOwn(voices, karakter)) throw new Error(`no character "${karakter}" in this episode (${Object.keys(voices).join(", ")})`);
   const first = linesOf(episode).find((l) => l.speaker === karakter);

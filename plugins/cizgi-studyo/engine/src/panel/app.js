@@ -224,6 +224,26 @@ const drafts = createDrafts({
   },
   note: (text) => note(text),
 });
+/** Run a production job on the saved episode and wait for it: its result, or throws why it failed. */
+async function runJob(kind, sahne) {
+  if (dirty()) await save();
+  if (dirty()) throw new Error("önce kaydet");
+  await api("/api/is", { b: state.path, kind, format: state.format, sahne });
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 1500));
+    const { job } = await api(`/api/is?${new URLSearchParams({ b: state.path })}`);
+    if (!job || job.status === "running") continue;
+    if (job.status !== "done") throw new Error(tr(job.error || "bilinmeyen hata"));
+    return job.result;
+  }
+}
+// a view of a person ("kiz-on" of "kiz") speaks with that person's voice (ses.mjs voicesOf)
+const VIEW_SUFFIX = /-(on|arka)$/;
+function voiceOwner(id) {
+  const c = character(id);
+  if (!c || c.voice || !VIEW_SUFFIX.test(c.rig)) return c;
+  return state.draft.characters.find((x) => x.rig === c.rig.replace(VIEW_SUFFIX, "")) || c;
+}
 /* ---------- the object window: click a character or prop, work on it with Claude ---------- */
 const objectWindow = createObjectWindow({
   api,
@@ -235,6 +255,34 @@ const objectWindow = createObjectWindow({
   openShot: () => {
     const t = shotTopic();
     if (t) objectWindow.open(t);
+  },
+  // the character's voice: whose it is (a view uses its person's), what it is now
+  voiceInfo: (id) => {
+    const owner = voiceOwner(id);
+    if (!owner) return null;
+    const v = owner.voice || {};
+    const now = v.ref ? "kendi kaydın" : "varsayılan ses (herkesle aynı)";
+    return { owner: owner.id, ad: labelOf(owner.id), now };
+  },
+  // the person's recording becomes that character's voice: saved next to the episode, then the episode is saved
+  useRecording: async (id, base64) => {
+    const owner = voiceOwner(id);
+    const res = await api("/api/ses-kayit", { b: state.path, karakter: owner.id, wav: base64 });
+    owner.voice = { ...(owner.voice || {}), ref: res.ref };
+    changed(true);
+    await save();
+    return `${labelOf(owner.id)} artık senin kaydınla konuşacak (${res.sure} sn). Replikleri yeniden seslendirmek için Üretim'de “Sesleri üret”e bas ya da bir repliğe tıklayıp “Yeniden seslendir” de.`;
+  },
+  sample: async (id) => {
+    const owner = voiceOwner(id);
+    const res = await runJob("ornek", owner.id);
+    return `${state.outputsUrl || ""}${res.dosya}?v=${Date.now()}`;
+  },
+  // one line spoken again, a new take; the window then plays it
+  redoLine: async (key) => {
+    const res = await runJob("satir", key);
+    const bad = (res.failed || []).find((f) => f.key === key);
+    return bad ? `Yeni çekim hazır ama ses kontrolünde farklı duyuldu: “${bad.heard}”. Dinle; olmadıysa yeniden dene.` : "Yeni çekim hazır.";
   },
 });
 /** What the person clicked on the stage, as an object-window topic (null: nothing it opens for). */

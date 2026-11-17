@@ -37,3 +37,12 @@
 .npencere-kart blockquote { font-size: 15px; line-height: 1.4; padding-left: 12px; border-left: 3px solid var(--accent); }
 .npencere-konusan { font-size: 12px; color: var(--muted); }
 .npencere-bas .row { display: flex; gap: 8px; align-items: center; }
+.npencere-govde { display: flex; flex-direction: column; gap: 12px; }
+.npencere-ses { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--pane-2); }
+.npencere-ses h3 { margin: 0; font-size: 14px; }
+.npencere-ses p { margin: 0; }
+.npencere-ses .row, .npencere-kart .row { display: flex; flex-wrap: wrap; gap: 8px; }
+.kayit-olcer { height: 8px; border-radius: 4px; background: var(--pane-3); overflow: hidden; }
+.kayit-olcer span { display: block; height: 100%; background: var(--accent); transition: width .1s linear; }
+@media (prefers-reduced-motion: reduce) { .kayit-olcer span { transition: none; } }
+.npencere .gizli { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }

@@ -10,10 +10,10 @@ import { join, relative, sep, dirname } from "node:path";
 
 // sahne: stills of one scene for review (its scene id follows --sahne); ses: speak the lines
 // (no format: the audio is the same for both)
-export const JOB_KINDS = Object.freeze({ storyboard: ["storyboard"], render: ["render"], taslak: ["render", "--taslak"], taslak3b: ["render", "--taslak", "--3b"], sahne: ["storyboard", "--sahne"], ses: ["ses"], ornek: ["ses-ornek"] });
-const NO_FORMAT = new Set(["ses", "ornek"]);
+export const JOB_KINDS = Object.freeze({ storyboard: ["storyboard"], render: ["render"], taslak: ["render", "--taslak"], taslak3b: ["render", "--taslak", "--3b"], sahne: ["storyboard", "--sahne"], ses: ["ses"], ornek: ["ses-ornek"], satir: ["ses"] });
+const NO_FORMAT = new Set(["ses", "ornek", "satir"]);
 // `cizgi ses` exits 3 when some lines failed the listening check: still a finished job
-const DONE_CODES = { ses: [0, 3] };
+const DONE_CODES = { ses: [0, 3], satir: [0, 3] };
 // "ilerleme {json}" lines on stderr: how far a step is (see ses.mjs)
 const PROGRESS = /^ilerleme (\{.*\})\s*$/;
 const PROGRESS_STEPS = new Set(["seslendirme", "kontrol", "agiz"]);
@@ -37,7 +37,7 @@ const LOG_TAIL = 4000; // characters of output kept for the panel
 const MAX_OUT = 1_000_000; // the CLI's JSON answer is small; more than this is not an answer
 const TIMEOUT_MS = 30 * 60 * 1000; // a job still running after this is stuck
 // speech may first download its models (several GB) and retries bad takes
-const TIMEOUTS_MS = { ses: 90 * 60 * 1000 };
+const TIMEOUTS_MS = { ses: 90 * 60 * 1000, satir: 30 * 60 * 1000 };
 
 /** End a process and every process it started (on Windows kill() would leave the children running). */
 function defaultKillTree(pid) {
@@ -87,12 +87,14 @@ export function createJobs(opts) {
       if (kind === "sahne" && !SCENE_ID.test(scene || "")) throw Object.assign(new Error("a scene id is needed"), { code: 400 });
       // a voice sample: the character id goes after the episode (cizgi ses-ornek <bolum.json> <karakter>)
       if (kind === "ornek" && !SCENE_ID.test(scene || "")) throw Object.assign(new Error("a character id is needed"), { code: 400 });
+      // one line spoken again: its key goes after the episode (cizgi ses <bolum.json> <shot>-<n>)
+      if (kind === "satir" && !SCENE_ID.test(scene || "")) throw Object.assign(new Error("a line key is needed"), { code: 400 });
       if (jobs.get(episodePath)?.status === "running") throw Object.assign(new Error("a job is already running for this episode"), { code: 409 });
       // the panel's own project library, so a job sees exactly the drawings the panel validated against
-      const args = [opts.cli, ...JOB_KINDS[kind], ...(kind === "sahne" ? [scene] : []), episodePath, ...(kind === "ornek" ? [scene] : []),
+      const args = [opts.cli, ...JOB_KINDS[kind], ...(kind === "sahne" ? [scene] : []), episodePath, ...(kind === "ornek" || kind === "satir" ? [scene] : []),
         ...(NO_FORMAT.has(kind) ? [] : ["--format", format]),
         ...(opts.library ? ["--kutuphane", opts.library] : []), ...(opts.project ? ["--proje-kutuphane", opts.project] : [])];
-      const job = { kind, format, ...(kind === "sahne" || kind === "ornek" ? { scene } : {}), status: "running", started: now(), log: "", out: "", partial: "", progress: null };
+      const job = { kind, format, ...(kind === "sahne" || kind === "ornek" || kind === "satir" ? { scene } : {}), status: "running", started: now(), log: "", out: "", partial: "", progress: null };
       jobs.set(episodePath, job);
       const child = spawn(process.execPath, args, { cwd: dirname(episodePath), windowsHide: true });
       job.child = child;
