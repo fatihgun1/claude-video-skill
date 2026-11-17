@@ -22,14 +22,14 @@ test("a ready voice gives its Edge voice and presets; the character's own perde 
   assert.deepEqual(edgeSettings(undefined, undefined, { voices: new Map() }), { voice: DEFAULT_EDGE_VOICE, rate: "+0%", pitch: "+0Hz", volume: "+0%" });
 });
 
-test("every feeling shifts rate, pitch and loudness; an unknown one changes nothing", () => {
+test("every feeling shifts pace and loudness but never the pitch (one person, one voice); an unknown one changes nothing", () => {
   assert.deepEqual(Object.keys(MOODS).sort(), ["heyecanli", "kizgin", "korkmus", "neseli", "sakin", "uzgun"]);
   const flat = edgeSettings({ hazir: "kadin" }, undefined, lib);
   for (const [duygu, m] of Object.entries(MOODS)) {
     const s = edgeSettings({ hazir: "kadin" }, duygu, lib);
     assert.notDeepEqual(s, flat, duygu);
     assert.equal(s.rate, `${m.rate > 0 ? "+" : ""}${m.rate}%`, duygu);
-    assert.equal(s.pitch, `${m.pitch > 0 ? "+" : ""}${m.pitch}Hz`, duygu);
+    assert.equal(s.pitch, flat.pitch, `${duygu}: the pitch is the voice's own`);
     assert.equal(s.volume, `${m.volume > 0 ? "+" : ""}${m.volume}%`, duygu);
   }
   assert.ok(MOODS.heyecanli.rate > 0 && MOODS.uzgun.rate < 0, "excited is faster, sad is slower");
@@ -38,7 +38,7 @@ test("every feeling shifts rate, pitch and loudness; an unknown one changes noth
 
 test("the profile tempo becomes Edge's rate, added to the voice's and the feeling's, within bounds", () => {
   assert.equal(edgeSettings({ hazir: "kadin" }, undefined, lib, 0.85).rate, "-15%");
-  assert.equal(edgeSettings({ hazir: "cocuk" }, "uzgun", lib, 0.85).rate, "-25%"); // +8 -18 -15
+  assert.equal(edgeSettings({ hazir: "cocuk" }, "uzgun", lib, 0.85).rate, "-17%"); // +8 -10 -15
   assert.equal(edgeSettings({ hazir: "kadin", hiz: 40 }, "heyecanli", lib, 1.5).rate, "+100%", "capped");
 });
 

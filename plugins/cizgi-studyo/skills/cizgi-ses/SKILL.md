@@ -51,16 +51,18 @@ To let the person hear a line, ask in the panel with `panel_sor` and put the lin
 - Old episodes may still carry `voice.ref`, `voice.exaggeration` or `voice.cfg` (Chatterbox). They are ignored with a warning from `dogrula`; remove them when you next edit the file.
 
 ## Feelings
-`utterance.duygu` changes how one line is said. Edge has no speaking styles, so a feeling shifts the speaker's rate, pitch and loudness (`ses.mjs` `MOODS`):
+`utterance.duygu` changes how one line is said. Edge has no speaking styles, so a feeling changes only the **pace and the loudness**, a little (`ses.mjs` `MOODS`). It **never moves the pitch**: the pitch is who is speaking. Moving it per line made one character sound like five people ("aynı karakter 5 farklı sesle konuşuyor").
 
-| duygu | rate | pitch | volume |
-|---|---|---|---|
-| `sakin` | -10 % | -3 Hz | -5 % |
-| `neseli` | +8 % | +8 Hz | +5 % |
-| `heyecanli` | +18 % | +12 Hz | +10 % |
-| `uzgun` | -18 % | -10 Hz | -12 % |
-| `kizgin` | +10 % | -6 Hz | +15 % |
-| `korkmus` | +12 % | +10 Hz | -5 % |
+| duygu | rate | volume |
+|---|---|---|
+| `sakin` | -6 % | -4 % |
+| `neseli` | +4 % | +3 % |
+| `heyecanli` | +10 % | +6 % |
+| `uzgun` | -10 % | -8 % |
+| `kizgin` | +6 % | +10 % |
+| `korkmus` | +8 % | -3 % |
+
+A character's own `perde` stays the same in every line. Give each character one ready voice and at most one `perde` for the whole episode; never change `perde` per line or per scene. The feeling a viewer hears comes mostly from the **words and punctuation** ("Ne?!", "Bilmiyorum..."), so write them that way.
 
 When the person wants a line said differently ("daha heyecanlı"), set its `duygu` (or the character's `perde`/`hiz`), save, and speak that line again (`$CLI ses <bolum.json> <shot>-<n>`). A feeling or voice change makes only the lines it touches be spoken again.
 

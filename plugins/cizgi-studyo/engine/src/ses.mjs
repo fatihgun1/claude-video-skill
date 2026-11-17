@@ -65,13 +65,16 @@ export function voiceOwner(episode, id) {
  * the pitch (Hz) and the loudness (volume, %) of the speaker's own voice. Without a feeling every
  * line came out the same flat way (Test 16: "duygu aktarımı yok").
  */
+// A feeling never moves the pitch: the pitch is who is speaking. Moving it per line made one
+// character sound like five different people (Köşe Başı 2.16.0: "aynı karakter 5 farklı sesle
+// konuşuyor"). Only the pace and the loudness change, a little.
 export const MOODS = Object.freeze({
-  sakin: { rate: -10, pitch: -3, volume: -5 },
-  neseli: { rate: 8, pitch: 8, volume: 5 },
-  heyecanli: { rate: 18, pitch: 12, volume: 10 },
-  uzgun: { rate: -18, pitch: -10, volume: -12 },
-  kizgin: { rate: 10, pitch: -6, volume: 15 },
-  korkmus: { rate: 12, pitch: 10, volume: -5 },
+  sakin: { rate: -6, pitch: 0, volume: -4 },
+  neseli: { rate: 4, pitch: 0, volume: 3 },
+  heyecanli: { rate: 10, pitch: 0, volume: 6 },
+  uzgun: { rate: -10, pitch: 0, volume: -8 },
+  kizgin: { rate: 6, pitch: 0, volume: 10 },
+  korkmus: { rate: 8, pitch: 0, volume: -3 },
 });
 const NO_MOOD = { rate: 0, pitch: 0, volume: 0 };
 const RATE_RANGE = [-50, 100];
