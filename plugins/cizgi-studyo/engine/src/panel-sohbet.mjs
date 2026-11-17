@@ -1,7 +1,9 @@
 /**
- * Object chats (the panel's object window): the person clicks one thing on the stage, a character
- * or a prop, and talks to Claude about just that thing. Each thing has its own short conversation,
- * keyed by its kind and drawing id ("karakter:kiz", "nesne:telefon").
+ * Object chats (the panel's object window): the person clicks one thing on the stage and talks to
+ * Claude about just that thing. Each thing has its own short conversation, keyed by its kind and id:
+ *   karakter:<rig>  nesne:<prop>  mekan:<background>   drawings (a new version is a draft under that id)
+ *   replik:<shot>-<n>  efekt:<shot>-<n>                a line or a sound effect of a shot
+ *   cekim:<shot>                                       the shot itself: camera and composition
  *
  *   kisi    the person's message (POST /api/kanal/sohbet); the channel hands it to Claude
  *   claude  Claude's reply or working note (MCP panel_sohbet): text, pictures, suggestion chips
@@ -10,7 +12,9 @@
  * Everything is checked here and drawn as text by the panel; pictures can only be the panel's own drawings.
  */
 
-export const CHAT_KINDS = Object.freeze(["karakter", "nesne"]);
+export const CHAT_KINDS = Object.freeze(["karakter", "nesne", "mekan", "replik", "efekt", "cekim"]);
+// a spoken line of an episode, relative to the panel folder: <episode folder>/ses/<shot>-<n>.wav
+const LINE_AUDIO = /^(?:[A-Za-z0-9_-]+\/){1,6}ses\/[A-Za-z0-9_-]{1,80}\.wav$/;
 const ID = /^[a-z0-9_-]{1,60}$/;
 const SHOT = /^[a-z0-9_-]{1,40}$/;
 const PICTURE = /^\/(kutuphane|kutuphane-taslak)\/(karakter|mekan|nesne|konsept)\/[a-z0-9_-]{1,60}\.svg$/;
@@ -94,17 +98,18 @@ export function createChats({ now = () => Date.now() } = {}) {
       return { key, konu, metin: text };
     },
     /** Claude's reply (metin, gorsel, oneriler) and/or what it is doing now (durum; a reply clears it). */
-    claude({ konu: key, metin, durum, gorsel, oneriler } = {}) {
+    claude({ konu: key, metin, durum, gorsel, oneriler, ses } = {}) {
       const { tur, id } = parseKey(key);
       const text = words(metin, "metin", MAX_TEXT, { optional: true, multiline: true });
       const pictures = cleanPictures(gorsel);
       const chips = cleanSuggestions(oneriler);
+      if (ses !== undefined && (typeof ses !== "string" || !LINE_AUDIO.test(ses))) throw new Error("ses bir replik sesi olmalı: <bölüm klasörü>/ses/<shot>-<n>.wav");
       const working = durum === undefined || durum === null ? undefined : words(durum, "durum", 160);
-      if (!text && !pictures && !chips && working === undefined) throw new Error("metin, durum, gorsel ya da oneriler ver");
+      if (!text && !pictures && !chips && !ses && working === undefined) throw new Error("metin, durum, gorsel, ses ya da oneriler ver");
       const c = touch(`${tur}:${id}`, { tur, id }, (old) => ({
         ...old,
-        mesajlar: text || pictures || chips
-          ? add(old.mesajlar, { kim: "claude", ...(text ? { metin: text } : {}), ...(pictures ? { gorsel: pictures } : {}), ...(chips ? { oneriler: chips } : {}) })
+        mesajlar: text || pictures || chips || ses
+          ? add(old.mesajlar, { kim: "claude", ...(text ? { metin: text } : {}), ...(pictures ? { gorsel: pictures } : {}), ...(ses ? { ses } : {}), ...(chips ? { oneriler: chips } : {}) })
           : old.mesajlar,
         durum: working ?? null, // a reply without a note means Claude is done with it
       }));

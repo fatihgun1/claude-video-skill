@@ -363,6 +363,11 @@ export function createStageEditor(els, ctx) {
           taken: new Set(), movable,
         }));
       });
+      // the caption on screen: a click on it opens that line (its words, its voice)
+      (shot.utterances || []).forEach((u, i) => {
+        const box = boxOf(doc.getElementById(`altyazi-${shot.shot_id}-${i}`), map.k);
+        if (box) parts.push(frame({ box, label: "Replik", selected: sel.kind === "line" && sel.index === i, kind: "line", index: i, baseX: 0, here: u, taken: new Set(), movable: false }));
+      });
     }
     // Keep keyboard focus on the frame being nudged, also across the redraws of a reloading preview.
     const keep = focusKey && (els.layer.contains(document.activeElement) || document.activeElement === document.body);
@@ -383,11 +388,24 @@ export function createStageEditor(els, ctx) {
     sheet.textContent = [...view.hidden].map((key) => `${LAYER_SELECTORS[key]} { visibility: hidden !important; }`).join("\n");
   }
 
-  // A click on the empty stage clears the row selection (the shot stays selected).
+  // A click while the film plays stops it and picks what is under the pointer (frames show only
+  // on a still picture). A click on the empty stage is the place: its window opens.
   els.layer.addEventListener("pointerdown", (e) => {
     if (e.target !== els.layer) return;
     focusKey = null;
+    if (ctx.playing()) {
+      ctx.pause();
+      playingDrawn = false;
+      draw();
+      const hit = document.elementsFromPoint(e.clientX, e.clientY).find((n) => n.classList?.contains("ebox"));
+      if (hit) {
+        const [kind, index] = hit.dataset.key.split(":");
+        ctx.select(kind, Number(index));
+        return;
+      }
+    }
     if (ctx.sel().kind) ctx.select(null);
+    ctx.emptyClick?.();
   });
   // Focus moved somewhere else on purpose: stop handing it back to a frame.
   document.addEventListener("focusin", (e) => { if (!els.layer.contains(e.target)) focusKey = null; });

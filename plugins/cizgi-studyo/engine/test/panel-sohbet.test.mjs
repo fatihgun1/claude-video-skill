@@ -6,10 +6,11 @@ import { createChannel } from "../src/panel-kanal.mjs";
 
 const KIZ = { tur: "karakter", id: "kiz", ad: "Kız", bolum: "bolumler/x/bolum.json", shot: "s1_sh2", oyuncu: "kiz_on" };
 
-test("a topic is a character or a prop by drawing id; anything else is refused", () => {
+test("a topic is one thing on the stage by kind and id; anything else is refused", () => {
   assert.deepEqual(cleanTopic(KIZ), KIZ);
   assert.deepEqual(parseKey("nesne:telefon"), { tur: "nesne", id: "telefon" });
-  for (const bad of [{ tur: "mekan", id: "park" }, { tur: "karakter", id: "../x" }, { tur: "karakter", id: "kiz", shot: "a b" }, null]) {
+  for (const key of ["mekan:park", "replik:s1_sh3-0", "efekt:s2_sh1-1", "cekim:s1_sh3"]) assert.equal(Object.values(parseKey(key)).join(":"), key);
+  for (const bad of [{ tur: "muzik", id: "x" }, { tur: "karakter", id: "../x" }, { tur: "karakter", id: "kiz", shot: "a b" }, null]) {
     assert.throws(() => cleanTopic(bad));
   }
   assert.throws(() => parseKey("karakter"), /konu/);
@@ -36,9 +37,12 @@ test("Claude's reply is checked: pictures only the panel's drawings, short chips
   assert.throws(() => chats.claude({ konu: "karakter:kiz", gorsel: ["https://x/y.svg"] }), /gorsel/);
   assert.throws(() => chats.claude({ konu: "karakter:kiz", oneriler: ["x".repeat(81)] }), /öneri/);
   assert.throws(() => chats.claude({ konu: "karakter:kiz", durum: "a\nb" }), /tek satır/);
+  assert.throws(() => chats.claude({ konu: "replik:s1_sh3-0", ses: "../x/ses/a.wav" }), /ses bir replik sesi/);
+  chats.claude({ konu: "replik:s1_sh3-0", ses: "bolumler/x/ses/s1_sh3-0.wav" });
+  assert.equal(chats.durum().sohbetler[0].mesajlar[0].ses, "bolumler/x/ses/s1_sh3-0.wav", "a line Claude spoke again plays under its reply");
   const state = chats.durum();
   state.sohbetler.push("x");
-  assert.equal(chats.durum().sohbetler.length, 0, "the state handed out is a copy");
+  assert.equal(chats.durum().sohbetler.length, 1, "the state handed out is a copy");
 });
 
 test("the channel hands a window message to a listening Claude, or keeps it for the next listen", async () => {

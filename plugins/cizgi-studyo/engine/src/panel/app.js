@@ -127,6 +127,8 @@ const timeline = createTimeline(
     selectLine: (shotId, i) => {
       state.sel = { shot: shotId, kind: "line", index: i };
       renderAll();
+      const t = topicOf("line", i);
+      if (t) objectWindow.open(t); // a line clicked on the timeline opens its window too
     },
     episode: () => state.draft,
     setCaption: (shot, i, shown) => {
@@ -230,6 +232,10 @@ const objectWindow = createObjectWindow({
   rejectDraft: (tur, id) => drafts.reject(tur, id),
   stageBox: () => $("stage")?.getBoundingClientRect() || null,
   after: () => refreshPreview(), // the stage draws the drawing just taken in
+  openShot: () => {
+    const t = shotTopic();
+    if (t) objectWindow.open(t);
+  },
 });
 /** What the person clicked on the stage, as an object-window topic (null: nothing it opens for). */
 function topicOf(kind, index) {
@@ -249,7 +255,30 @@ function topicOf(kind, index) {
     const d = (f.scene.dekor || [])[index];
     return d ? { tur: "nesne", id: d.prop, ad: d.id.slice(0, 80), ...where } : null;
   }
+  if (kind === "line") {
+    const u = (f.shot.utterances || [])[index];
+    if (!u) return null;
+    const key = `${f.shot.shot_id}-${index}`;
+    const dir = state.path.slice(0, state.path.lastIndexOf("/")); // the episode folder: its audio is <dir>/ses/<key>.wav
+    return { tur: "replik", id: key, ad: `${labelOf(u.speaker)}: replik`, ...where, goster: { konusan: labelOf(u.speaker), metin: u.text, ses: `${dir}/ses/${key}.wav`, dinleme: state.listening?.[key] || null } };
+  }
+  if (kind === "sfx") {
+    const x = (f.shot.sfx || [])[index];
+    return x ? { tur: "efekt", id: `${f.shot.shot_id}-${index}`, ad: `Efekt: ${x.sfx}`, ...where, goster: { efekt: x.sfx, at: x.at } } : null;
+  }
   return null;
+}
+/** The place of the shot on screen (a click on the empty stage). */
+function placeTopic() {
+  const f = find(state.sel.shot);
+  return f ? { tur: "mekan", id: f.scene.bg, ad: `Mekân: ${f.scene.bg}`, bolum: state.path, shot: f.shot.shot_id } : null;
+}
+/** The shot itself: its camera and composition. */
+function shotTopic() {
+  const f = find(state.sel.shot);
+  if (!f) return null;
+  const c = f.shot.camera || {};
+  return { tur: "cekim", id: f.shot.shot_id, ad: `Çekim ${f.shot.shot_id}`, bolum: state.path, shot: f.shot.shot_id, goster: { plan: c.framing, hareket: c.move || "static", hedef: c.target ? labelOf(c.target) : null } };
 }
 const inspector = createInspector($("inspector"), {
   // a voice sample (cizgi ses-ornek) of one character, from the saved file: save first, then listen
@@ -319,6 +348,23 @@ editor = createStageEditor({ stage: $("stage"), layer: $("edit") }, {
   },
   sel: () => state.sel,
   select,
+  // a click on the stage while the film plays: stop on the shot under the playhead
+  pause: () => {
+    stage.toggle(false);
+    const now = stage.now();
+    const here = allShots().find(({ shot }) => {
+      const t = stage.shotTime(shot.shot_id);
+      return t && now >= t.start && now < t.end;
+    });
+    if (here && here.shot.shot_id !== state.sel.shot) {
+      state.sel = { shot: here.shot.shot_id, kind: null, index: -1 };
+      renderAll();
+    }
+  },
+  emptyClick: () => {
+    const t = placeTopic();
+    if (t) objectWindow.open(t); // the empty stage is the place
+  },
   layout: stageLayout,
   labelOf,
   say,

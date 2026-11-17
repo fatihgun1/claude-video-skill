@@ -21,7 +21,7 @@ $CLI panel <klasör> --port 4900
 4. **Studio mode.** Once an episode is open in the panel and nothing else is running, listen.
    - Call `panel_dinle` (bekle 600) again and again for as long as the person works in the panel. An empty list means nobody wrote, so call it again.
    - Do not end your turn just to wait while the panel is open: the person works in the panel, not in chat.
-   - **Object windows.** The person clicks a character or a prop on the stage, and a window opens beside it with its drawing, quick actions and a chat. Their message comes as `{tur: "sohbet", konu: {tur: "karakter"|"nesne", id, ad?, bolum?, shot?, oyuncu?}, metin}`:
+   - **Object windows.** The person clicks something on the stage (a character, a prop, the place, a caption; a click while the film plays stops it there), and a window opens beside it with the thing, quick actions and a chat. Their message comes as `{tur: "sohbet", konu: {tur: "karakter"|"nesne", id, ad?, bolum?, shot?, oyuncu?}, metin}`:
      - `id` is the drawing id: the character's rig, or the prop's library id.
      - `oyuncu` is the character id in the episode.
      - `shot` is where they clicked.
@@ -33,6 +33,18 @@ $CLI panel <klasör> --port 4900
         - `metin`: what you did, in one or two sentences.
         - `gorsel`: the draft.
         - `oneriler`: up to 3 next steps the person can click.
+   - **What can be clicked.** `konu.tur` says what the person clicked:
+     - `karakter <rig>`, `nesne <prop>`, `mekan <background>`: a drawing.
+       - Change it as a draft under the same id, as above.
+       - A layered place (`backgrounds/<id>/mekan.json`) is drafted as the same folder.
+       - "Gece yap" is the scene's light (`scene.isik`): an episode change, not a drawing.
+     - `replik <shot>-<n>`: utterance n of that shot. The window plays its audio.
+       - **Changing the words** changes the script, so the senaryo gate must be approved again. Say so in your reply.
+       - **Speaking it again:** `cli.mjs ses` speaks only lines that changed, and there is no single-line redo yet. A different voice setting of that character (`voice.exaggeration`, `cfg`) does change its lines. Then reply with `ses: "<episode folder>/ses/<shot>-<n>.wav"` so the new take plays in the window.
+     - `efekt <shot>-<n>`: sfx n of that shot (its `sfx`, `at`, `volume`). Change it in `bolum.json`, using only effects in the library.
+     - `cekim <shot>`: the shot itself, its camera and composition (framing, move, target, who stands where, which view).
+       - Plan it with the `cizgi-sinema` skill: over-the-shoulder uses the back 3/4 view in front of a front 3/4 view; a two-shot with depth uses `back`.
+       - Validate, then look at its still (`cli.mjs storyboard <bolum.json> --sahne <scene id> --format <format>`).
    - Ask nothing in chat. If you truly need a choice, ask it in the window with `oneriler` (the person clicks one) or with `panel_sor`.
    - Older paths still work: a "Claude'a yaz" request, or "Claude'a sor" in the project wizard. Handle them the same way, then go back to `panel_dinle`.
 

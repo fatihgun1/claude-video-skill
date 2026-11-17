@@ -23,7 +23,7 @@ import { queueOf, takeRequests, updateRequest, describe, episodeFile, ANSWERS, M
 
 // The Claude session this server belongs to: requests from its panel are for it alone (istekler.mjs).
 const SESSION_ID = process.env.CLAUDE_CODE_SESSION_ID || null;
-const SERVER_INFO = { name: "cizgi-studyo", version: "2.5.0" };
+const SERVER_INFO = { name: "cizgi-studyo", version: "2.6.0" };
 // panel-kanal.mjs PANELS (not imported: engine modules load on first use)
 const PANEL_TABS = ["projeler", "uretim", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"];
 const WAIT_DEFAULT_S = 600;
@@ -149,8 +149,9 @@ const TOOLS = [
       "from the story (as for a 'Proje sihirbazından' request in the cizgi-proje skill) and stop listening. Otherwise, read bolumler/<proje>/hikaye.json, ask about that field with " +
       "panel_sor (2-4 suggestion cards), write the answer into hikaye.json, then call panel_dinle again. An empty list means nobody asked: " +
       "call it again while the wizard is open. Do not ask about fields nobody asked about. " +
-      "In studio mode (an episode open in the panel) keep calling it: the person clicks a character or prop on the stage and writes to you in its " +
-      "object window. Such an item is {tur: 'sohbet', konu: {tur: 'karakter'|'nesne', id (the drawing id), ad?, bolum?, shot?, oyuncu?}, metin}: " +
+      "In studio mode (an episode open in the panel) keep calling it: the person clicks something on the stage and writes to you in its " +
+      "object window. Such an item is {tur: 'sohbet', konu: {tur, id, ad?, bolum?, shot?, oyuncu?}, metin}; tur and id: karakter <rig>, nesne <prop>, " +
+      "mekan <background>, replik <shot>-<n> (utterance n of that shot), efekt <shot>-<n> (sfx n), cekim <shot> (the shot: camera, composition). " +
       "work on just that thing and answer with panel_sohbet {konu: '<tur>:<id>'}, never in chat.",
     inputSchema: {
       type: "object",
@@ -161,19 +162,21 @@ const TOOLS = [
   {
     name: "panel_sohbet",
     description:
-      "Reply in the panel's object window: the person clicked one thing on the stage (konu 'karakter:<drawing id>' or 'nesne:<prop id>', " +
-      "as panel_dinle gave it) and wrote to you about it. Send durum first while you work ('Gözlüğü kaldırıyorum…', shown with a spinner), " +
-      "then metin with what you did. gorsel: up to 4 drawings the panel serves; a new version of this drawing is a draft under the same id " +
-      "(/kutuphane-taslak/<karakter|nesne>/<id>.svg): the window shows it next to the current one with an 'Al' button, so the person takes it there. " +
+      "Reply in the panel's object window: the person clicked one thing on the stage (konu '<tur>:<id>' as panel_dinle gave it: karakter, nesne, " +
+      "mekan, replik, efekt or cekim) and wrote to you about it. Send durum first while you work ('Gözlüğü kaldırıyorum…', shown with a spinner), " +
+      "then metin with what you did. gorsel: up to 4 drawings the panel serves; a new version of a character, prop or place drawing is a draft under the same id " +
+      "(/kutuphane-taslak/<karakter|nesne|mekan>/<id>.svg): the window shows it next to the current one with an 'Al' button, so the person takes it there. " +
+      "ses: a spoken line (<episode folder>/ses/<shot>-<n>.wav) played under your reply, e.g. after you spoke a line again. " +
       "oneriler: up to 6 short next steps the person can click instead of typing. A reply with no durum clears the spinner. Write in the person's language.",
     inputSchema: {
       type: "object",
       properties: {
-        konu: { type: "string", description: "The thing: 'karakter:<drawing id>' or 'nesne:<prop id>' (e.g. karakter:kiz)." },
+        konu: { type: "string", description: "The thing, as panel_dinle gave it: '<tur>:<id>' (e.g. karakter:kiz, mekan:park, replik:s1_sh3-0, cekim:s1_sh3)." },
         metin: { type: "string", description: "Your reply (at most 2000 characters)." },
         durum: { type: "string", description: "What you are doing now, shown with a spinner (at most 160 characters). Omit it in your final reply." },
         gorsel: { type: "array", maxItems: 4, items: { type: "string" }, description: "Drawings the panel serves, shown under your reply." },
         oneriler: { type: "array", maxItems: 6, items: { type: "string" }, description: "Short next steps (at most 80 characters each) the person can click." },
+        ses: { type: "string", description: "A spoken line to play under your reply: <episode folder>/ses/<shot>-<n>.wav relative to the panel folder." },
       },
       required: ["konu"],
       additionalProperties: false,

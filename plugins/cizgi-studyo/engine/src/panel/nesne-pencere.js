@@ -4,11 +4,18 @@
 // Everything from Claude is drawn as text; pictures are only the panel's own drawings.
 import { el } from "./dom.js";
 
-const KIND_TEXT = { karakter: "Karakter", nesne: "Nesne" };
+const KIND_TEXT = { karakter: "Karakter", nesne: "Nesne", mekan: "Mekân", replik: "Replik", efekt: "Efekt", cekim: "Çekim" };
+const DRAWN = new Set(["karakter", "nesne", "mekan"]); // things with a drawing (a new version is a draft under its id)
+const FRAMING_TEXT = { wide: "Geniş", medium: "Orta", close: "Yakın", detay: "Detay", gogus: "Göğüs planı" };
+const MOVE_TEXT = { static: "sabit", push_in: "yaklaşıyor", pull_out: "uzaklaşıyor", pan_left: "sola kayıyor", pan_right: "sağa kayıyor", follow: "takip ediyor", dolly_ileri: "derinliğe ilerliyor", acilis: "detaydan açılıyor" };
 // One click fills the message box with a start; the person finishes it or sends it as it is.
 const QUICK = {
   karakter: ["Çizimi düzelt: ", "Kıyafetini değiştir: ", "Rengini değiştir: ", "Önden görünüşünü çiz", "Yüz ifadesini değiştir: "],
   nesne: ["Çizimi düzelt: ", "Daha büyük çiz", "Rengini değiştir: ", "Başka bir çizim öner"],
+  mekan: ["Mekânı değiştir: ", "Daha sade çiz", "Gece yap", "Hikâyeye uyan bir mekân öner"],
+  replik: ["Yeniden seslendir", "Daha duygulu söylesin", "Daha yavaş söylesin", "Metni değiştir: "],
+  efekt: ["Başka bir efekt öner", "Daha erken çalsın", "Sesini kıs", "Bu efekti kaldır"],
+  cekim: ["Omuz üstü çek", "İki kişiyi derinlikli göster", "Yakın çekim yap", "Kamera yavaşça yaklaşsın", "Kompozisyonu düzelt"],
 };
 const WIDTH = 380;
 const GAP = 12;
@@ -94,6 +101,34 @@ export function createObjectWindow(ctx) {
     render();
   }
 
+  /** The thing itself: its drawing (and a new version), or a line's words and voice, an effect, a shot's camera. */
+  function body() {
+    if (DRAWN.has(topic.tur)) return drawings();
+    const g = topic.goster || {};
+    if (topic.tur === "replik") {
+      return el("div", { class: "npencere-kart" },
+        el("p", { class: "npencere-konusan", text: g.konusan || "" }),
+        el("blockquote", { text: g.metin || "" }),
+        audio(g.ses, "Repliği dinle"),
+        g.dinleme && !g.dinleme.ok && !g.dinleme.accepted ? el("p", { class: "npencere-hata", text: `Ses kontrolünde farklı duyuldu: “${g.dinleme.heard || ""}”` }) : null);
+    }
+    if (topic.tur === "efekt") {
+      return el("div", { class: "npencere-kart" },
+        el("p", { text: `${g.efekt} · ${Number(g.at || 0).toFixed(1)} sn'de çalıyor` }),
+        el("audio", { class: "kanal-ses", controls: "", preload: "none", src: `/kutuphane/ses/${encodeURIComponent(g.efekt)}.wav`, "aria-label": "Efekti dinle" }));
+    }
+    return el("div", { class: "npencere-kart" }, // cekim
+      el("p", { text: `${FRAMING_TEXT[g.plan] || g.plan || "?"} plan, kamera ${MOVE_TEXT[g.hareket] || g.hareket}${g.hedef ? `, odak: ${g.hedef}` : ""}` }));
+  }
+
+  /** A spoken line to play, if its file is there (no audio yet: no player). */
+  function audio(path, label) {
+    if (!path) return null;
+    const node = el("audio", { class: "kanal-ses", controls: "", preload: "metadata", src: `/satir-ses/${path.split("/").map(encodeURIComponent).join("/")}?v=${chats.seq}`, "aria-label": label });
+    node.addEventListener("error", () => node.replaceWith(el("p", { class: "muted small", text: "Bu replik henüz seslendirilmedi." })));
+    return node;
+  }
+
   // A new version Claude drew under the same id: side by side with the current drawing.
   function drawings() {
     const now = el("figure", { class: "npencere-cizim" },
@@ -118,6 +153,7 @@ export function createObjectWindow(ctx) {
     return el("li", { class: `nmesaj ${mine ? "kisi" : "claude"}` },
       el("span", { class: "nmesaj-kim", text: mine ? "Sen" : "Claude" }),
       m.metin ? el("p", { text: m.metin }) : null,
+      m.ses ? audio(m.ses, "Claude'un seslendirdiği replik") : null,
       m.gorsel?.length ? el("div", { class: "nmesaj-resimler" }, m.gorsel.map((src) => el("img", { src: `${src}?v=${chats.seq}`, alt: "Claude'un gösterdiği çizim", loading: "lazy" }))) : null,
       m.oneriler?.length ? el("div", { class: "nmesaj-oneriler" }, m.oneriler.map((o) => el("button", { class: "btn small ghost", type: "button", text: o, on: { click: () => send(o) } }))) : null);
   }
@@ -141,8 +177,10 @@ export function createObjectWindow(ctx) {
         el("div", {},
           el("h2", { id: "npencere-ad", text: topic.ad || topic.id }),
           el("span", { class: "muted small", text: `${KIND_TEXT[topic.tur]} · ${topic.id}` })),
-        el("button", { class: "btn icon", type: "button", "aria-label": "Pencereyi kapat", title: "Kapat (Esc)", text: "✕", on: { click: close } })),
-      drawings(),
+        el("div", { class: "row" },
+          topic.tur === "mekan" && ctx.openShot ? el("button", { class: "btn small", type: "button", text: "Bu çekimin kamerası", title: "Kamera ve kompozisyon", on: { click: () => ctx.openShot() } }) : null,
+          el("button", { class: "btn icon", type: "button", "aria-label": "Pencereyi kapat", title: "Kapat (Esc)", text: "✕", on: { click: close } }))),
+      body(),
       el("div", { class: "npencere-hizli", role: "group", "aria-label": "Hızlı istekler" },
         QUICK[topic.tur].map((q) => el("button", { class: "btn small", type: "button", text: q.replace(/: $/, ""), on: { click: () => quick(q) } }))),
       list,
