@@ -102,6 +102,34 @@
   // each scene's decor (scene.dekor): shown with its scene
   const decorEls = {};
   for (const sid of D.decor || []) decorEls[sid] = byId("dekor-" + sid);
+  // the far pieces of it: soft with the background in a close framing (a sharp crowd behind a
+  // blurred street looked like it stood in front of the close-up)
+  const farDecor = {};
+  for (const sid in decorEls) farDecor[sid] = decorEls[sid] ? Array.from(decorEls[sid].querySelectorAll("[data-uzak]")) : [];
+  // pieces that move through their scene (scene.dekor[].akis), and when each scene begins
+  const flowDecor = {};
+  for (const sid in decorEls) {
+    flowDecor[sid] = decorEls[sid] ? Array.from(decorEls[sid].querySelectorAll("[data-akis]")).map((el) => ({ el, f: JSON.parse(el.getAttribute("data-akis")) })) : [];
+  }
+  const sceneStart = {};
+  for (const s of D.shots) if (sceneStart[s.scene_id] == null) sceneStart[s.scene_id] = s.start;
+  const FLOW_NEAR = 0.15; // a piece walking toward the camera comes round again past this depth
+  const FLOW_FADE = 0.08; // and fades out and in over this much depth, instead of popping
+  const FLOW_MARGIN = 300; // a piece walking sideways comes round this far past the frame
+  const wrap = (v, lo, hi) => lo + ((((v - lo) % (hi - lo)) + (hi - lo)) % (hi - lo));
+  function drawFlow(sid, t) {
+    const tau = Math.max(0, t - (sceneStart[sid] || 0));
+    for (const { el, f } of flowDecor[sid]) {
+      const x = f.dx ? wrap(f.x + f.dx * tau, -FLOW_MARGIN, D.world.width + FLOW_MARGIN) : f.x;
+      const back = f.db ? wrap(f.back + f.db * tau, FLOW_NEAR, 1) : f.back;
+      const depth = C.depthOf({ back }, layout);
+      const s = f.ratio * depth.shrink * f.olcek;
+      const px = C.decorX(x, D.world, D.viewport);
+      const py = D.world.ground_y - depth.rise;
+      el.setAttribute("transform", "translate(" + px.toFixed(1) + " " + py.toFixed(1) + ") scale(" + (f.ters ? -s : s).toFixed(4) + " " + s.toFixed(4) + ") translate(" + -f.bx + " " + -f.by + ")");
+      if (f.db) el.setAttribute("opacity", Math.max(0, Math.min(1, (back - FLOW_NEAR) / FLOW_FADE, (1 - back) / FLOW_FADE)).toFixed(3));
+    }
+  }
   // each background's layers, back to front: moved by parallax and the scene's layer settings
   const layerEls = {};
   for (const bg of D.backgrounds) {
@@ -295,7 +323,14 @@
       } else backgrounds[bg].removeAttribute("transform");
     }
 
-    for (const sid in decorEls) setShown(decorEls[sid], sid === shot.scene_id);
+    for (const sid in decorEls) {
+      setShown(decorEls[sid], sid === shot.scene_id);
+      if (sid === shot.scene_id) drawFlow(sid, t);
+      for (const el of farDecor[sid]) {
+        if (blur > 0 && sid === shot.scene_id) el.setAttribute("filter", "url(#dof)");
+        else el.removeAttribute("filter");
+      }
+    }
 
     // noon and zero strength change nothing: no filter pass at all
     const light = shot.isik && shot.isik.saat !== "ogle" && shot.isik.guc !== 0 ? shot.isik : null;

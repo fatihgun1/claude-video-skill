@@ -26,9 +26,12 @@ Sources: [continuity editing (StudioBinder)](https://www.studiobinder.com/blog/w
 | **Motivated insert** | An insert on a prop must follow a shot where a character looks at or reaches for it. | ✓ warns when an insert (camera target = prop) is the first shot or has no character in the shot before |
 | **Match on action** | Cut while a movement is under way and continue it in the next shot (`cast[].from`). | – plan it: the action's time at the cut must equal `from` in the next shot (±0.1 s) |
 | **Eyeline match** | After a character looks somewhere, the next shot shows what is there, framed from roughly their side of the axis. | – plan it |
+| **Walk along a deep street** | On a background in perspective (`sokak-derinlik`), people walk along the street: toward or away from the camera, in a front or back view with a `follow` or `dolly_ileri` move. A profile walk crosses the pavement sideways and looks wrong. | ✓ warns on a profile walk on a deep background |
+| **A crowd moves** | A crowd (`kalabalik-*` decor) walks: give each piece `akis` (`dx` sideways, `back` + going away / - coming closer, per second; e.g. `kalabalik-uzaklasan` `{"back": 0.04}`, `kalabalik-gelen` `{"back": -0.04}`, `kalabalik-karisik` `{"dx": 30}`). A frozen row of people reads as a wall. Far decor goes soft in close framings by itself. | ✓ warns on a crowd without akis |
+| **Shot / reverse shot** | Two people talking: each line on its speaker (close or over the shoulder), not both in one static shot. | ✓ warns on lines of two people in one static shot |
 | **Lead room** | A moving or looking character has more space in front of them than behind. | – camera `follow` keeps the walker left of centre when walking right |
 
-**Between scenes:** every scene begins with a short dip to black by default, about 0.3 s out and 0.3 s in. That is `scene.gecis`, `kararma`; use `kesme` for a hard cut, for example to keep a chase going. The person changes it in the place window (**Sahneye geçiş**).
+**Between scenes:** a scene that goes on in the same place at the same time of day as the one before begins with a hard cut (`kesme`): it is the same moment. Any other scene begins with a short dip to black, about 0.3 s out and 0.3 s in (`kararma`). Set `scene.gecis` only to change that, for example a cut to keep a chase going, or a dip for a jump in time in the same place. The person changes it in the place window (**Sahneye geçiş**).
 
 ## 3. Camera vocabulary (library: `cameras.json`)
 - **wide**: geography and who is where; also the release at the end.

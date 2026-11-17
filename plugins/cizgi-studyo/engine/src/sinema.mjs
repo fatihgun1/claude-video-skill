@@ -6,11 +6,18 @@
  *   - 180° / screen direction: a person does not flip direction between consecutive shots
  *     unless a neutral (front/back) view sits between
  *   - composition: a scene not seen only from the side; a conversation with an over-the-shoulder shot
+ *   - a street running into depth is walked along, not crossed sideways
+ *   - a crowd moves; a back-and-forth of lines is cut as shot / reverse shot
  */
 
 const CLOSE_FRAMINGS = new Set(["close", "detay"]);
 const NEUTRAL_VIEWS = new Set(["front", "back"]);
 const SIDE_ONLY_SHOTS = 3; // a scene of this many shots or more, all from the side, reads flat
+const EXCHANGE_LINES = 2; // lines by two people in one static shot: a talking tableau
+const CROWD = /kalabalik/; // library props that are a crowd of people
+
+/** Whether a background is drawn in perspective (a street running into depth: data-vp). */
+const deep = (lib, bg) => /<svg\b[^>]*\bdata-vp=/.test(lib.backgrounds?.get(bg) || "");
 
 /** The person behind a character entry: rigs that are views of the same person share it. */
 function identityOf(character, lib) {
@@ -94,6 +101,25 @@ function compositionWarnings(episode, lib, chars) {
   const viewOf = (m) => lib.characters.get(chars[m.id]?.rig)?.meta?.view || "front";
   for (const scene of episode.scenes) {
     const where = `film: shot ${scene.shots[0].shot_id}`;
+    // Köşe Başı: people crossed a deep street sideways, past a crowd that stood frozen in a row
+    if (deep(lib, scene.bg)) {
+      for (const shot of scene.shots) {
+        const across = shot.cast.filter((m) => m.walk && viewOf(m).startsWith("profile"));
+        if (across.length) {
+          out.push(`film: shot ${shot.shot_id}: ${across.map((m) => `"${m.id}"`).join(", ")} walks sideways across "${scene.bg}", a street that runs into depth (it looks like crossing the pavement, not walking down the street); walk along it in a front or back view with a dolly or follow move, or use a flat street`);
+        }
+      }
+    }
+    const still = (scene.dekor || []).filter((d) => CROWD.test(d.prop) && !(d.akis?.dx || d.akis?.back));
+    if (still.length) {
+      out.push(`${where}: the crowd ${still.map((d) => `"${d.id}"`).join(", ")} in scene ${scene.scene_id} stands frozen; give it akis (dekor[].akis: dx sideways, back + going away / - coming closer) so it walks by, or leave it out`);
+    }
+    for (const shot of scene.shots) {
+      const said = new Set((shot.utterances || []).map((u) => chars[u.speaker] && identityOf(chars[u.speaker], lib)).filter(Boolean));
+      if (said.size >= EXCHANGE_LINES && (shot.camera.move || "static") === "static") {
+        out.push(`film: shot ${shot.shot_id}: ${said.size} people talk in one static shot; cut it into shot / reverse shot (each line on its speaker, or over the listener's shoulder)`);
+      }
+    }
     const peopled = scene.shots.filter((s) => s.cast.length);
     if (peopled.length >= SIDE_ONLY_SHOTS && peopled.every((s) => s.cast.every((m) => viewOf(m).startsWith("profile")))) {
       out.push(`${where}: every shot of scene ${scene.scene_id} shows people from the side (profile); add a front 3/4 close-up, an over-the-shoulder shot or a tracking shot from behind`);

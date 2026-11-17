@@ -70,10 +70,12 @@ test("compiled, each scene's decor stands in its own group behind the characters
   assert.ok(group > 0 && group < firstChar, "decor before (behind) the characters");
   assert.match(html, /id="dekor-s1--agac1" transform="translate\(200 870\)/);
   // standing back: higher up the ground and smaller (cast.back's rule), mirrored by ters
-  const bench = /id="dekor-s1--bank1" transform="translate\(1500 ([\d.]+)\) scale\((-[\d.]+) ([\d.]+)\)/.exec(html);
+  const bench = /id="dekor-s1--bank1"(?: data-uzak="1")? transform="translate\(1500 ([\d.]+)\) scale\((-[\d.]+) ([\d.]+)\)/.exec(html);
   assert.ok(bench, "bench transform");
   assert.ok(Number(bench[1]) < 870);
   assert.ok(Number(bench[2]) < 0 && Math.abs(Number(bench[2])) === Number(bench[3]));
+  assert.match(html, /id="dekor-s1--bank1" data-uzak="1"/, "far back: soft in a close framing");
+  assert.doesNotMatch(html, /id="dekor-s1--agac1" data-uzak/, "on the front line: sharp");
   const data = JSON.parse(/window\.__CIZGI__ = (\{[\s\S]*?\});\s*<\/script>/.exec(html)[1]);
   assert.deepEqual(data.decor, ["s1"]);
   assert.equal(data.shots.find((s) => s.scene_id === "s1")?.scene_id, "s1");

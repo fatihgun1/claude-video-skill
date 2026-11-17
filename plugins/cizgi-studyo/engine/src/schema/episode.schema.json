@@ -139,7 +139,16 @@
                 "x": { "type": "number", "minimum": -600, "maximum": 2520 },
                 "back": { "type": "number", "minimum": 0, "maximum": 1 },
                 "olcek": { "type": "number", "minimum": 0.3, "maximum": 3 },
-                "ters": { "type": "boolean" }
+                "ters": { "type": "boolean" },
+                "akis": {
+                  "description": "The piece moves all through its scene (a crowd walking by): dx world units a second sideways, back a second into depth (+ away, - toward the camera). It comes round again at the edge.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "dx": { "type": "number", "minimum": -400, "maximum": 400 },
+                    "back": { "type": "number", "minimum": -0.5, "maximum": 0.5 }
+                  }
+                }
               }
             }
           },
@@ -172,7 +181,7 @@
             }
           },
           "gecis": {
-            "description": "How the scene begins: kararma (default) dips to black and back over about 0.6 s around the cut, kesme is a hard cut.",
+            "description": "How the scene begins: kararma dips to black and back over about 0.6 s around the cut, kesme is a hard cut. Default: kesme when the scene goes on in the same place and time of day as the one before, else kararma.",
             "enum": ["kararma", "kesme"]
           },
           "isik": {

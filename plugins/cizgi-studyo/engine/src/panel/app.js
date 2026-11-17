@@ -312,7 +312,7 @@ const objectWindow = createObjectWindow({
   setTransition: (kind) => {
     const f = find(state.sel.shot);
     if (!f) return;
-    setKey(f.scene, "gecis", kind === "kararma" ? undefined : kind);
+    setKey(f.scene, "gecis", kind === defaultTransition(f.scene) ? undefined : kind);
     changed(true);
     objectWindow.open(placeTopic());
   },
@@ -412,10 +412,15 @@ function topicOf(kind, index) {
   }
   return null;
 }
+/** A scene's transition when it names none (compile.mjs sceneTransition): a cut in the same place and time. */
+function defaultTransition(scene) {
+  const prev = state.draft.scenes[state.draft.scenes.indexOf(scene) - 1];
+  return prev && prev.bg === scene.bg && (prev.isik?.saat || "") === (scene.isik?.saat || "") ? "kesme" : "kararma";
+}
 /** The place of the shot on screen (a click on the empty stage). */
 function placeTopic() {
   const f = find(state.sel.shot);
-  return f ? { tur: "mekan", id: f.scene.bg, ad: `Mekân: ${f.scene.bg}`, bolum: state.path, shot: f.shot.shot_id, goster: { gecis: f.scene.gecis || "kararma", ilk: state.draft.scenes[0] === f.scene } } : null;
+  return f ? { tur: "mekan", id: f.scene.bg, ad: `Mekân: ${f.scene.bg}`, bolum: state.path, shot: f.shot.shot_id, goster: { gecis: f.scene.gecis || defaultTransition(f.scene), ilk: state.draft.scenes[0] === f.scene } } : null;
 }
 /** The shot itself: its camera and composition. */
 function shotTopic() {

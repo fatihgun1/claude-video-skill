@@ -225,6 +225,24 @@ export function propLayer(timeline, episode, lib, viewport) {
  * back, mirrored by ters.
  * @returns {{markup: string[], scenes: string[]}}
  */
+/**
+ * How a scene begins: its own gecis, else a hard cut when it goes on in the same place at the same
+ * time of day as the scene before (the same moment, split in two), else a dip to black. A dip in
+ * the middle of one moment read as a long, wrong break (Köşe Başı: "geçişler çok uzun").
+ * @returns {"kararma"|"kesme"}
+ */
+export function sceneTransition(episode, sceneId) {
+  const i = episode.scenes.findIndex((s) => s.scene_id === sceneId);
+  const scene = episode.scenes[i];
+  if (scene?.gecis) return scene.gecis;
+  const prev = episode.scenes[i - 1];
+  const same = prev && prev.bg === scene.bg && (prev.isik?.saat || "") === (scene.isik?.saat || "");
+  return same ? "kesme" : "kararma";
+}
+
+/** Decor this far back (0-1) is part of the background: soft in a close framing, like it. */
+const DECOR_FAR = 0.3;
+
 export function decorLayer(episode, lib, viewport) {
   const C = globalThis.CizgiCore;
   const layout = C.layoutFor(lib.world, viewport);
@@ -240,7 +258,13 @@ export function decorLayer(episode, lib, viewport) {
       const y = lib.world.ground_y - depth.rise;
       const s = ratio * depth.shrink * (d.olcek ?? 1);
       const id = `dekor-${sc.scene_id}--${d.id}`;
-      return `<g id="${id}" transform="translate(${num(x)} ${num(y)}) scale(${(d.ters ? -s : s).toFixed(4)} ${s.toFixed(4)}) translate(${-bx} ${-by})">${prefixIds(svgInner(prop.svg), id)}</g>`;
+      // far pieces go soft with the background in a close framing (data-uzak: the player blurs them)
+      const far = (d.back || 0) >= DECOR_FAR || d.akis?.back ? ' data-uzak="1"' : "";
+      // a moving piece (a crowd walking by): the player places it every frame from these
+      const flow = d.akis && (d.akis.dx || d.akis.back)
+        ? ` data-akis="${escapeHtml(JSON.stringify({ x: d.x, back: d.back || 0, olcek: d.olcek ?? 1, ters: !!d.ters, bx, by, ratio, dx: d.akis.dx || 0, db: d.akis.back || 0 }))}"`
+        : "";
+      return `<g id="${id}"${far}${flow} transform="translate(${num(x)} ${num(y)}) scale(${(d.ters ? -s : s).toFixed(4)} ${s.toFixed(4)}) translate(${-bx} ${-by})">${prefixIds(svgInner(prop.svg), id)}</g>`;
     });
     // further back first, so a nearer piece is drawn over a farther one
     const order = sc.dekor.map((d, i) => ({ i, back: d.back || 0 })).sort((a, b) => b.back - a.back || a.i - b.i);
@@ -520,7 +544,7 @@ export function compileEpisode(episodePath, lib, outDir, opts = {}) {
       shot_id: s.shot_id, scene_id: s.scene_id, bg: s.bg, start: s.start, end: s.end, cast: s.cast, camera: s.camera,
       ...(sceneOf.get(s.scene_id)?.katmanlar ? { katmanlar: sceneOf.get(s.scene_id).katmanlar } : {}),
       ...(sceneOf.get(s.scene_id)?.isik ? { isik: sceneOf.get(s.scene_id).isik } : {}),
-      ...(sceneOf.get(s.scene_id)?.gecis ? { gecis: sceneOf.get(s.scene_id).gecis } : {}),
+      gecis: sceneTransition(episode, s.scene_id),
       utterances: s.utterances.map((u) => ({ speaker: u.speaker, start: u.start, end: u.end, words: u.words, cues: u.cues })),
       props: props.data[i],
       anchors: props.anchors[i],

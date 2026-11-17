@@ -28,6 +28,14 @@
   const PORTRAIT_ZOOM_SHARE = 0.35;
   /** Share of the portrait frame height kept free above the characters for captions. */
   const PORTRAIT_HEADROOM = 0.12;
+  /**
+   * A face-anchored framing (close, detail, chest) in portrait keeps this share of the height it
+   * shows in landscape: compressed like the others, a "close-up" showed the body to the hips with
+   * the face low under empty sky (Köşe Başı: "sahne boyuta göre bozuluyor").
+   */
+  const PORTRAIT_FACE_HEIGHT = 0.8;
+  /** ... and its face sits this share of the frame height above the middle. */
+  const PORTRAIT_FACE_LIFT = 0.08;
   /** Portrait wide shots zoom this much past "just covers the frame", so headroom can apply. */
   const PORTRAIT_MIN_ZOOM = 1.1;
 
@@ -202,6 +210,9 @@
     // In portrait a little extra zoom leaves room to shift the view for caption headroom.
     const base = portrait ? fit * PORTRAIT_MIN_ZOOM : fit;
     let zoom = Math.max(z, base * (1 + (z - 1) * PORTRAIT_ZOOM_SHARE));
+    // a face framed in portrait: about the height of face it shows in landscape (z × fit is exactly that)
+    const face = framing.anchor === "face" || framing.anchor === "chest";
+    if (portrait && face && z > 1) zoom = Math.max(zoom, z * (viewport.height / world.height) * PORTRAIT_FACE_HEIGHT);
     // Without a target the whole cast must stay visible: zoom out as far as covering the frame allows.
     if (keepWidth) zoom = Math.max(Math.min(zoom, viewport.width / keepWidth), fit);
 
@@ -219,7 +230,10 @@
     // A reveal starts centred on its target (e.g. a bottle) and settles on the framing.
     if (faceY != null && move.from_target) cy = faceY + (cy - faceY) * k;
     // Portrait frames keep captions at the top, so look a little higher to push the characters down.
-    if (portrait) cy -= (viewport.height / zoom) * PORTRAIT_HEADROOM;
+    // A face framed in portrait sits a little above the middle instead (eyes near the upper third):
+    // pushed down it left the top half of a close-up empty (Köşe Başı); a caption still fits above.
+    if (portrait && face && z > 1) cy += (viewport.height / zoom) * PORTRAIT_FACE_LIFT;
+    else if (portrait) cy -= (viewport.height / zoom) * PORTRAIT_HEADROOM;
 
     const halfW = viewport.width / zoom / 2;
     const halfH = viewport.height / zoom / 2;

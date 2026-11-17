@@ -142,6 +142,14 @@ test("portrait framing zoom is compressed, not multiplied", () => {
   assert.ok(close.zoom < 2 * fit916);
 });
 
+test("a face framed in portrait keeps most of the height it shows in landscape", () => {
+  const p = { ...presets, framings: { ...presets.framings, yakin: { zoom: 2.2, anchor: "face" } } };
+  const cam = C.cameraAt({ framing: "yakin" }, 0, 960, world, p, vp916);
+  near(1920 / cam.zoom, (1080 / 2.2) / 0.8, 1e-6); // visible height: the landscape close-up's, a little looser
+  const land = C.cameraAt({ framing: "yakin" }, 0, 960, world, p, vp169);
+  near(land.zoom, 2.2);
+});
+
 test("landscape framing is unaffected by portrait rules", () => {
   const cam = C.cameraAt({ framing: "close" }, 0, 960, world, presets, vp169);
   near(cam.zoom, 2);
