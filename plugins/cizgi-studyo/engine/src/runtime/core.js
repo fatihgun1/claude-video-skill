@@ -606,8 +606,12 @@
     return keepShoulders(cam, shot, p, layout, world, presets, viewport);
   }
 
-  /** In a two-person shot aimed at one of them, this much of the other's width stays on screen. */
-  const SHOULDER_SHARE = 0.45;
+  /**
+   * In a two-person shot aimed at one of them, the frame reaches this far past the other's middle
+   * (share of their half-width): their back and shoulder show, not a sliver of arm (2.16.0 kept 45%
+   * of a half-width, which in 9:16 was only an arm at the edge — Köşe Başı, "ince bir kol").
+   */
+  const SHOULDER_PAST = 0.3;
 
   /**
    * A shot aimed at one person with others in it (over the shoulder, a two-shot) keeps a shoulder of
@@ -627,10 +631,10 @@
     for (const m of shot.cast) {
       if (m === target) continue;
       const mx = memberX(m, layout, p * dur, dur);
-      const keep = memberHalfWidth(m, layout) * SHOULDER_SHARE; // this much inside the frame edge
+      const past = memberHalfWidth(m, layout) * SHOULDER_PAST;
       const half = viewport.width / zoom / 2;
-      // the edge of the other person nearest the target, and how far past the frame it is
-      const near = mx < tx ? mx + keep : mx - keep;
+      // the point of the other person the frame must reach (past their middle), and how far out it is
+      const near = mx < tx ? mx - past : mx + past;
       const over = mx < tx ? cx - half - near : near - (cx + half);
       if (over <= 0) continue;
       // slide toward them as far as the target's far side allows (it must stay in frame)
