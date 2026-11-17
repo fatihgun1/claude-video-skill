@@ -135,7 +135,8 @@ export function linesOf(episode) {
  * @returns {string}
  */
 export function lineFingerprint(line, language, tempo) {
-  return sha({ engine: TTS_ENGINE, text: line.text, language, tempo, voice: line.voice, duygu: line.duygu || null }).slice(0, 16);
+  // the feeling by what it does, not only its name: retuning MOODS speaks those lines again
+  return sha({ engine: TTS_ENGINE, text: line.text, language, tempo, voice: line.voice, duygu: line.duygu || null, mood: MOODS[line.duygu] || null }).slice(0, 16);
 }
 
 /**
