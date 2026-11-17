@@ -193,12 +193,14 @@ test("follow-through: ears react to head turns and jumps, forearms trail", () =>
   near(arm.arm_L_lower, 10 + 40 * 0.35);
 });
 
-test("a cast member stands dx world units from its mark (scaled like other distances in portrait)", () => {
+test("a cast member stands dx world units from its mark (in portrait scaled as the marks close up, so two people never cross)", () => {
   const world = { character_height: 620, marks: { sol: 560, orta: 960, sag: 1360 }, portrait: { marks: { sol: 820, orta: 960, sag: 1100 }, character_scale: 0.75 } };
   const land = C.layoutFor(world, { width: 1920, height: 1080 });
   const port = C.layoutFor(world, { width: 1080, height: 1920 });
   near(C.memberX({ mark: "sol", dx: 120 }, land, 0, 2), 680);
-  near(C.memberX({ mark: "sol", dx: 120 }, port, 0, 2), 910);
+  near(C.memberX({ mark: "sol", dx: 120 }, port, 0, 2), 820 + 120 * (280 / 800)); // the marks span 280 of 800
+  // two people set toward each other keep their order and stay apart in portrait
+  assert.ok(C.memberX({ mark: "sag", dx: -140 }, port, 0, 2) - C.memberX({ mark: "sol", dx: 140 }, port, 0, 2) > 150);
   near(C.memberX({ mark: "orta" }, land, 0, 2), 960);
   // A walk starts from the shifted place.
   near(C.memberX({ mark: "sol", dx: 100, walk: { dx: 200 } }, land, 2, 2), 860);

@@ -104,7 +104,7 @@ test("a crowd walks the way it faces, and into depth only on a deep street", () 
   const w = filmWarnings(ep, lib).join("\n");
   assert.match(w, /"k1" walks into depth on "sokak", a flat street/);
   assert.match(w, /"k2" \(kalabalik-gelen\) faces the camera or away from it but slides sideways/);
-  flat.dekor = [{ id: "k3", prop: "kalabalik-yandan", x: 900, back: 0.7, akis: { dx: 30 } }];
+  flat.dekor = [{ id: "k3", prop: "kalabalik-yuruyen-yandan", x: 900, back: 0.7, akis: { dx: 30 } }];
   assert.doesNotMatch(filmWarnings(ep, lib).join("\n"), /k3/);
 });
 
@@ -143,4 +143,29 @@ test("garbled Turkish (UTF-8 read as Windows-1252) is refused; real Turkish pass
   assert.deepEqual(validateEpisode(ep, lib).errors.filter((e) => /garbled/.test(e)), []);
   ep.title = "KÃ¶ÅŸe BaÅŸÄ±";
   assert.match(validateEpisode(ep, lib).errors.join("\n"), /\/title: the text looks garbled/);
+});
+
+test("an over-the-shoulder shot in 9:16 keeps the front person's shoulder on screen", () => {
+  const C = globalThis.CizgiCore;
+  const vp = { width: 1080, height: 1920 };
+  const shot = {
+    cast: [{ id: "on", action: "bekle", mark: "sol", dx: 140 }, { id: "konusan", action: "bekle", mark: "orta", dx: 150, back: 0.35 }],
+    camera: { framing: "medium", target: "konusan" },
+  };
+  assert.deepEqual(C.offFrame(shot, lib.world, lib.cameras, vp, { on: 125, konusan: 140 }), []);
+  // a close-up still leaves the other out on purpose
+  const close = { ...shot, camera: { framing: "close", target: "konusan" } };
+  const cam = C.shotCamera(close, 0.5, lib.world, lib.cameras, vp, { on: 125, konusan: 140 });
+  assert.ok(cam.zoom > C.shotCamera(shot, 0.5, lib.world, lib.cameras, vp, { on: 125, konusan: 140 }).zoom);
+});
+
+test("a prop in the far hand of a profile drawing is told; the near hand is fine", () => {
+  const ep = fresh();
+  const side = ep.characters.find((c) => lib.characters.get(c.rig)?.meta?.view?.startsWith("profile"));
+  const shot = ep.scenes[1].shots[0];
+  shot.cast = [{ id: side.id, action: "bekle-yan", mark: "orta" }];
+  shot.props = [{ id: "tel", prop: "plastik-sise", holder: side.id, hand: "R" }];
+  assert.ok(filmWarnings(ep, lib).some((w) => /holds "tel" in the far hand \(R\)/.test(w)));
+  shot.props[0].hand = "L";
+  assert.ok(!filmWarnings(ep, lib).some((w) => /far hand/.test(w)));
 });

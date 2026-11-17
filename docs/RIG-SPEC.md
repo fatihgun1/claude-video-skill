@@ -25,10 +25,12 @@ root                                  outermost group
    ├─ tail (optional)                 data-pivot = tail root
    ├─ head                            data-pivot = neck
    │  ├─ ear_R, ear_L (optional)      data-pivot = ear root
-   │  ├─ eye_R → eye_R_open, eye_R_closed
+   │  ├─ brow_R, brow_L (expressions)  data-pivot = middle of the brow
+   │  ├─ eye_R → eye_R_open, eye_R_closed   (data-pivot = eye centre, for expressions)
    │  ├─ eye_L → eye_L_open, eye_L_closed
    │  └─ mouth → mouth_rest, mouth_A, mouth_E, mouth_O, mouth_U,
-   │             mouth_MBP, mouth_FV, mouth_L, mouth_smile
+   │             mouth_MBP, mouth_FV, mouth_L, mouth_smile,
+   │             mouth_sad, mouth_angry, mouth_scared (expressions)
    └─ arm_L (hose) → hand_L           near arm, drawn over the body
 ```
 
@@ -44,6 +46,8 @@ An arm is one continuous stroke from shoulder through elbow to wrist, redrawn ev
 <g id="arm_L" data-hose="516,284 524,415 528,548">   <!-- rest shoulder, elbow, wrist -->
   <path class="hose-line" .../>                       <!-- outline (drawn wider) -->
   <path class="hose-fill" .../>                       <!-- sleeve colour on top -->
+  <path class="hose-shade" d="..." fill="none" stroke="var(--top-dark, #b8862e)"
+        stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>  <!-- optional shadow band -->
   <g id="hand_L" data-pivot="528,548"> ... </g>       <!-- follows the wrist -->
 </g>
 ```
@@ -51,6 +55,15 @@ An arm is one continuous stroke from shoulder through elbow to wrist, redrawn ev
 - Channels: `arm_L_upper` bends at the shoulder, `arm_L_lower` at the elbow.
 - A leg drawn the same way gets a knee: `data-hose="hip knee ankle"` with channels `leg_L_upper` and `leg_L_lower`. Its `foot_L` group (pivot = ankle) follows the ankle and turns with `foot_L`.
 - `leg_L_lift` raises the foot of a hose leg (stepping toward or away from the camera).
+- Only `hose-line`, `hose-fill` and `hose-shade` (and a round cap on the shoulder or hip) may sit directly in a hose group: anything else stays put while the limb bends and slides off (`dogrula` warns, `taslaklar` refuses).
+
+### Shading a hose: `path.hose-shade`
+An optional band of shadow, redrawn every frame from the same curve as `hose-fill` (core `hoseShade`):
+- Its `stroke-width` is the band's width at full strength (about 0.38 of the fill's; never wider than the fill, the checker refuses that). The fill's `stroke-width` must be set too.
+- The band lies along the side of the limb away from the light, its outer edge on the fill's edge, so it stays inside the fill and follows every bend. The `d` in the file is only the rest pose (facing right); the player rewrites `d` and `stroke-width`.
+- **Light rule:** the scene's light comes from the upper left of the screen, always. The side is chosen in screen terms from the limb's shoulder-to-wrist direction, after the body's turn and the mirror of a character facing left (`facing: "sol"`), so a mirrored character keeps its shade on the same screen side as the others. When the limb points along the light (down-right or up-left) the band narrows to nothing before it changes side, so it never jumps.
+- Colour: the fill's `-dark` partner (`--top-dark`, `--pants-dark`, `--skin-dark`), so recolouring and costume variants recolour it. On a limb already filled with a `-dark` colour (the far arm or leg), use `stroke="var(--line, #3f3530)" stroke-opacity="0.3"`.
+- Shadows on rigid parts (torso, head, hands, feet) are ordinary shapes inside the part's group, clipped to it (`<clipPath clipPathUnits="userSpaceOnUse"><use href="#govde"/></clipPath>`). They turn with the part, and a mirrored character mirrors them: unlike the hose bands they do not follow the scene's light when the character faces left.
 
 ## Hands that hold things
 A hand can carry three optional parts, in this order:
@@ -84,6 +97,19 @@ A hand can carry three optional parts, in this order:
 | `mouth_L` | l | H |
 | `mouth_rest` | silence | X |
 | `mouth_smile` | expression, not speech | – |
+
+## Facial expressions
+An episode gives a face per shot with `cast[].ifade`: `notr`, `gulumse`, `kizgin` (angry), `uzgun` (sad), `sasirmis` (surprised) or `korkmus` (scared), or a list of `{ifade, at}` moments. Without it, the face follows the `duygu` of the line the character is speaking (kizgin, uzgun, korkmus; heyecanli → sasirmis; neseli → gulumse). The player (`engine/src/runtime/yuz.js`) uses these parts; all of them are optional, but **draw them on every new character that shows its face**:
+
+| Part | What the player does | Rule |
+|---|---|---|
+| `brow_L`, `brow_R` | Moves and turns each brow around its `data-pivot`: angry turns the inner ends (toward the other brow, or toward the nose in a profile) down, sad and scared turn them up, surprise lifts them. They keep the expression while the character speaks. | One brow stroke per group inside `head`, `data-pivot="x,y"` at its middle. A profile needs only the brow it shows. |
+| `data-pivot` on `eye_L` / `eye_R` | Widens the eye (surprise, fear) or narrows it (anger, sadness) around that point. | The centre of the open eye. Leave it off an eye the view does not show. |
+| `mouth_sad` | Shows outside speech for `uzgun`: corners down. | Inside `mouth`, `display="none"`. |
+| `mouth_angry` | Shows outside speech for `kizgin`: a tight, downturned mouth. | Inside `mouth`, `display="none"`. |
+| `mouth_scared` | Shows outside speech for `korkmus`: a wide, wobbly grimace with the teeth showing; without it `mouth_E`. | Inside `mouth`, `display="none"`. |
+
+`sasirmis` uses `mouth_O` outside speech. During a line the lip-sync mouth always wins; the brows and the eye size keep the expression. Keep the brows clear of hair drawn in their colour: a lifted brow that meets the fringe disappears into it. A drawing without the parts shows a neutral face, and `cizgi dogrula` warns ("this drawing has no angry face"); a back view needs none.
 
 ## character.json
 

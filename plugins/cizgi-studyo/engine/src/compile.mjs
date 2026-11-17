@@ -436,6 +436,7 @@ function pageHtml({ episode, timeline, viewport, lib, audioTags, data, props, de
       ${audioTags.join("\n      ")}
     </div>
     <script src="runtime/core.js"></script>
+    <script src="runtime/yuz.js"></script>
     <script>window.__CIZGI__ = ${JSON.stringify(data).replace(/</g, "\\u003c")};</script>
     <script src="runtime/player.js"></script>
   </body>
@@ -537,7 +538,7 @@ export function prepareMedia(episodePath, lib, outDir, opts = {}) {
 export function compileEpisode(episodePath, lib, outDir, opts = {}) {
   const { episode, timeline, viewport, audioTags, estimated } = prepareMedia(episodePath, lib, outDir, opts);
   mkdirSync(join(outDir, "runtime"), { recursive: true });
-  for (const f of ["core.js", "player.js"]) copyFileSync(join(RUNTIME_DIR, f), join(outDir, "runtime", f));
+  for (const f of ["core.js", "yuz.js", "player.js"]) copyFileSync(join(RUNTIME_DIR, f), join(outDir, "runtime", f));
 
   const props = propLayer(timeline, episode, lib, viewport);
   const decor = decorLayer(episode, lib, viewport);
@@ -559,7 +560,7 @@ export function compileEpisode(episodePath, lib, outDir, opts = {}) {
       ...(sceneOf.get(s.scene_id)?.katmanlar ? { katmanlar: sceneOf.get(s.scene_id).katmanlar } : {}),
       ...(sceneOf.get(s.scene_id)?.isik ? { isik: sceneOf.get(s.scene_id).isik } : {}),
       gecis: sceneTransition(episode, s.scene_id),
-      utterances: s.utterances.map((u) => ({ speaker: u.speaker, start: u.start, end: u.end, words: u.words, cues: u.cues })),
+      utterances: s.utterances.map((u) => ({ speaker: u.speaker, start: u.start, end: u.end, words: u.words, cues: u.cues, ...(u.duygu ? { duygu: u.duygu } : {}) })),
       props: props.data[i],
       anchors: props.anchors[i],
     })),

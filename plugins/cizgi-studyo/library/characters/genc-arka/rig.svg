@@ -6,6 +6,7 @@
     <g id="leg_R" data-hose="474,540 474,735 472,902">
       <path class="hose-line" d="M474 540 Q474 735 472 902" fill="none" stroke="var(--line, #3f3530)" stroke-width="62" stroke-linecap="round"/>
       <path class="hose-fill" d="M474 540 Q474 735 472 902" fill="none" stroke="var(--pants-dark, #3f5a7c)" stroke-width="51" stroke-linecap="round"/>
+      <path class="hose-shade" d="M490.0 540.0 L490.1 565.1 L490.1 589.8 L490.1 614.3 L490.1 638.4 L490.0 662.2 L490.0 685.6 L489.9 708.8 L489.7 731.6 L489.6 754.1 L489.5 776.2 L489.3 798.0 L489.1 819.5 L488.8 840.7 L488.6 861.5 L488.3 882.1 L488.0 902.2" fill="none" stroke="var(--line, #3f3530)" stroke-opacity="0.3" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/>
       <g id="foot_R" data-pivot="472,902">
         <path d="M446 900 Q446 884 470 884 Q496 884 500 904 L504 932 Q504 946 488 946 L456 946 Q442 946 442 932 Z" fill="var(--shoe, #d9d6cf)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
         <path d="M444 934 L503 934" fill="none" stroke="var(--line, #3f3530)" stroke-width="4"/>
@@ -14,6 +15,7 @@
     <g id="leg_L" data-hose="544,540 548,735 550,902">
       <path class="hose-line" d="M544 540 Q548 735 550 902" fill="none" stroke="var(--line, #3f3530)" stroke-width="64" stroke-linecap="round"/>
       <path class="hose-fill" d="M544 540 Q548 735 550 902" fill="none" stroke="var(--pants, #4f6f95)" stroke-width="53" stroke-linecap="round"/>
+      <path class="hose-shade" d="M560.5 539.6 L561.0 564.7 L561.6 589.5 L562.1 613.9 L562.6 638.1 L563.0 661.8 L563.5 685.3 L563.9 708.4 L564.2 731.2 L564.6 753.7 L565.0 775.8 L565.3 797.7 L565.6 819.2 L565.8 840.3 L566.1 861.2 L566.3 881.7 L566.5 901.8" fill="none" stroke="var(--pants-dark, #3f5a7c)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
       <g id="foot_L" data-pivot="550,902">
         <path d="M522 900 Q522 884 548 884 Q576 884 582 904 L586 932 Q586 946 570 946 L534 946 Q520 946 520 932 Z" fill="var(--shoe, #ecebe6)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
         <path d="M522 934 L585 934" fill="none" stroke="var(--line, #3f3530)" stroke-width="4"/>
@@ -23,12 +25,15 @@
       <g id="arm_R" data-hose="446,282 436,410 434,540">
         <path class="hose-line" d="M446 282 Q436 410 434 540" fill="none" stroke="var(--line, #3f3530)" stroke-width="54" stroke-linecap="round"/>
         <path class="hose-fill" d="M446 282 Q436 410 434 540" fill="none" stroke="var(--top-dark, #5b7866)" stroke-width="45" stroke-linecap="round"/>
+        <path class="hose-shade" d="M459.9 283.3 L458.5 299.2 L457.1 315.1 L455.9 331.0 L454.7 346.9 L453.6 362.9 L452.7 378.9 L451.8 394.9 L451.0 410.9 L450.3 427.0 L449.7 443.0 L449.2 459.1 L448.7 475.3 L448.4 491.4 L448.2 507.6 L448.0 523.8 L448.0 540.0" fill="none" stroke="var(--line, #3f3530)" stroke-opacity="0.3" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/>
         <g id="hand_R" data-pivot="434,540">
           <circle cx="433" cy="557" r="20" fill="var(--skin-dark, #c98f6c)" stroke="var(--line, #3f3530)" stroke-width="5"/>
         </g>
       </g>
       <path d="M488 196 L528 196 L528 244 L490 244 Z" fill="var(--skin-dark, #c98f6c)"/>
-      <path d="M440 250 Q470 230 512 230 Q558 230 586 252 Q602 272 600 306 L594 430 Q592 500 584 540 L450 540 Q442 470 444 400 L440 306 Q436 270 440 250 Z" fill="var(--top, #6f8f7a)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
+      <path id="govde" d="M440 250 Q470 230 512 230 Q558 230 586 252 Q602 272 600 306 L594 430 Q592 500 584 540 L450 540 Q442 470 444 400 L440 306 Q436 270 440 250 Z" fill="var(--top, #6f8f7a)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
+      <clipPath id="govde-kirp" clipPathUnits="userSpaceOnUse"><use href="#govde"/></clipPath>
+      <path d="M554 226 Q570 320 564 420 Q558 490 544 548 L620 548 L620 226 Z" fill="var(--top-dark, #5b7866)" clip-path="url(#govde-kirp)"/>
       <path d="M452 528 L586 528" fill="none" stroke="var(--line, #3f3530)" stroke-width="4" opacity="0.55"/>
       <path d="M458 238 Q510 222 562 238 Q570 270 548 292 Q510 304 472 292 Q450 270 458 238 Z" fill="var(--top-dark, #5b7866)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
       <path d="M470 262 Q470 250 482 250 L540 250 Q552 250 552 262" fill="none" stroke="var(--bag, #8a6a52)" stroke-width="7" stroke-linecap="round"/>
@@ -38,7 +43,7 @@
       <path d="M462 300 Q448 380 452 470 M560 300 Q574 380 570 470" fill="none" stroke="var(--line, #3f3530)" stroke-width="3" opacity="0.35"/>
       <g id="head" data-pivot="508,212">
         <path d="M505 58 C552 56 580 86 582 124 Q584 160 574 182 Q562 204 532 210 Q508 214 486 206 C460 194 446 166 446 130 C446 88 470 60 505 58 Z" fill="var(--skin, #e3ac86)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
-        <path d="M444 140 C436 88 466 50 510 50 C556 50 588 82 586 126 Q584 150 576 150 Q574 132 566 128 Q560 160 548 182 Q524 196 498 194 Q470 190 456 172 Q446 160 444 140 Z" fill="var(--hair, #3b2b24)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/>
+        <path id="sac" d="M444 140 C436 88 466 50 510 50 C556 50 588 82 586 126 Q584 150 576 150 Q574 132 566 128 Q560 160 548 182 Q524 196 498 194 Q470 190 456 172 Q446 160 444 140 Z" fill="var(--hair, #3b2b24)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/><clipPath id="sac-kirp" clipPathUnits="userSpaceOnUse"><use href="#sac"/></clipPath><path d="M546 44 Q574 96 566 146 Q556 184 514 200 L620 220 L620 30 Z" fill="var(--line, #3f3530)" fill-opacity="0.25" clip-path="url(#sac-kirp)"/>
         <path d="M470 176 Q482 186 498 188 M500 186 Q520 186 536 178" fill="none" stroke="var(--line, #3f3530)" stroke-width="3" opacity="0.5"/>
         <ellipse cx="573" cy="146" rx="10" ry="16" fill="var(--skin, #e3ac86)" stroke="var(--line, #3f3530)" stroke-width="4"/>
         <g id="eye_L"><g id="eye_L_open"></g><g id="eye_L_closed" display="none"></g></g>
@@ -59,6 +64,7 @@
       <g id="arm_L" data-hose="588,282 598,410 600,540">
         <path class="hose-line" d="M588 282 Q598 410 600 540" fill="none" stroke="var(--line, #3f3530)" stroke-width="56" stroke-linecap="round"/>
         <path class="hose-fill" d="M588 282 Q598 410 600 540" fill="none" stroke="var(--top, #6f8f7a)" stroke-width="47" stroke-linecap="round"/>
+        <path class="hose-shade" d="M602.4 280.6 L603.9 296.7 L605.3 312.7 L606.5 328.8 L607.7 344.9 L608.8 361.1 L609.8 377.2 L610.7 393.4 L611.5 409.6 L612.2 425.8 L612.8 442.0 L613.3 458.3 L613.7 474.6 L614.1 490.9 L614.3 507.3 L614.5 523.6 L614.5 540.0" fill="none" stroke="var(--top-dark, #5b7866)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
         <circle cx="588" cy="282" r="23" fill="var(--top, #6f8f7a)"/>
         <g id="hand_L" data-pivot="600,540">
           <circle cx="601" cy="557" r="21" fill="var(--skin, #e3ac86)" stroke="var(--line, #3f3530)" stroke-width="5"/>

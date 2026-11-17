@@ -97,6 +97,7 @@ test("compileEpisode writes a HyperFrames project with escaped text and copied a
   assert.ok(!html.includes("<b>"), "caption text must be escaped");
   assert.ok(existsSync(join(out, "assets", "audio", "ses-s1_sh1-0.wav")));
   assert.ok(existsSync(join(out, "runtime", "player.js")));
+  assert.ok(existsSync(join(out, "runtime", "yuz.js")));
   assert.ok(existsSync(join(out, "timing.json")));
 });
 
@@ -108,7 +109,7 @@ test("caption falls back to text words and script data cannot close the tag", ()
   const html = readFileSync(join(out, "index.html"), "utf8");
   assert.ok(html.includes('data-width="1080" data-height="1920"'));
   assert.ok(html.includes('<span class="kelime">&lt;/script&gt;</span>'));
-  assert.equal(html.split("</script>").length - 1, 3, "only the three real script tags close");
+  assert.equal(html.split("</script>").length - 1, 4, "only the four real script tags close");
 });
 
 test("compileEpisode refuses an invalid episode", () => {

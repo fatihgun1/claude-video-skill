@@ -7,7 +7,8 @@
  * Arms are "hoses": one continuous stroke from shoulder through elbow to wrist, redrawn
  * every frame, so no joint seam is ever visible. Each hose group has
  *   data-hose="sx,sy ex,ey wx,wy"   rest-pose shoulder, elbow and wrist
- * and two <path> children: class="hose-line" (outline) and class="hose-fill".
+ * and two <path> children: class="hose-line" (outline) and class="hose-fill"; optionally
+ * class="hose-shade" bands (the shadow side), redrawn from the same curve (core hoseShade).
  * Pose channels <arm>_upper / <arm>_lower bend it; the hand group follows the wrist.
  */
 export const HOSES = Object.freeze(["arm_L", "arm_R"]);
@@ -68,8 +69,19 @@ export const VISEMES = Object.freeze([
   "mouth_MBP", "mouth_FV", "mouth_L", "mouth_smile",
 ]);
 
+/**
+ * Optional expression parts (cast[].ifade, runtime/yuz.js). The brows carry the expression, also
+ * while the character speaks: each is a group with data-pivot at its middle, turned and moved by
+ * the player. The expression mouths show only outside speech (display="none" like the visemes).
+ * A drawing without them shows a neutral face and the episode check warns.
+ */
+export const BROWS = Object.freeze(["brow_L", "brow_R"]);
+export const EXPRESSION_MOUTHS = Object.freeze(["mouth_sad", "mouth_angry", "mouth_scared"]);
+
 /** Parent each part must be nested inside (direct or indirect). */
 export const NESTING = Object.freeze({
+  ...Object.fromEntries(BROWS.map((b) => [b, "head"])),
+  ...Object.fromEntries(EXPRESSION_MOUTHS.map((m) => [m, "mouth"])),
   hand_L: "arm_L",
   hand_R: "arm_R",
   arm_L: "body",
@@ -151,9 +163,29 @@ function hoseBody(svg, id) {
   return stop < 0 ? rest : rest.slice(0, stop);
 }
 
+/** Stroke width of the first <path class="cls"> in a hose group's own markup, or NaN. */
+function pathStrokeWidth(body, cls) {
+  const tag = new RegExp(`<path\\b[^>]*class=["']${cls}["'][^>]*>`).exec(body)?.[0] || "";
+  return Number(/\bstroke-width=["']([\d.]+)["']/.exec(tag)?.[1]);
+}
+
+/**
+ * A hose-shade band is a stroke the player redraws inside the fill: it needs its own
+ * stroke-width (the band at full strength), no wider than the fill's.
+ */
+function shadeErrors(id, body) {
+  if (!/<path\b[^>]*class=["']hose-shade["']/.test(body)) return [];
+  const band = pathStrokeWidth(body, "hose-shade");
+  const fill = pathStrokeWidth(body, "hose-fill");
+  if (!(band > 0)) return [`#${id}: <path class="hose-shade"> needs stroke-width="<band width>"`];
+  if (!(fill > 0)) return [`#${id}: <path class="hose-fill"> needs a stroke-width for its shade band`];
+  if (band > fill) return [`#${id}: the hose-shade band (${band}) is wider than the hose-fill (${fill})`];
+  return [];
+}
+
 /**
  * Shapes drawn directly in a hose group (not in a nested group such as the hand or foot) other
- * than its two redrawn paths. The player redraws only hose-line and hose-fill as the limb bends;
+ * than its redrawn paths. The player redraws only hose-line, hose-fill and hose-shade as the limb bends;
  * anything else stays where it was drawn, so a patch on a knee or a stripe on a sleeve slides off.
  * A round cap centred on the limb's root (the shoulder or hip, which does not move) is fine.
  */
@@ -176,7 +208,7 @@ function looseShapes(svg, id, root) {
       continue;
     }
     if (closing || depth > 0) continue;
-    if (name === "path" && /\bclass=["']hose-(line|fill)["']/.test(whole)) continue;
+    if (name === "path" && /\bclass=["']hose-(line|fill|shade)["']/.test(whole)) continue;
     if ((name === "circle" || name === "ellipse") && root) {
       const cx = Number(/\bcx=["']([-\d.]+)/.exec(whole)?.[1]);
       const cy = Number(/\bcy=["']([-\d.]+)/.exec(whole)?.[1]);
@@ -228,6 +260,19 @@ export function checkRig(svg) {
     if (v === "mouth_rest" && hidden) errors.push("#mouth_rest must be visible by default");
     if (v !== "mouth_rest" && !hidden) errors.push(`#${v} needs display="none"`);
   }
+  for (const m of EXPRESSION_MOUTHS) {
+    const g = groups.get(m);
+    if (g && g.attrs.display !== "none") errors.push(`#${m} needs display="none"`);
+  }
+  for (const b of BROWS) {
+    const g = groups.get(b);
+    if (g && !/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(g.attrs["data-pivot"] || "")) errors.push(`#${b} needs data-pivot="x,y"`);
+  }
+  // an eye group may carry its centre as data-pivot: the expression widens or narrows the eye around it
+  for (const e of ["eye_L", "eye_R"]) {
+    const p = groups.get(e)?.attrs["data-pivot"];
+    if (p !== undefined && !/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(p)) errors.push(`#${e}: data-pivot must be "x,y"`);
+  }
 
   for (const id of [...REQUIRED_PARTS, ...VISEMES]) {
     if (!groups.has(id)) errors.push(`missing group #${id}`);
@@ -258,6 +303,7 @@ export function checkRig(svg) {
     for (const cls of ["hose-line", "hose-fill"]) {
       if (!new RegExp(`<path\\b[^>]*class=["']${cls}["']`).test(body)) errors.push(`#${id} needs a <path class="${cls}">`);
     }
+    errors.push(...shadeErrors(id, body));
   }
   for (const [id, g] of groups) {
     if (g.attrs.transform) errors.push(`#${id} must not have a transform attribute (the player owns transforms)`);

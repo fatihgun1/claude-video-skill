@@ -8,6 +8,7 @@
 (function () {
   "use strict";
   const C = window.CizgiCore;
+  const Y = window.CizgiYuz; // facial expressions (runtime/yuz.js)
   const D = window.__CIZGI__;
   const BLEND = 0.45; // seconds to blend from the previous shot's pose
   const ROTATABLE = ["body", "body_back", "head", "leg_L", "leg_R", "ear_L", "ear_R", "tail"];
@@ -15,7 +16,7 @@
   const CHANNEL_OF = { body_back: "body" };
   // [hose group, end group that follows it]; legs are hoses only when the rig draws knees.
   const HOSES = [["arm_L", "hand_L"], ["arm_R", "hand_R"], ["leg_L", "foot_L"], ["leg_R", "foot_R"]];
-  const VISEMES = ["mouth_rest", "mouth_A", "mouth_E", "mouth_O", "mouth_U", "mouth_MBP", "mouth_FV", "mouth_L", "mouth_smile"];
+  const VISEMES = ["mouth_rest", "mouth_A", "mouth_E", "mouth_O", "mouth_U", "mouth_MBP", "mouth_FV", "mouth_L", "mouth_smile", "mouth_sad", "mouth_angry", "mouth_scared"];
   const layout = C.layoutFor(D.world, D.viewport);
   const rigScale = layout.scale;
   let layeredShot = -1; // the shot whose depth order the characters are stacked in
@@ -47,7 +48,15 @@
       if (!limb || !limb.hasAttribute("data-hose")) continue;
       const rest = limb.getAttribute("data-hose").trim().split(/\s+/).map((pt) => pt.split(",").map(Number));
       const paths = Array.prototype.slice.call(limb.querySelectorAll(":scope > path.hose-line, :scope > path.hose-fill"));
-      hoses.push({ name: pair[0], endName: pair[1], rest, paths, end: part(pair[1]) });
+      // shade bands (path.hose-shade): redrawn from the same curve, on the side away from the scene's light
+      const fill = limb.querySelector(":scope > path.hose-fill");
+      const fillWidth = Number(fill && fill.getAttribute("stroke-width")) || 0;
+      const shades = Array.prototype.slice.call(limb.querySelectorAll(":scope > path.hose-shade")).map((el) => ({
+        el, band: Number(el.getAttribute("stroke-width")) || 0,
+      }));
+      // the rotating groups around the limb (the body), whose turn changes where the light falls on it
+      const around = joints.filter((j) => j.el.contains(limb)).map((j) => j.name);
+      hoses.push({ name: pair[0], endName: pair[1], rest, paths, end: part(pair[1]), fillWidth, shades, around });
     }
     const grips = [];
     for (const side of ["L", "R"]) {
@@ -57,6 +66,14 @@
     }
     const visemes = {};
     for (const v of VISEMES) visemes[v] = part(v);
+    // brows carry the expression (also while speaking); each turns its inner end around its pivot
+    const browEls = ["brow_L", "brow_R"].map(part).filter((el) => el && el.hasAttribute("data-pivot"));
+    const browPivots = browEls.map((el) => el.getAttribute("data-pivot").split(",").map(Number));
+    const browSides = Y.innerSides(browPivots);
+    const brows = browEls.map((el, i) => ({ el, px: browPivots[i][0], py: browPivots[i][1], inner: browSides[i] }));
+    // eye groups with a data-pivot (their centre) widen or narrow with the expression
+    const eyeSizers = ["eye_L", "eye_R"].map(part).filter((el) => el && el.hasAttribute("data-pivot"))
+      .map((el) => ({ el, p: el.getAttribute("data-pivot").split(",").map(Number) }));
     // costume variants (cast[].varyant): parts shown or hidden per variant, and each variant's colours
     const wrap = byId("kar-" + ch.id);
     const variantParts = wrap
@@ -83,6 +100,9 @@
       grips,
       visemes,
       shownViseme: "mouth_rest",
+      brows,
+      eyeSizers,
+      shownFace: "notr",
       eyes: [
         [part("eye_L_open"), part("eye_L_closed")],
         [part("eye_R_open"), part("eye_R_closed")],
@@ -233,6 +253,16 @@
       const lower = pose[h.name + "_lower"] || 0;
       const geo = C.hoseGeometry(h.rest, upper, lower, pose[h.name + "_lift"] || 0);
       for (const path of h.paths) path.setAttribute("d", geo.d);
+      if (h.shades.length) {
+        let bodyTurn = 0;
+        for (const name of h.around) bodyTurn += (pose[name] || 0) + (idle[name] || 0);
+        const light = C.shadeLight(flip, bodyTurn);
+        for (const s of h.shades) {
+          const band = C.hoseShade(geo, h.fillWidth, s.band, light);
+          s.el.setAttribute("d", band.d);
+          s.el.setAttribute("stroke-width", band.width.toFixed(1));
+        }
+      }
       if (!h.end) continue;
       const w = h.rest[2];
       const turn = upper + lower + (pose[h.endName] || 0);
@@ -257,8 +287,23 @@
       for (const el of pair) if (el) el.setAttribute("transform", gaze);
     }
 
-    // speech first; in its silences and outside lines the face shows the expression (cast[].ifade)
-    const viseme = C.mouthAt(speaking ? C.visemeAt(speaking.cues, t - speaking.start) : "mouth_rest", C.expressionAt(member, local));
+    // the expression (cast[].ifade, else the spoken line's duygu): the brows hold it during speech;
+    // speech wins the mouth, and in its silences and outside lines the expression's mouth shows
+    const face = Y.faceAt(member, local, speaking);
+    if (face !== rig.shownFace) {
+      for (const b of rig.brows) {
+        const tr = Y.browTransform(face, b.inner, b.px, b.py);
+        if (tr) b.el.setAttribute("transform", tr);
+        else b.el.removeAttribute("transform");
+      }
+      for (const e of rig.eyeSizers) {
+        const tr = Y.eyeTransform(face, e.p[0], e.p[1]);
+        if (tr) e.el.setAttribute("transform", tr);
+        else e.el.removeAttribute("transform");
+      }
+      rig.shownFace = face;
+    }
+    const viseme = Y.mouthFor(speaking ? C.visemeAt(speaking.cues, t - speaking.start) : "mouth_rest", face, (m) => !!rig.visemes[m]);
     if (viseme !== rig.shownViseme) {
       setShown(rig.visemes[rig.shownViseme], false);
       setShown(rig.visemes[viseme], true);

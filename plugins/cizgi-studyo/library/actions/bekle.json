@@ -1,10 +1,29 @@
 {
-  "label": { "tr": "Bekle", "en": "Idle" },
-  "views": ["front", "three-quarter-right"],
+  "label": {
+    "tr": "Bekle",
+    "en": "Idle"
+  },
+  "views": [
+    "front",
+    "three-quarter-right",
+    "back-three-quarter-right"
+  ],
   "duration": 2,
   "loop": true,
   "keys": [
-    { "t": 0, "pose": { "arm_L_upper": -6, "arm_R_upper": 6 } },
-    { "t": 2, "pose": { "arm_L_upper": -6, "arm_R_upper": 6 } }
+    {
+      "t": 0,
+      "pose": {
+        "arm_L_upper": -6,
+        "arm_R_upper": 6
+      }
+    },
+    {
+      "t": 2,
+      "pose": {
+        "arm_L_upper": -6,
+        "arm_R_upper": 6
+      }
+    }
   ]
 }

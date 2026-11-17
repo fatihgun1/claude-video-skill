@@ -281,7 +281,84 @@
     const cx = elbow[0] + (through[0] - elbow[0]) * HOSE_ELBOW;
     const cy = elbow[1] + (through[1] - elbow[1]) * HOSE_ELBOW;
     const f = (n) => n.toFixed(1);
-    return { elbow, wrist, d: "M" + f(S[0]) + " " + f(S[1]) + " Q" + f(cx) + " " + f(cy) + " " + f(wrist[0]) + " " + f(wrist[1]) };
+    return {
+      start: S, ctrl: [cx, cy], elbow, wrist,
+      d: "M" + f(S[0]) + " " + f(S[1]) + " Q" + f(cx) + " " + f(cy) + " " + f(wrist[0]) + " " + f(wrist[1]),
+    };
+  }
+
+  /**
+   * The scene's light comes from the upper left of the screen, for every character, whichever way
+   * it faces. Direction toward the light, in screen axes (y down).
+   */
+  const SHADE_LIGHT = [-Math.SQRT1_2, -Math.SQRT1_2];
+  /** Below this |cos| between the limb's side and the light, the band narrows to nothing (no pop when it changes side). */
+  const SHADE_FADE = 0.35;
+  /** Line segments the shade band is drawn with (it follows the hose's curve). */
+  const SHADE_STEPS = 16;
+
+  /**
+   * The light direction in a limb's own drawing axes: the rig is mirrored (flip -1 when it faces
+   * left) and the limb sits in groups turned by `turnDeg` in total (e.g. the body bending).
+   * @param {number} flip 1 or -1
+   * @param {number} turnDeg sum of the rotations of the groups around the limb
+   * @returns {number[]}
+   */
+  function shadeLight(flip, turnDeg) {
+    return rotate(SHADE_LIGHT[0] * flip, SHADE_LIGHT[1], -(turnDeg || 0));
+  }
+
+  /**
+   * Shade band of a hose limb (path.hose-shade): a stroke along the hose's curve, offset toward
+   * the side away from the light, its outer edge on the fill's edge, so it stays inside the fill
+   * and follows every bend. The side is chosen from the limb's overall direction (shoulder to
+   * wrist); when the limb points along the light the band narrows to nothing before it changes side.
+   * @param {{start:number[], ctrl:number[], wrist:number[]}} geo from hoseGeometry
+   * @param {number} fillWidth stroke width of hose-fill
+   * @param {number} bandWidth stroke width of hose-shade at full strength
+   * @param {number[]} light toward the light in the limb's axes (shadeLight)
+   * @returns {{d:string, width:number}}
+   */
+  function hoseShade(geo, fillWidth, bandWidth, light) {
+    const S = geo.start;
+    const Q = geo.ctrl;
+    const W = geo.wrist;
+    let cx = W[0] - S[0];
+    let cy = W[1] - S[1];
+    if (Math.hypot(cx, cy) < 1e-6) {
+      cx = Q[0] - S[0];
+      cy = Q[1] - S[1];
+    }
+    const len = Math.hypot(cx, cy) || 1;
+    // left normal of the shoulder→wrist chord; dot < 0 means that side faces away from the light
+    const dot = (-cy / len) * light[0] + (cx / len) * light[1];
+    const side = dot < 0 ? 1 : -1;
+    const strength = Math.min(1, Math.abs(dot) / SHADE_FADE);
+    const R = fillWidth / 2;
+    const width = Math.max(0, Math.min(bandWidth, fillWidth) * strength);
+    const k = R - width / 2;
+    const f = (n) => n.toFixed(1);
+    const parts = [];
+    for (let i = 0; i <= SHADE_STEPS; i++) {
+      const t = i / SHADE_STEPS;
+      const a = (1 - t) * (1 - t);
+      const b = 2 * (1 - t) * t;
+      const c = t * t;
+      const px = a * S[0] + b * Q[0] + c * W[0];
+      const py = a * S[1] + b * Q[1] + c * W[1];
+      let tx = (1 - t) * (Q[0] - S[0]) + t * (W[0] - Q[0]);
+      let ty = (1 - t) * (Q[1] - S[1]) + t * (W[1] - Q[1]);
+      let tl = Math.hypot(tx, ty);
+      if (tl < 1e-6) {
+        tx = cx;
+        ty = cy;
+        tl = len;
+      }
+      const nx = (-ty / tl) * side;
+      const ny = (tx / tl) * side;
+      parts.push((i ? "L" : "M") + f(px + nx * k) + " " + f(py + ny * k));
+    }
+    return { d: parts.join(" "), width };
   }
 
   /** Seconds between the pose and the earlier pose used for follow-through. */
@@ -318,10 +395,16 @@
   function layoutFor(world, viewport) {
     const portrait = viewport.height > viewport.width && world.portrait;
     const ratio = portrait ? world.portrait.character_scale : 1;
+    const m = world.marks;
+    const pm = portrait ? world.portrait.marks : null;
     return {
       marks: portrait ? world.portrait.marks : world.marks,
       scale: (world.character_height / RIG_HEIGHT) * ratio,
       ratio, // world distances shrink with the characters in portrait
+      // a place beside a mark (cast.dx) shrinks as the marks close up in portrait, not only as the
+      // characters do: with the characters' 0.75 two people set apart by dx crossed each other in
+      // 9:16 (Köşe Başı: the collision and the two-shots). Walks keep ratio (their stride).
+      spread: pm && m.sag > m.sol ? Math.min(ratio, (pm.sag - pm.sol) / (m.sag - m.sol)) : ratio,
     };
   }
 
@@ -332,7 +415,7 @@
    */
   function memberX(member, layout, t, shotDuration) {
     // cast.dx: a free place dx world units from the mark (the marks stay as snapping points).
-    const x = layout.marks[member.mark] + (member.dx || 0) * layout.ratio;
+    const x = layout.marks[member.mark] + (member.dx || 0) * (layout.spread ?? layout.ratio);
     if (!member.walk) return x;
     const span = member.walk.time || shotDuration || 1;
     const k = clamp01(t / span);
@@ -519,7 +602,54 @@
       const zoom = presets.framings[shot.camera.framing].zoom * fit;
       x += walkDirection(shot) * LEAD_ROOM * (viewport.width / zoom);
     }
-    return cameraAt(shot.camera, p, x, world, presets, viewport, keepWidthFor(shot, layout), focusFaceY(shot, layout, world, faces), faceDrop(shot, layout, faces));
+    const cam = cameraAt(shot.camera, p, x, world, presets, viewport, keepWidthFor(shot, layout), focusFaceY(shot, layout, world, faces), faceDrop(shot, layout, faces));
+    return keepShoulders(cam, shot, p, layout, world, presets, viewport);
+  }
+
+  /** In a two-person shot aimed at one of them, this much of the other's width stays on screen. */
+  const SHOULDER_SHARE = 0.45;
+
+  /**
+   * A shot aimed at one person with others in it (over the shoulder, a two-shot) keeps a shoulder of
+   * each other person on screen: the camera slides toward them while the target stays in frame, and
+   * widens only if that is not enough. In 9:16 the front person of an over-the-shoulder shot fell out
+   * of the frame entirely (Köşe Başı, KPSS). Close framings are left alone: they leave others out by design.
+   */
+  function keepShoulders(cam, shot, p, layout, world, presets, viewport) {
+    const framing = presets.framings[shot.camera.framing] || {};
+    if (!shot.camera.target || shot.cast.length < 2 || !framing.boy || framing.boy < 0.6 || propAnchor(shot)) return cam;
+    const dur = shotDuration(shot);
+    const target = shot.cast.find((m) => m.id === shot.camera.target);
+    if (!target) return cam;
+    const tx = memberX(target, layout, p * dur, dur);
+    const tHalf = memberHalfWidth(target, layout);
+    let { zoom, cx } = cam;
+    for (const m of shot.cast) {
+      if (m === target) continue;
+      const mx = memberX(m, layout, p * dur, dur);
+      const keep = memberHalfWidth(m, layout) * SHOULDER_SHARE; // this much inside the frame edge
+      const half = viewport.width / zoom / 2;
+      // the edge of the other person nearest the target, and how far past the frame it is
+      const near = mx < tx ? mx + keep : mx - keep;
+      const over = mx < tx ? cx - half - near : near - (cx + half);
+      if (over <= 0) continue;
+      // slide toward them as far as the target's far side allows (it must stay in frame)
+      const slide = Math.min(over, Math.max(0, mx < tx ? (cx + half) - (tx + tHalf) : (tx - tHalf) - (cx - half)));
+      cx += mx < tx ? -slide : slide;
+      const rest = over - slide;
+      if (rest > 0) {
+        // still out: widen just enough to hold both, the target's far side and the other's shoulder
+        const lo = Math.min(near, tx - tHalf);
+        const hi = Math.max(near, tx + tHalf);
+        zoom = Math.max(Math.min(zoom, viewport.width / (hi - lo)), Math.max(viewport.width / world.width, viewport.height / world.height));
+        cx = (lo + hi) / 2;
+      }
+    }
+    const halfW = viewport.width / zoom / 2;
+    const halfH = viewport.height / zoom / 2;
+    cx = Math.min(Math.max(cx, halfW), world.width - halfW);
+    const cy = Math.min(Math.max(cam.cy, halfH), world.height - halfH);
+    return { zoom, cx, cy };
   }
 
   /**
@@ -543,6 +673,28 @@
       }
     }
     return Object.keys(out);
+  }
+
+  /**
+   * Cast members not on screen at all (no part of them in frame) through the middle of the shot:
+   * the person in front of an over-the-shoulder shot pushed out by the framing (Köşe Başı).
+   * @returns {string[]} member ids
+   */
+  function offFrame(shot, world, presets, viewport, faces) {
+    if (propAnchor(shot)) return [];
+    const layout = layoutFor(world, viewport);
+    const gone = {};
+    for (const p of [0.25, 0.5, 0.75]) {
+      const cam = shotCamera(shot, p, world, presets, viewport, faces);
+      const left = cam.cx - viewport.width / cam.zoom / 2;
+      const right = cam.cx + viewport.width / cam.zoom / 2;
+      for (const m of shot.cast) {
+        const half = memberHalfWidth(m, layout);
+        const x = memberX(m, layout, p * shotDuration(shot), shotDuration(shot));
+        if (x + half * 0.6 < left || x - half * 0.6 > right) gone[m.id] = (gone[m.id] || 0) + 1;
+      }
+    }
+    return Object.keys(gone).filter((id) => gone[id] >= 2);
   }
 
   /**
@@ -646,6 +798,7 @@
     depthOf,
     focusFaceY,
     faceDrop,
+    offFrame,
     segmentsOf,
     segmentAt,
     keepWidthFor,
@@ -654,6 +807,8 @@
     transitionAlpha,
     TRANSITION_HALF,
     hoseGeometry,
+    hoseShade,
+    shadeLight,
     secondaryMotion,
     LAG,
   };

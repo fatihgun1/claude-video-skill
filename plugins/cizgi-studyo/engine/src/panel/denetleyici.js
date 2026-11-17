@@ -30,6 +30,9 @@ function listenDetail(check) {
 
 const MARK_TEXT = { sol: "sol", orta: "orta", sag: "sağ" };
 const FACING_TEXT = { sag: "sağa", sol: "sola" };
+// the face (cast[].ifade): the same list as the schema and runtime/yuz.js
+const IFADE_TEXT = { notr: "Nötr", gulumse: "Gülümsüyor", kizgin: "Kızgın", uzgun: "Üzgün", sasirmis: "Şaşırmış", korkmus: "Korkmuş" };
+const IFADE_OPTIONS = Object.entries(IFADE_TEXT).map(([id, label]) => ({ id, label }));
 /** Words on buttons start with a capital; the same words inside a sentence do not. */
 const cap = (s) => s.charAt(0).toLocaleUpperCase("tr") + s.slice(1);
 const markOptions = (marks) => marks.map((k) => ({ id: k, label: cap(MARK_TEXT[k] || k) }));
@@ -198,8 +201,9 @@ export function createInspector(box, ctx) {
       section("Görünüm", null,
         // the face outside speech (cast[].ifade); moments within the shot are edited in bolum.json
         labelled("İfade", Array.isArray(m.ifade)
-          ? el("span", { class: "muted small", text: `shot içinde değişiyor: ${m.ifade.map((f) => `${f.at} s ${f.ifade === "gulumse" ? "gülümser" : "nötr"}`).join(", ")}` })
-          : segment(m.ifade === "gulumse" ? "gulumse" : undefined, [{ id: "gulumse", label: "Gülümsüyor" }], (val) => { setKey(m, "ifade", val || undefined); ctx.changed(); }, { empty: "Nötr", label: "İfade" })),
+          ? el("span", { class: "muted small", text: `shot içinde değişiyor: ${m.ifade.map((f) => `${f.at} s ${(IFADE_TEXT[f.ifade] || f.ifade).toLocaleLowerCase("tr")}`).join(", ")}` })
+          : select(m.ifade, IFADE_OPTIONS, (val) => { setKey(m, "ifade", val || undefined); ctx.changed(); }, { empty: "Konuşurken satırın duygusundan, yoksa nötr" }),
+          Array.isArray(m.ifade) ? null : "Kaşlar konuşurken de ifadeyi taşır; ağız konuşma aralarında."),
         variants.length
           ? labelled("Kıyafet", select(m.varyant, variants, (val) => { setKey(m, "varyant", val || undefined); ctx.changed(); }, { empty: "çizimdeki gibi" }))
           : null),

@@ -7,8 +7,9 @@ import { readFileSync } from "node:fs";
 import Ajv from "ajv";
 import { has } from "./util.mjs";
 import { filmWarnings } from "./sinema.mjs";
-import { slidingDetails } from "./rigspec.mjs";
+import { slidingDetails, parseGroups } from "./rigspec.mjs";
 import "./runtime/core.js"; // CizgiCore.segmentsOf: the same reading of cast actions as the player
+import "./runtime/yuz.js"; // CizgiYuz: which parts each facial expression needs
 
 const schema = JSON.parse(readFileSync(new URL("./schema/episode.schema.json", import.meta.url), "utf8"));
 const ajv = new Ajv({ allErrors: true });
@@ -196,6 +197,40 @@ export function viewWarnings(episode, lib) {
   return warnings;
 }
 
+const FACE_NAMES = { gulumse: "smiling", kizgin: "angry", uzgun: "sad", sasirmis: "surprised", korkmus: "scared" };
+
+/**
+ * A face a shot asks for (cast[].ifade, or the duygu of a line the member speaks there) that the
+ * drawing has no parts for: the player shows a neutral face, so it is a warning, once per drawing
+ * and face. A back view shows no face and is skipped.
+ * @param {object} episode
+ * @param {ReturnType<import("./library.mjs").loadLibrary>} lib
+ * @returns {string[]}
+ */
+export function expressionWarnings(episode, lib) {
+  const Y = globalThis.CizgiYuz;
+  const warned = new Map(); // "rig face" → message
+  const rigOf = (id) => episode.characters.find((c) => c.id === id)?.rig;
+  for (const scene of episode.scenes) {
+    for (const shot of scene.shots) {
+      for (const m of shot.cast) {
+        const rig = rigOf(m.id);
+        const ch = lib.characters.get(rig);
+        if (!ch?.svg || String(ch.meta?.view || "").startsWith("back")) continue;
+        const faces = !m.ifade ? (shot.utterances || []).filter((u) => u.speaker === m.id).map((u) => Y.DUYGU_IFADE[u.duygu])
+          : typeof m.ifade === "string" ? [m.ifade] : m.ifade.map((f) => f.ifade);
+        const groups = parseGroups(ch.svg);
+        for (const face of new Set(faces.filter(Boolean))) {
+          const missing = Y.missingFor(face, (id) => groups.has(id));
+          if (!missing.length || warned.has(`${rig} ${face}`)) continue;
+          warned.set(`${rig} ${face}`, `shot ${shot.shot_id}: this drawing (${rig}) has no ${FACE_NAMES[face] || face} face (no ${missing.join(", ")}); ${m.id} shows a neutral one there instead`);
+        }
+      }
+    }
+  }
+  return [...warned.values()];
+}
+
 /**
  * Turkish written as UTF-8 and read back as Windows-1252 ("Köşe" → "KÃ¶ÅŸe"): a file written by a
  * tool that does not keep UTF-8 (PowerShell Set-Content). Köşe Başı's title came out so in the panel.
@@ -310,7 +345,7 @@ export function validateEpisode(input, lib) {
     }
   }
   const warnings = [...notes, ...(profile ? ruleWarnings(episode, profile.rules || {}) : [])];
-  if (errors.length === 0) warnings.push(...viewWarnings(episode, lib), ...filmWarnings(episode, lib));
+  if (errors.length === 0) warnings.push(...viewWarnings(episode, lib), ...expressionWarnings(episode, lib), ...filmWarnings(episode, lib));
   return { ok: errors.length === 0, errors, warnings };
 }
 

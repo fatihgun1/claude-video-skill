@@ -44,7 +44,7 @@ test("Ela's own actions fit her rigs without breaking a joint or a view", () => 
 test("an action made for another view is a warning, not an error", () => {
   const wrong = validateEpisode(episode("ela-profil", "bekle"), lib);
   assert.equal(wrong.ok, true, wrong.errors.join("\n"));
-  assert.ok(wrong.warnings.some((w) => w.includes('"bekle" is made for front/three-quarter-right views') && w.includes("profile-right")));
+  assert.ok(wrong.warnings.some((w) => w.includes('"bekle" is made for front/three-quarter-right/back-three-quarter-right views') && w.includes("profile-right")));
   assert.deepEqual(viewWarnings(episode("ela", "selam"), lib), []);
   assert.deepEqual(viewWarnings(episode("ela-profil", "yuru-cocuk"), lib), []);
 });

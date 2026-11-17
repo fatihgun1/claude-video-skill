@@ -140,7 +140,7 @@ function compositionWarnings(episode, lib, chars) {
         out.push(`${where}: the crowd "${d.id}" walks into depth on "${scene.bg}", a flat street (it walks into the wall); give it akis.dx only, or put the scene on a deep street`);
       }
       if (d.akis?.dx && !CROWD_SIDE.test(d.prop)) {
-        out.push(`${where}: the crowd "${d.id}" (${d.prop}) faces the camera or away from it but slides sideways; move it with akis.back on a deep street, or draw a crowd walking sideways (prop kalabalik-yandan, with ters for the direction)`);
+        out.push(`${where}: the crowd "${d.id}" (${d.prop}) faces the camera or away from it but slides sideways; move it with akis.back on a deep street, or use a crowd walking sideways (the library prop kalabalik-yuruyen-yandan, with ters for the direction)`);
       }
     }
     // the furniture of the scene: nobody stands inside it
@@ -176,6 +176,16 @@ function compositionWarnings(episode, lib, chars) {
         out.push(`film: shot ${shot.shot_id}: reverse shot in ${shot.camera.framing} after ${prev.shot_id} in ${prev.camera.framing}; frame the two speakers of a conversation the same size, and change size for both together`);
       }
     });
+    // a prop held in the far hand of a profile drawing is hidden behind the body (Köşe Başı: the phone vanished)
+    for (const shot of scene.shots) {
+      for (const pr of shot.props || []) {
+        const holder = pr.holder && chars[pr.holder];
+        const view = holder && lib.characters.get(holder.rig)?.meta?.view;
+        if (view?.startsWith("profile") && pr.hand === "R") {
+          out.push(`film: shot ${shot.shot_id}: "${pr.holder}" holds "${pr.id}" in the far hand (R), behind the body in a profile view; use the near hand (hand "L")`);
+        }
+      }
+    }
     // a child's action on a tall, grown-up drawing looks wrong (Köşe Başı: an adult ran with the child run)
     for (const shot of scene.shots) {
       for (const m of shot.cast) {
@@ -183,6 +193,24 @@ function compositionWarnings(episode, lib, chars) {
         const acts = [m.action, ...(m.actions || []).map((x) => x.action)].filter((x) => childAction(lib, x));
         if (faceY != null && faceY < TALL_FACE_Y && acts.length) {
           out.push(`film: shot ${shot.shot_id}: "${m.id}" is a grown-up drawing but does the child's action ${acts.map((x) => `"${x}"`).join(", ")}; use a grown-up action, or walk instead of running`);
+        }
+      }
+    }
+    // someone in the shot whom the framing leaves out entirely (the front person of an over-the-shoulder)
+    const C = globalThis.CizgiCore;
+    if (C?.offFrame && lib.cameras && lib.world) {
+      const faces = Object.fromEntries(episode.characters.map((c) => [c.id, lib.characters.get(c.rig)?.meta?.face_y ?? 400]));
+      const formats = episode.format === "both" ? ["16:9", "9:16"] : [episode.format || "16:9"];
+      for (const shot of scene.shots.filter((s) => s.cast.length >= 2)) {
+        for (const f of formats) {
+          const vp = f === "9:16" ? { width: 1080, height: 1920 } : { width: 1920, height: 1080 };
+          let gone = [];
+          try {
+            gone = C.offFrame(shot, lib.world, lib.cameras, vp, faces);
+          } catch {
+            gone = []; // a shot the camera cannot frame is reported elsewhere
+          }
+          if (gone.length) out.push(`film: shot ${shot.shot_id} (${f}): ${gone.map((id) => `"${id}"`).join(", ")} is in the shot but not on screen; bring them closer (dx) or frame wider`);
         }
       }
     }

@@ -7,6 +7,7 @@
       <g id="arm_R" data-hose="496,624 498,690 498,750">
         <path class="hose-line" d="M496 624 Q498 690 498 750" fill="none" stroke="var(--line, #3f3530)" stroke-width="32" stroke-linecap="round"/>
         <path class="hose-fill" d="M496 624 Q498 690 498 750" fill="none" stroke="var(--top-dark, #d28a2c)" stroke-width="23" stroke-linecap="round"/>
+        <path class="hose-shade" d="M503.0 623.7 L503.3 632.2 L503.6 640.5 L503.8 648.8 L504.1 657.0 L504.3 665.1 L504.5 673.2 L504.6 681.2 L504.7 689.1 L504.9 697.0 L505.0 704.8 L505.0 712.5 L505.1 720.2 L505.1 727.7 L505.1 735.2 L505.1 742.7 L505.0 750.1" fill="none" stroke="var(--line, #3f3530)" stroke-opacity="0.3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
         <g id="hand_R" data-pivot="498,750">
           <circle cx="499" cy="770" r="18" fill="var(--skin-dark, #dea283)" stroke="var(--line, #3f3530)" stroke-width="4"/>
         </g>
@@ -15,6 +16,7 @@
     <g id="leg_R" data-hose="494,778 500,842 496,904">
       <path class="hose-line" d="M494 778 Q500 842 496 904" fill="none" stroke="var(--line, #3f3530)" stroke-width="34" stroke-linecap="round"/>
       <path class="hose-fill" d="M494 778 Q500 842 496 904" fill="none" stroke="var(--pants-dark, #46578a)" stroke-width="25" stroke-linecap="round"/>
+      <path class="hose-shade" d="M501.4 777.0 L502.5 785.2 L503.4 793.3 L504.1 801.4 L504.8 809.5 L505.3 817.6 L505.8 825.6 L506.1 833.6 L506.2 841.6 L506.3 849.6 L506.3 857.6 L506.1 865.5 L505.8 873.4 L505.4 881.3 L504.9 889.1 L504.2 897.0 L503.5 904.8" fill="none" stroke="var(--line, #3f3530)" stroke-opacity="0.3" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
       <g id="foot_R" data-pivot="496,904">
         <path d="M478 906 Q478 888 498 888 L512 890 Q540 896 544 922 Q546 946 528 948 L486 948 Q472 946 474 928 Z" fill="var(--shoe, #c94f4f)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
         <path d="M476 934 L544 934" fill="none" stroke="var(--line, #3f3530)" stroke-width="4" opacity="0.6"/>
@@ -23,6 +25,7 @@
     <g id="leg_L" data-hose="506,778 512,842 508,904">
       <path class="hose-line" d="M506 778 Q512 842 508 904" fill="none" stroke="var(--line, #3f3530)" stroke-width="34" stroke-linecap="round"/>
       <path class="hose-fill" d="M506 778 Q512 842 508 904" fill="none" stroke="var(--pants, #5b6fa6)" stroke-width="25" stroke-linecap="round"/>
+      <path class="hose-shade" d="M513.4 777.0 L514.5 785.2 L515.4 793.3 L516.1 801.4 L516.8 809.5 L517.3 817.6 L517.8 825.6 L518.1 833.6 L518.2 841.6 L518.3 849.6 L518.3 857.6 L518.1 865.5 L517.8 873.4 L517.4 881.3 L516.9 889.1 L516.2 897.0 L515.5 904.8" fill="none" stroke="var(--pants-dark, #46578a)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
       <g id="foot_L" data-pivot="508,904">
         <path d="M490 906 Q490 888 510 888 L524 890 Q552 896 556 922 Q558 946 540 948 L498 948 Q484 946 486 928 Z" fill="var(--shoe, #c94f4f)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
         <path d="M488 934 L556 934" fill="none" stroke="var(--line, #3f3530)" stroke-width="4" opacity="0.6"/>
@@ -30,19 +33,23 @@
     </g>
     <g id="body" data-pivot="500,780">
       <path d="M494 566 L516 566 L518 608 L494 608 Z" fill="var(--skin-dark, #dea283)" stroke="var(--line, #3f3530)" stroke-width="4"/>
-      <path d="M476 604 Q500 594 526 600 Q546 608 548 634 L568 778 Q500 794 432 778 L454 634 Q456 610 476 604 Z" fill="var(--top, #f2a541)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
+      <path id="govde" d="M476 604 Q500 594 526 600 Q546 608 548 634 L568 778 Q500 794 432 778 L454 634 Q456 610 476 604 Z" fill="var(--top, #f2a541)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
+      <clipPath id="govde-kirp" clipPathUnits="userSpaceOnUse"><use href="#govde"/></clipPath>
+      <path d="M520 594 Q538 680 536 760 L532 798 L590 798 L590 594 Z" fill="var(--top-dark, #d28a2c)" clip-path="url(#govde-kirp)"/>
       <path d="M440 764 Q500 778 560 764" fill="none" stroke="var(--top-dark, #d28a2c)" stroke-width="7" stroke-linecap="round"/>
       <path d="M528 698 L552 696 L555 724 Q543 732 530 724 Z" fill="var(--top-dark, #d28a2c)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/>
       <path d="M498 598 Q510 618 532 602 Q514 592 498 598 Z" fill="var(--collar, #fdfbf5)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/>
       <g id="head" data-pivot="505,585">
         <path d="M420 506 Q410 414 500 406 Q560 404 586 440 L520 470 Q478 488 474 540 L478 574 Q446 586 418 570 Z" fill="var(--hair, #4a2f24)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
-        <path d="M505 414 C556 414 590 446 592 492 Q604 506 594 516 Q594 550 566 572 Q538 590 506 584 C460 580 428 548 428 500 C428 452 458 414 505 414 Z" fill="var(--skin, #f1c3a0)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
+        <path id="yuz" d="M505 414 C556 414 590 446 592 492 Q604 506 594 516 Q594 550 566 572 Q538 590 506 584 C460 580 428 548 428 500 C428 452 458 414 505 414 Z" fill="var(--skin, #f1c3a0)" stroke="var(--line, #3f3530)" stroke-width="5" stroke-linejoin="round"/>
+        <clipPath id="yuz-kirp" clipPathUnits="userSpaceOnUse"><use href="#yuz"/></clipPath>
+        <path d="M430 530 Q474 570 524 572 Q566 572 600 546 L610 600 L420 600 Z" fill="var(--skin-dark, #dea283)" clip-path="url(#yuz-kirp)"/>
         <path d="M430 500 Q424 420 504 410 Q566 406 590 456 Q574 446 562 458 Q552 440 536 454 Q522 440 508 456 Q494 452 486 470 Q470 470 466 494 Q462 520 470 548 L474 572 Q446 584 424 570 Z" fill="var(--hair, #4a2f24)"/>
         <path d="M590 456 Q574 446 562 458 Q552 440 536 454 Q522 440 508 456 Q494 452 486 470 Q470 470 466 494 Q462 520 470 548 L474 572 Q446 584 424 570" fill="none" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
         <path d="M458 432 Q456 412 476 422 Q496 412 494 432 Q496 452 476 442 Q456 452 458 432 Z" fill="var(--accent, #5bb5a2)" stroke="var(--line, #3f3530)" stroke-width="4" stroke-linejoin="round"/>
         <circle cx="476" cy="432" r="6" fill="var(--accent, #5bb5a2)" stroke="var(--line, #3f3530)" stroke-width="3.5"/>
-        <path d="M548 480 Q561 474 574 480" fill="none" stroke="var(--hair, #4a2f24)" stroke-width="4" stroke-linecap="round"/>
-        <g id="eye_L">
+        <g id="brow_L" data-pivot="561,480"><path d="M548 480 Q561 474 574 480" fill="none" stroke="var(--hair, #4a2f24)" stroke-width="4" stroke-linecap="round"/></g>
+        <g id="eye_L" data-pivot="562,505">
           <g id="eye_L_open">
             <ellipse cx="562" cy="505" rx="11" ry="15" fill="#2c2420"/>
             <circle cx="566" cy="499" r="4" fill="#ffffff"/>
@@ -61,6 +68,9 @@
           <g id="mouth_smile" display="none">
             <path d="M566 550 Q578 566 590 550 Q578 555 566 550 Z" fill="#8a3b34" stroke="#5a3a30" stroke-width="4" stroke-linejoin="round"/>
           </g>
+          <g id="mouth_sad" display="none"><path d="M571.2 557.5 Q578 548.5 584.8 557.5" fill="none" stroke="#5a3a30" stroke-width="4" stroke-linecap="round"/></g>
+          <g id="mouth_angry" display="none"><path d="M569 558.5 Q578 549.5 587 558.5 Q578 560.5 569 558.5 Z" fill="#8a3b34" stroke="#5a3a30" stroke-width="4" stroke-linejoin="round"/></g>
+          <g id="mouth_scared" display="none"><path d="M569 555.5 Q573.5 551.5 578 554.5 Q582.5 557.5 587 554.5 L586 560.5 Q578 564.5 570 560.5 Z" fill="#8a3b34" stroke="#5a3a30" stroke-width="4" stroke-linejoin="round"/><path d="M571 556.5 Q573.5 554 578 557 Q582.5 559.5 585 556.5" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/></g>
           <g id="mouth_A" display="none"><ellipse cx="580" cy="557" rx="7" ry="9" fill="#8a3b34" stroke="#5a3a30" stroke-width="3"/></g>
           <g id="mouth_E" display="none"><ellipse cx="580" cy="556" rx="8" ry="4.5" fill="#8a3b34" stroke="#5a3a30" stroke-width="3"/></g>
           <g id="mouth_O" display="none"><ellipse cx="581" cy="557" rx="5.5" ry="7" fill="#8a3b34" stroke="#5a3a30" stroke-width="3"/></g>
@@ -73,6 +83,7 @@
       <g id="arm_L" data-hose="504,624 508,690 510,750">
         <path class="hose-line" d="M504 624 Q508 690 510 750" fill="none" stroke="var(--line, #3f3530)" stroke-width="32" stroke-linecap="round"/>
         <path class="hose-fill" d="M504 624 Q508 690 510 750" fill="none" stroke="var(--top, #f2a541)" stroke-width="23" stroke-linecap="round"/>
+        <path class="hose-shade" d="M511.0 623.5 L511.5 632.0 L512.1 640.3 L512.6 648.6 L513.1 656.8 L513.5 664.9 L513.9 673.0 L514.4 681.0 L514.7 688.9 L515.1 696.8 L515.4 704.6 L515.8 712.3 L516.1 719.9 L516.3 727.5 L516.6 735.0 L516.8 742.5 L517.0 749.8" fill="none" stroke="var(--top-dark, #d28a2c)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
         <circle cx="504" cy="624" r="13" fill="var(--top, #f2a541)"/>
         <g id="hand_L" data-pivot="510,750" data-grip="511,771" data-grip-angle="90">
           <circle cx="511" cy="771" r="19" fill="var(--skin, #f1c3a0)" stroke="var(--line, #3f3530)" stroke-width="4"/>
