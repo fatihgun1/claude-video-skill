@@ -162,6 +162,7 @@ export function createObjectWindow(ctx) {
     const g = topic.goster || {};
     if (!g.gorunusler) return null;
     return el("div", { class: "npencere-gorunus", role: "group", "aria-label": "Görünüş" },
+      ctx.recenter ? el("button", { class: "btn small", type: "button", text: "Kadraja al", title: "Kişiyi işaretine, öne geri getir (kadrajın dışına kaydıysa)", on: { click: () => ctx.recenter(topic.oyuncu) } }) : null,
       el("span", { class: "small", text: "Görünüş:" }),
       ...Object.keys(VIEW_TEXT).map((k) => {
         const drawn = !!g.gorunusler[k];

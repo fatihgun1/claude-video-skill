@@ -227,6 +227,22 @@ const drafts = createDrafts({
   },
   note: (text) => note(text),
 });
+/**
+ * A voice changed: speak that person's lines again right away, in the background, so the change is
+ * heard without another step. Only after the script approval (the audio step needs it).
+ * @returns {string} what happens, for the window
+ */
+function respeak(ownerId) {
+  if (state.status?.gates?.senaryo !== "onayli") return "Replikleri bu sesle “🎬 Video çıkar” seslendirir.";
+  runJob("ses")
+    .then(() => {
+      note(`${labelOf(ownerId)}'in replikleri yeni sesle hazır: sahnede oynat, dinle.`);
+      refreshPreview();
+    })
+    .catch((err) => note(`Yeni ses üretilemedi: ${err.message}`));
+  return "Replikleri şimdi bu sesle yeniden seslendiriliyor (birkaç dakika); bitince sahnede duyarsın.";
+}
+
 /** Run a production job on the saved episode and wait for it: its result, or throws why it failed. */
 async function runJob(kind, sahne) {
   if (dirty()) await save();
@@ -275,7 +291,7 @@ const objectWindow = createObjectWindow({
     owner.voice = { ...(owner.voice || {}), ref: res.ref };
     changed(true);
     await save();
-    return `${labelOf(owner.id)} artık senin kaydınla konuşacak (${res.sure} sn). Replikleri yeniden seslendirmek için Üretim'de “Sesleri üret”e bas ya da bir repliğe tıklayıp “Yeniden seslendir” de.`;
+    return `${labelOf(owner.id)} artık senin kaydınla konuşacak (${res.sure} sn). ${respeak(owner.id)}`;
   },
   // a ready voice from the library becomes that person's voice (a recording of their own is dropped)
   useReady: async (id, hazir) => {
@@ -285,7 +301,7 @@ const objectWindow = createObjectWindow({
     changed(true);
     await save();
     const label = (state.vocab?.voices || []).find((x) => x.id === hazir)?.label || hazir;
-    return `${labelOf(owner.id)} artık “${label}” sesiyle konuşacak. Bir repliğine tıklayıp “Yeniden seslendir” de ya da Üretim'de sesleri üret.`;
+    return `${labelOf(owner.id)} artık “${label}” sesiyle konuşacak. ${respeak(owner.id)}`;
   },
   sample: async (id) => {
     const owner = voiceOwner(id);
@@ -299,6 +315,16 @@ const objectWindow = createObjectWindow({
     setKey(f.scene, "gecis", kind === "kararma" ? undefined : kind);
     changed(true);
     objectWindow.open(placeTopic());
+  },
+  // a person brought back into the frame: on its mark, in front
+  recenter: (oyuncu) => {
+    const f = find(state.sel.shot);
+    const m = f?.shot.cast.find((x) => x.id === oyuncu);
+    if (!m) return;
+    setKey(m, "dx", undefined);
+    setKey(m, "back", undefined);
+    changed(true);
+    note(`${labelOf(oyuncu)} işaretine (${m.mark}) geri alındı. Beğenmezsen geri al (Ctrl+Z).`);
   },
   // the same person in another view, in this shot (side, front 3/4, back 3/4)
   setView: (oyuncu, kind) => {
@@ -508,6 +534,8 @@ editor = createStageEditor({ stage: $("stage"), layer: $("edit") }, {
     const m = member(i);
     if (!m) return;
     setKey(m, "facing", m.facing === "sol" ? undefined : "sol"); // no facing = as drawn
+    // a walker turned around walks the other way from the same place (it walked backwards before)
+    if (m.walk) m.walk = { ...m.walk, dx: -m.walk.dx };
     changed(true);
   },
 });

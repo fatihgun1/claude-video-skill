@@ -87,3 +87,7 @@
 .hizli textarea { width: 100%; box-sizing: border-box; resize: vertical; font-size: 15px; line-height: 1.5; }
 .hizli .psegment { display: flex; gap: 8px; flex-wrap: wrap; }
 .hizli-alt { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; justify-content: space-between; }
+
+.edisari { position: absolute; z-index: 5; padding: 4px 10px; font-size: 12px; border-radius: 999px; border: 1px solid var(--warn); background: var(--pane); color: var(--text); cursor: pointer; pointer-events: auto; }
+.edisari.sol { left: 8px; }
+.edisari.sag { right: 8px; }

@@ -35,6 +35,7 @@ function directionOf(member, character, lib) {
 export function filmWarnings(episode, lib) {
   const chars = Object.fromEntries(episode.characters.map((c) => [c.id, c]));
   const shots = episode.scenes.flatMap((s) => s.shots);
+  const sceneOf = new Map(episode.scenes.flatMap((s) => s.shots.map((sh) => [sh.shot_id, s.scene_id])));
   const warnings = [];
   const isPropShot = (shot) => (shot.props || []).some((p) => p.id === shot.camera.target);
   const subjectOf = (shot) => {
@@ -63,6 +64,8 @@ export function filmWarnings(episode, lib) {
     }
     if (i === 0) return;
     const prev = shots[i - 1];
+    // a cut to another scene (another place or time) is neither a jump cut nor a flip of direction
+    if (sceneOf.get(prev.shot_id) !== sceneOf.get(shot.shot_id)) return;
     const subject = subjectOf(shot);
     if (subject && subject === subjectOf(prev) && shot.camera.framing === prev.camera.framing && viewOf(shot) === viewOf(prev)) {
       warnings.push(`${where}: same subject, framing and view as ${prev.shot_id} (jump cut); change the framing size or the view`);

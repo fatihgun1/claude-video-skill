@@ -158,8 +158,13 @@ export function createStageEditor(els, ctx) {
       const backFor = (dy) => (deep && Math.abs(dy) >= DEPTH_START_PX
         ? snapBack((here.back || 0) - dy / (map.perWorld * layout.backRise))
         : here.back || 0);
+      // the frame's middle stays on the stage: dragged past its edge a person was lost out of view
+      const width = els.layer.clientWidth;
+      const mid = box.left + box.width / 2;
+      const keep = (dx) => (width > 0 ? Math.max(-mid, Math.min(width - mid, dx)) : dx);
       return follow(down, {
-        onMove: (dx, dy) => {
+        onMove: (rawDx, dy) => {
+          const dx = keep(rawDx);
           node.style.transform = `translate(${dx}px, ${deep ? dy : 0}px)`;
           node.classList.add("dragging");
           const at = landing(dx);
@@ -173,7 +178,8 @@ export function createStageEditor(els, ctx) {
           }
           guides.replaceChildren(...markGuides(map, layout, at?.mark));
         },
-        onEnd: (dx, dy) => {
+        onEnd: (rawDx, dy) => {
+          const dx = keep(rawDx);
           guides?.remove();
           const at = landing(dx);
           if (!at) {
@@ -350,6 +356,17 @@ export function createStageEditor(els, ctx) {
           : null;
         // a person the frame cuts at the side: marked on the stage (on purpose only for an over-the-shoulder)
         const width = els.layer.clientWidth;
+        // wholly outside the frame: a marker at the edge it left by, so it can be clicked and brought back
+        if (width > 0 && (box.left + box.width < 0 || box.left > width)) {
+          const left = box.left > width;
+          parts.push(el("button", {
+            class: `edisari ${left ? "sag" : "sol"}`, type: "button", title: "Kadrajın dışında: tıkla, penceresinden geri al",
+            text: left ? `${ctx.labelOf(m.id)} (kadraj dışında) →` : `← ${ctx.labelOf(m.id)} (kadraj dışında)`,
+            style: { top: `${Math.max(8, Math.min(els.layer.clientHeight - 40, box.top + box.height / 2))}px` },
+            on: { pointerdown: (e) => e.stopPropagation(), click: (e) => { e.stopPropagation(); ctx.select("cast", i); } },
+          }));
+          return;
+        }
         const cut = width > 0 && (box.left < -CUT_TOLERANCE || box.left + box.width > width + CUT_TOLERANCE);
         const cutTag = cut ? el("span", { class: "ekesik", text: "kenardan kesik" }) : null;
         const node = frame({ box, label: ctx.labelOf(m.id), selected, kind: "cast", index: i, baseX, here: m, taken, movable: true, extra: [flip, cutTag] });

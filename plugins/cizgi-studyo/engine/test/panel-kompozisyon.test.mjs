@@ -112,3 +112,10 @@ test("a quick start needs only the idea and the format; the full wizard needs ch
   assert.ok(missingForBuild(story).length >= 2);
   assert.deepEqual(missingForBuild({ ...story, istekler: {} }, { quick: true }), ["format (9:16 ya da 16:9)"]);
 });
+
+test("a cut to another scene is neither a jump cut nor a flip of direction", () => {
+  const ep = episode();
+  ep.scenes.push({ scene_id: "s2", bg: "sokak", shots: [{ shot_id: "s2_sh1", cast: [{ id: "ela", action: "bekle-yan", mark: "orta" }], camera: { framing: "medium" } }] });
+  const w = filmWarnings(ep, lib);
+  assert.ok(!w.some((x) => x.startsWith("film: shot s2_sh1:") && /jump cut|direction flips/.test(x)), "s1_sh3 → s2_sh1 is a new place: no jump cut");
+});
