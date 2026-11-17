@@ -20,8 +20,8 @@ import { HttpError } from "./panel-proje.mjs";
 
 const KINDS = ["mekan", "nesne", "karakter", "hareket"];
 
-/** @param {{project:string|null, loadLib:() => object}} opts */
-export function draftRoutes({ project, loadLib }) {
+/** @param {{project:string|null, loadLib:() => object, channel?:object|null}} opts */
+export function draftRoutes({ project, loadLib, channel = null }) {
   const list = () => listDrafts(project, loadLib());
   return {
     // with the project library's own problems (drawings left out because they are broken)
@@ -40,6 +40,9 @@ export function draftRoutes({ project, loadLib }) {
       } catch (err) {
         throw new HttpError(400, err.message);
       }
+      // Claude, which may be waiting for these drawings in a wizard step, hears it
+      const cizimler = all ? all.alinan.map((x) => ({ tur: x.tur, id: x.id })) : [{ tur, id }];
+      if (cizimler.length) channel?.taslak({ islem: islem === "hepsini-al" ? "al" : islem, cizimler });
       // read again now: the drawings just moved
       return { taslaklar: list(), vocab: vocabulary(loadLib(true)), ...(all ?? {}) };
     },

@@ -238,6 +238,18 @@ export function createChannel({ onLateAnswer, onIdleAsk, onIdleChat, now = () =>
     uyandir() {
       return hear([{ tur: "kuyruk", at: now() }]);
     },
+    /**
+     * The person took drafts into the library (or put one aside) in the panel: a listening Claude
+     * hears it at once, a busy one at its next panel_dinle. Before, nothing told Claude, and a wizard
+     * step waiting for the drawings stood still ("kurulum karakter ekleme ekranında kaldı").
+     * @param {{islem:string, cizimler:{tur:string, id:string}[]}} what
+     */
+    taslak({ islem, cizimler }) {
+      const item = { tur: "taslak", islem, cizimler, at: now() };
+      if (hear([item])) return true;
+      asks = [...asks, item].slice(-MAX_ASKS);
+      return false;
+    },
     /** Claude's reply in an object window (panel_sohbet). */
     sohbetCevap(args) {
       return chats.claude(args);

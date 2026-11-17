@@ -23,7 +23,7 @@ import { queueOf, takeRequests, updateRequest, describe, episodeFile, ANSWERS, M
 
 // The Claude session this server belongs to: requests from its panel are for it alone (istekler.mjs).
 const SESSION_ID = process.env.CLAUDE_CODE_SESSION_ID || null;
-const SERVER_INFO = { name: "cizgi-studyo", version: "2.11.8" };
+const SERVER_INFO = { name: "cizgi-studyo", version: "2.11.9" };
 // panel-kanal.mjs PANELS (not imported: engine modules load on first use)
 const PANEL_TABS = ["projeler", "uretim", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"];
 const WAIT_DEFAULT_S = 600;
@@ -153,7 +153,8 @@ const TOOLS = [
       "object window. Such an item is {tur: 'sohbet', konu: {tur, id, ad?, bolum?, shot?, oyuncu?}, metin}; tur and id: karakter <rig>, nesne <prop>, " +
       "mekan <background>, replik <shot>-<n> (utterance n of that shot), efekt <shot>-<n> (sfx n), cekim <shot> (the shot: camera, composition). " +
       "work on just that thing and answer with panel_sohbet {konu: '<tur>:<id>'}, never in chat. An item {tur: 'istek', id, bolum, hedef, metin} is a " +
-      "request written in the panel's 'Claude'a yaz' box: do it, then answer with panel_yanitla {id, durum, yanit}.",
+      "request written in the panel's 'Claude'a yaz' box: do it, then answer with panel_yanitla {id, durum, yanit}. An item {tur: 'taslak', islem: 'al'|'reddet', " +
+      "cizimler: [{tur, id}]} means the person took those drafts into the library (or put one aside): carry on with what waited for them (the wizard's next step).",
     inputSchema: {
       type: "object",
       properties: { bekle: { type: "number", minimum: 0, maximum: 1800, description: "Seconds to wait (default 600)." } },

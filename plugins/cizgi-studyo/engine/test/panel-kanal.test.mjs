@@ -245,3 +245,16 @@ test("a question can carry a spoken line to play; only an episode's ses/*.wav or
     assert.throws(() => createChannel().sor({ ...Q, ses: bad }), /ses bir replik sesi/, bad);
   }
 });
+
+test("taking a draft in wakes a listening Claude, and waits for a busy one", async () => {
+  const ch = createChannel();
+  const listening = ch.dinle(5000);
+  assert.equal(ch.taslak({ islem: "al", cizimler: [{ tur: "karakter", id: "selin" }] }), true);
+  const [got] = await listening;
+  assert.deepEqual({ ...got, at: undefined }, { tur: "taslak", islem: "al", cizimler: [{ tur: "karakter", id: "selin" }], at: undefined });
+  // nobody listening (Claude is working): kept for its next panel_dinle
+  assert.equal(ch.taslak({ islem: "reddet", cizimler: [{ tur: "nesne", id: "vazo" }] }), false);
+  const later = await ch.dinle(10);
+  assert.equal(later[0].tur, "taslak");
+  assert.equal(later[0].cizimler[0].id, "vazo");
+});

@@ -315,7 +315,7 @@ export function createPanel(opts) {
     // Story cards (hikaye.json): a draft next to the episode
     ...storyRoutes({ episodeOf, loadLib: () => opts.loadLib() }),
     // Drafts in the project library (kutuphane/taslak): look, take in, put aside
-    ...draftRoutes({ project: opts.project ?? null, loadLib: (fresh) => opts.loadLib(fresh) }),
+    ...draftRoutes({ project: opts.project ?? null, loadLib: (fresh) => opts.loadLib(fresh), channel }),
     // Claude moving the panel and asking in it (MCP panel_git, panel_sor); a panel of its own when none is given
     ...channelRoutes(channel),
     ...voiceRoutes({ episodeOf }),
