@@ -20,7 +20,7 @@ const SHOWN = 12;
  * @param {{requests?:string|null, root:string, episodeOf:(rel:string) => {rel:string, path:string},
  *          versionOf:(text:string) => string}} opts  requests: the queue file, when a session is listening
  */
-export function requestRoutes({ requests, root, episodeOf, versionOf, project = null }) {
+export function requestRoutes({ requests, root, episodeOf, versionOf, project = null, channel = null }) {
   const versionNow = (ep) => {
     try {
       return versionOf(readText(ep.path));
@@ -45,7 +45,9 @@ export function requestRoutes({ requests, root, episodeOf, versionOf, project = 
       if (!requests) throw new HttpError(409, "Bu panel bir Claude oturumuna bağlı değil: /cizgi-studyo ile aç");
       const ep = episodeOf(body?.b);
       try {
-        return { istek: addRequest(requests, { root, b: ep.rel, hedef: body?.hedef, metin: body?.metin, zaman: body?.zaman }) };
+        const istek = addRequest(requests, { root, b: ep.rel, hedef: body?.hedef, metin: body?.metin, zaman: body?.zaman });
+        channel?.uyandir(); // a listening Claude takes it now, not at the end of its turn
+        return { istek };
       } catch (err) {
         throw new HttpError(400, err.message);
       }

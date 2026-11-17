@@ -261,6 +261,23 @@ test("studio mode: a message in an object window reaches panel_dinle and panel_s
   assert.match(JSON.stringify(await callTool("panel_sohbet", { konu: "mekan:x", metin: "a" })), /konu/);
 });
 
+test("a request written in the panel box reaches a listening Claude at once (no turn has to end)", async () => {
+  const open = textOf(await callTool("panel_ac", { klasor: root }));
+  const base = open.url.slice(0, -1);
+  const host = new URL(open.url).host;
+  const listening = callTool("panel_dinle", { bekle: 5 });
+  await new Promise((r) => setTimeout(r, 50));
+  const sent = await fetch(`${base}/api/istek`, { method: "POST", headers: { "content-type": "application/json", origin: `http://${host}` }, body: JSON.stringify({ b: "bolumler/bir/bolum.json", hedef: { tur: "bolum" }, metin: "karakterler ortalı değil" }) });
+  const { istek } = await sent.json();
+  const heard = textOf(await listening).istekler;
+  assert.deepEqual(heard.map((i) => [i.tur, i.id]), [["istek", istek.id]]);
+  assert.match(heard[0].metin, /ortalı/);
+  // one written while nobody listened is handed over when listening starts
+  const later = await fetch(`${base}/api/istek`, { method: "POST", headers: { "content-type": "application/json", origin: `http://${host}` }, body: JSON.stringify({ b: "bolumler/bir/bolum.json", hedef: { tur: "bolum" }, metin: "biraz daha yavaş" }) });
+  const second = (await later.json()).istek;
+  assert.deepEqual(textOf(await callTool("panel_dinle", { bekle: 5 })).istekler.map((i) => i.id), [second.id]);
+});
+
 test("panel_kapat closes the panel", async () => {
   const out = textOf(await callTool("panel_ac", { klasor: root }));
   textOf(await callTool("panel_kapat"));

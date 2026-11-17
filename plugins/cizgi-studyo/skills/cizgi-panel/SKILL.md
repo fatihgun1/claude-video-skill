@@ -56,7 +56,11 @@ $CLI panel <klasör> --port 4900
        - Plan it with the `cizgi-sinema` skill: over-the-shoulder uses the back 3/4 view in front of a front 3/4 view; a two-shot with depth uses `back`.
        - Validate, then look at its still (`cli.mjs storyboard <bolum.json> --sahne <scene id> --format <format>`).
    - Ask nothing in chat. If you truly need a choice, ask it in the window with `oneriler` (the person clicks one) or with `panel_sor`.
-   - Older paths still work: a "Claude'a yaz" request, or "Claude'a sor" in the project wizard. Handle them the same way, then go back to `panel_dinle`.
+   - A request written in the panel's **Claude'a yaz** box comes through `panel_dinle` as well: `{tur: "istek", id, bolum, hedef, metin}`.
+     - It also includes any request that waited in the queue.
+     - Do it, answer with `panel_yanitla {id, durum, yanit}`, then go back to `panel_dinle`.
+     - Never leave one waiting: the panel shows it as "Sırada" until you answer.
+   - "Claude'a sor" in the project wizard is handled the same way.
 
 Open the project root (the folder holding `ornekler/` and `bolumler/`) when the person works on several episodes: the panel then lists them all and switches between them without a restart. Run it in the background (it keeps serving until stopped) and give the person the printed URL. In the Claude desktop app, open it in the built-in browser. The layout needs a window at least 1180 px wide; narrower windows stack the panes.
 

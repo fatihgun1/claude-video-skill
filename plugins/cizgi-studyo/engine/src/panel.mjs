@@ -311,7 +311,7 @@ export function createPanel(opts) {
       }
     },
     // Requests to the Claude session, and "did the file change on disk?"
-    ...requestRoutes({ requests: opts.requests ?? null, root, episodeOf, versionOf, project: opts.project ?? null }),
+    ...requestRoutes({ requests: opts.requests ?? null, root, episodeOf, versionOf, project: opts.project ?? null, channel }),
     // Story cards (hikaye.json): a draft next to the episode
     ...storyRoutes({ episodeOf, loadLib: () => opts.loadLib() }),
     // Drafts in the project library (kutuphane/taslak): look, take in, put aside

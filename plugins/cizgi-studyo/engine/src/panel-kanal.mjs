@@ -228,6 +228,15 @@ export function createChannel({ onLateAnswer, onIdleAsk, onIdleChat, now = () =>
       else asks = [...asks, item].slice(-MAX_ASKS);
       return { dinliyor: false };
     },
+    /**
+     * A request was written in the panel's "Claude'a yaz" box (the request queue): wake a listening
+     * Claude, which then takes it from the queue. Before, it waited for the end of a turn that never
+     * came while Claude listened (Test 16: "üretimler hiç bitmiyor").
+     * @returns {boolean} whether someone was listening
+     */
+    uyandir() {
+      return hear([{ tur: "kuyruk", at: now() }]);
+    },
     /** Claude's reply in an object window (panel_sohbet). */
     sohbetCevap(args) {
       return chats.claude(args);

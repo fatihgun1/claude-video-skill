@@ -23,7 +23,7 @@ import { queueOf, takeRequests, updateRequest, describe, episodeFile, ANSWERS, M
 
 // The Claude session this server belongs to: requests from its panel are for it alone (istekler.mjs).
 const SESSION_ID = process.env.CLAUDE_CODE_SESSION_ID || null;
-const SERVER_INFO = { name: "cizgi-studyo", version: "2.11.5" };
+const SERVER_INFO = { name: "cizgi-studyo", version: "2.11.6" };
 // panel-kanal.mjs PANELS (not imported: engine modules load on first use)
 const PANEL_TABS = ["projeler", "uretim", "sahneler", "karakter", "hareket", "mekan", "nesne", "ses", "muzik", "kamera", "hikaye"];
 const WAIT_DEFAULT_S = 600;
@@ -152,7 +152,8 @@ const TOOLS = [
       "In studio mode (an episode open in the panel) keep calling it: the person clicks something on the stage and writes to you in its " +
       "object window. Such an item is {tur: 'sohbet', konu: {tur, id, ad?, bolum?, shot?, oyuncu?}, metin}; tur and id: karakter <rig>, nesne <prop>, " +
       "mekan <background>, replik <shot>-<n> (utterance n of that shot), efekt <shot>-<n> (sfx n), cekim <shot> (the shot: camera, composition). " +
-      "work on just that thing and answer with panel_sohbet {konu: '<tur>:<id>'}, never in chat.",
+      "work on just that thing and answer with panel_sohbet {konu: '<tur>:<id>'}, never in chat. An item {tur: 'istek', id, bolum, hedef, metin} is a " +
+      "request written in the panel's 'Claude'a yaz' box: do it, then answer with panel_yanitla {id, durum, yanit}.",
     inputSchema: {
       type: "object",
       properties: { bekle: { type: "number", minimum: 0, maximum: 1800, description: "Seconds to wait (default 600)." } },
@@ -322,13 +323,32 @@ async function panelGit(args = {}) {
   return (await watched(p, 3000)) ? { yon, not: "Panel birkaç saniye içinde oraya gider." } : { yon, uyari: NOT_WATCHED };
 }
 
+/** The requests written in the panel's "Claude'a yaz" box (or queued while Claude was busy), taken now. */
+function queuedRequests() {
+  const file = requestsFile();
+  if (!file) return [];
+  return takeRequests(file, { session: SESSION_ID }).map((r) => ({
+    tur: "istek", id: r.id, bolum: episodeFile(r), hedef: r.hedef, metin: r.metin, aciklama: describe(r),
+  }));
+}
+
 async function panelDinle({ bekle } = {}) {
   const p = openPanelOrThrow();
   const seconds = Math.min(Math.max(Number.isFinite(bekle) ? bekle : WAIT_DEFAULT_S, 0), WAIT_MAX_S);
-  const istekler = await p.channel.dinle(seconds * 1000);
-  return istekler.length
-    ? { istekler: istekler.map(({ at, ...a }) => a) }
-    : { istekler: [], not: "Kimse sormadı. Sihirbaz ya da bir bölüm panelde açıksa panel_dinle ile dinlemeye devam et." };
+  const until = Date.now() + seconds * 1000;
+  const answer = (list) => ({ istekler: list, not: "tur 'istek' olanları yap ve panel_yanitla {id} ile cevapla; ötekileri her zamanki gibi. Sonra panel_dinle ile dinlemeye dön." });
+  // requests that waited in the queue come first: they would otherwise wait for a turn's end
+  const waiting = queuedRequests();
+  if (waiting.length) return answer(waiting);
+  for (;;) {
+    const heard = await p.channel.dinle(Math.max(0, until - Date.now()));
+    const direct = heard.filter((i) => i.tur !== "kuyruk").map(({ at, ...a }) => a);
+    const queued = heard.some((i) => i.tur === "kuyruk") ? queuedRequests() : [];
+    if (direct.length || queued.length) return answer([...direct, ...queued]);
+    if (heard.length === 0 || Date.now() >= until) {
+      return { istekler: [], not: "Kimse sormadı. Sihirbaz ya da bir bölüm panelde açıksa panel_dinle ile dinlemeye devam et." };
+    }
+  }
 }
 
 /** Wait a little for a browser tab to show up on the panel (it was just opened); false when none came. */
