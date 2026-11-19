@@ -1,5 +1,6 @@
 ---
 name: cizgi-pedagoji-0-3
+user-invocable: false
 description: Content rules for Çizgi Stüdyo episodes for babies and toddlers (ages 0-3) — structure, language, developmentally suitable movements, sound and picture limits, and the human checklist for the approval gates. Use with profile "pedagoji-0-3", or whenever a cartoon is for ages 0-3.
 ---
 

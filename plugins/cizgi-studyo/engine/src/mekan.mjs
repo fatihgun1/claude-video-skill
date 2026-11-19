@@ -8,6 +8,9 @@
  *     "ad": "Park",                                   a name for people (optional)
  *     "kaybolma": [960, 560],                         vanishing point for a dolly (optional)
  *     "katmanlar": [ { "id": "gok", "dosya": "gok.svg", "derinlik": 0 }, … ]   back to front
+ *     "icerik": ["tabela", …]                        fixed scenery shown on purpose (optional; mekan-denetim.mjs)
+ *     "yol": "yan"                                    "derin" (default with kaybolma): a street running into depth;
+ *                                                     "yan": drawn side-on (a shop front): people walk along it sideways
  *   }
  *
  * Every layer is a full-frame SVG with the world's viewBox, checked like any library SVG.
@@ -21,6 +24,7 @@ import { ID_PATTERN } from "./util.mjs";
 
 export const SINGLE_LAYER = "tum";
 const MAX_LAYERS = 8;
+const ROADS = new Set(["derin", "yan"]);
 const FILE = /^[a-z0-9]+([_-][a-z0-9]+)*\.svg$/;
 
 const viewBoxOf = (svg) => /<svg\b[^>]*\bviewBox=["']([^"']+)["']/.exec(svg)?.[1]?.trim().split(/[\s,]+/).map(Number) || null;
@@ -73,8 +77,12 @@ export function loadLayered(dir, id, world) {
   const vp = Array.isArray(meta.kaybolma) && meta.kaybolma.length === 2 && meta.kaybolma.every((n) => Number.isFinite(n))
     ? meta.kaybolma.map((n) => Math.round(n * 100) / 100) : null;
   if (meta.kaybolma !== undefined && !vp) errors.push(`${where}: kaybolma [x, y] olmalı`);
+  const icerik = meta.icerik === undefined ? [] : meta.icerik;
+  if (!Array.isArray(icerik) || !icerik.every((x) => typeof x === "string" && /^[^"<>&,]{1,40}$/.test(x))) errors.push(`${where}: icerik kısa adlardan oluşan bir liste olmalı`);
+  if (meta.yol !== undefined && !ROADS.has(meta.yol)) errors.push(`${where}: yol "derin" ya da "yan" olmalı`);
   if (errors.length) return { svg: "", layers: [], name: null, errors };
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${world.width} ${world.height}"${vp ? ` data-vp="${vp[0]},${vp[1]}"` : ""}>`
+  const side = meta.yol === "yan" ? ' data-yol="yan"' : "";
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${world.width} ${world.height}"${vp ? ` data-vp="${vp[0]},${vp[1]}"` : ""}${icerik.length ? ` data-icerik="${icerik.join(",")}"` : ""}${side}>`
     // ids prefixed per layer: two layers may both name a gradient "gok"
     + layers.map((l) => `<g data-katman="${l.id}" data-derinlik="${l.derinlik}">${prefixIds(svgInner(l.svg), `k-${l.id}`)}</g>`).join("")
     + "</svg>";

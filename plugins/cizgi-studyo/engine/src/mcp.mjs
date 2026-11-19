@@ -16,9 +16,10 @@
  * Engine modules load on first use, so a missing `npm install` is a readable tool error, not a dead server.
  */
 import { createInterface } from "node:readline";
-import { resolve } from "node:path";
+import { resolve, join } from "node:path";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { queueOf, takeRequests, updateRequest, describe, episodeFile, ANSWERS, MAX_TEXT } from "./istekler.mjs";
+import { queueOf, takeRequests, updateRequest, describe, episodeFile, ANSWERS, MAX_TEXT, markPanelOpen } from "./istekler.mjs";
 
 // The Claude session this server belongs to: requests from its panel are for it alone (istekler.mjs).
 const SESSION_ID = process.env.CLAUDE_CODE_SESSION_ID || null;
@@ -34,6 +35,15 @@ const LISTEN_MAX_S = 180;
 const PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 const LIBRARY = fileURLToPath(new URL("../../library", import.meta.url));
 const ENGINE = fileURLToPath(new URL("..", import.meta.url));
+/** The plugin's shared rules (kurallar.md at the plugin root). */
+export const RULES_FILE = join(ENGINE, "..", "kurallar.md");
+const rulesText = () => {
+  try {
+    return readFileSync(RULES_FILE, "utf8");
+  } catch {
+    return `Kurallar dosyası okunamadı (${RULES_FILE}). Sahne yazmadan önce cizgi-proje ve cizgi-sinema skill'lerini yükle.`;
+  }
+};
 
 const TOOLS = [
   {
@@ -113,7 +123,8 @@ const TOOLS = [
       "sketch /kutuphane-taslak/konsept/<id>.svg from <project>/kutuphane/taslak/konsept). Use it instead of asking in chat for choices " +
       "about the episode. It waits for the answer (bekle seconds, default 600) and returns {cevap: {secim, metin}}. If no answer " +
       "comes in time it returns {durum: 'bekliyor'}; the answer then arrives later as a panel request. One question is open at a time: " +
-      "a new one replaces it. Never use it to approve a gate: the person approves with the button in the panel's Üretim window (panel_git sekme uretim) or with an explicit yes in chat.",
+      "while one is open a new one is refused (ask them one after another); pass yerine: true only to replace it on purpose, and its waiter " +
+      "gets {durum: 'yerine_baska_soru'}. Never use it to approve a gate: the person approves with an explicit yes in chat, or by pressing 🎬 Video çıkar themselves.",
     inputSchema: {
       type: "object",
       properties: {
@@ -137,6 +148,7 @@ const TOOLS = [
         bolum: { type: "string", description: "The episode the question is about (relative path); the panel opens it." },
         ses: { type: "string", description: "A spoken line or voice sample to play in the question, so the person can listen right where they answer: <episode folder>/ses/<shot_id>-<n>.wav or <episode folder>/cikti/ses-ornegi-<character>.wav, relative to the panel folder (e.g. bolumler/kus/ses/s1_sh4-0.wav). It plays at the film's level." },
         bekle: { type: "number", minimum: 0, maximum: 1800, description: "Seconds to wait for the answer (default 600)." },
+        yerine: { type: "boolean", description: "Replace the question that is open in the panel (its answer will never come). Without it, a second question is refused." },
       },
       required: ["soru", "secenekler"],
       additionalProperties: false,
@@ -155,7 +167,7 @@ const TOOLS = [
       "cizimler: [{tur, id}]} means the person took those drafts into the library (or put one aside): carry on with what waited for them.",
     inputSchema: {
       type: "object",
-      properties: { bekle: { type: "number", minimum: 0, maximum: 1800, description: "Seconds to wait (default 600)." } },
+      properties: { bekle: { type: "number", minimum: 0, maximum: 180, description: "Seconds to wait (default 120, at most 180, so a chat message is not held long)." } },
       additionalProperties: false,
     },
   },
@@ -209,9 +221,14 @@ async function closePanel() {
   if (!panel) return false;
   const old = panel;
   panel = null;
+  markPanelOpen(projectDir(), null);
   await old.close();
   return true;
 }
+// the panel dies with this process: its mark must not outlive it (the Stop hook checks the pid too)
+process.on("exit", () => {
+  if (panel) markPanelOpen(projectDir(), null);
+});
 
 // `klasor` may be any folder on this machine, on purpose: the person keeps cartoons where they like,
 // and Claude Code asks before each tool call. `bolum` must be one of the listed episodes.
@@ -228,6 +245,7 @@ async function panelAc({ klasor, bolum } = {}) {
       session: SESSION_ID,
       target: space.root, library: LIBRARY, status: e.status, port: portOf() ?? e.DEFAULT_PORT, fallbackPort: true, requests: requestsFile(),
     });
+    markPanelOpen(projectDir(), process.pid); // for the Stop hook: a turn may not end without a watcher
   }
   const lib = panel.loadLib();
   // The usual port taken (another session's panel, often an older version): this one is elsewhere, and
@@ -241,6 +259,10 @@ async function panelAc({ klasor, bolum } = {}) {
   return {
     ...(uyari ? { uyari } : {}),
     simdi: `Şimdi bu adresi kişiye aç: Claude masaüstü uygulamasında uygulama içi tarayıcıda (mcp__Claude_Browser__preview_start {url: "${url}"}), başka yerde adresi ver. Açılana kadar kişi hiçbir şey görmez; panel_sor ve panel_git bunu bekler.`,
+    // the exact watcher command for the end of every turn while the panel is open (cizgi-panel skill)
+    bekci: `node "${join(ENGINE, "src", "cli.mjs")}" istek-bekle "${projectDir()}" 60`,
+    // the one rules file every skill reads (kurallar.md), whichever way the work began
+    kurallar: rulesText(),
     url,
     klasor: panel.root,
     bolumler: paths.map((p) => e.summarize(panel.root, p, lib, e.status)),
@@ -328,14 +350,15 @@ async function watched(p, ms = 8000) {
 }
 const NOT_WATCHED = "Panel hiçbir tarayıcı sekmesinde açık değil: kişi bunu göremez. Önce panel_ac'ın verdiği url'yi kişiye aç (Claude masaüstü uygulamasında uygulama içi tarayıcı: mcp__Claude_Browser__preview_start {url}), sonra yeniden dene.";
 
-async function panelSor({ bekle, ...q } = {}) {
+async function panelSor({ bekle, yerine, ...q } = {}) {
   const p = openPanelOrThrow();
   if (!(await watched(p))) throw new Error(NOT_WATCHED); // a question nobody can see would wait in vain
   await checkEpisode(p, q.bolum);
   if (q.bolum) p.channel.yonlendir({ bolum: q.bolum });
-  const { id } = p.channel.sor(q);
+  const { id } = p.channel.sor(q, { yerine: yerine === true });
   const seconds = Math.min(Math.max(Number.isFinite(bekle) ? bekle : WAIT_DEFAULT_S, 0), WAIT_MAX_S);
   const cevap = await p.channel.bekle(id, seconds * 1000);
+  if (cevap?.yerine) return { durum: "yerine_baska_soru", id, not: "Bu sorunun yerine başka bir soru soruldu; bu sorunun cevabı gelmeyecek." };
   if (cevap) return { cevap: { secim: cevap.secim, metin: cevap.metin } };
   return { durum: "bekliyor", id, not: "Cevap gelmedi; soru panelde açık. Cevap verilince panel isteği olarak gelir (panel_istekleri)." };
 }

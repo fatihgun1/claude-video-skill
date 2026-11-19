@@ -486,13 +486,19 @@
 
   /** Where the camera looks at progress p: a targeted prop, its target, else the middle of the cast. */
   function focusX(shot, layout, p) {
-    const anchor = propAnchor(shot);
+    const anchor = propAnchor(shot, p);
     if (anchor) return anchor[0];
     const cast = shot.camera.target ? shot.cast.filter((m) => m.id === shot.camera.target) : shot.cast;
     if (!cast.length) return null;
     const dur = shotDuration(shot);
     let sum = 0;
-    for (const m of cast) sum += memberX(m, layout, (p || 0) * dur, dur);
+    for (const m of cast) {
+      // a follow shot on someone down on the ground: their body lies behind their feet (root_x)
+      // (or, framed once for a whole bend, kok_x: the middle of its sideways reach)
+      const rigShift = m.kok_yol ? pathAt(m.kok_yol, p, 2) : m.kok_x || 0;
+      const shift = rigShift * layout.scale * depthOf(m, layout).shrink * (m.facing === "sol" ? -1 : 1);
+      sum += memberX(m, layout, (p || 0) * dur, dur) + shift;
+    }
     return sum / cast.length;
   }
 
@@ -503,10 +509,16 @@
     return m && m.walk ? Math.sign(m.walk.dx) : 0;
   }
 
-  /** World point of the prop the camera targets, if its target is a prop ([x, y]) — else null. */
-  function propAnchor(shot) {
+  /**
+   * World point of the prop the camera targets at progress p, if its target is a prop ([x, y]) —
+   * else null. A prop carried by someone walking has a path ([x, y, [[p, x], …]]): the camera stays
+   * on it (Faz 4.7: the bottle in a walking hand left the frame).
+   */
+  function propAnchor(shot, p) {
     const t = shot.camera.target;
-    return t && shot.anchors && shot.anchors[t] ? shot.anchors[t] : null;
+    const a = t && shot.anchors && shot.anchors[t];
+    if (!a) return null;
+    return Array.isArray(a[2]) && a[2].length ? [pathAt(a[2], p, 1), a[1]] : a;
   }
 
   /** Margin kept on each side of the cast when the camera frames everyone. */
@@ -557,8 +569,33 @@
    * World y the camera anchors to: a targeted prop, else the faces of its target or the cast.
    * @param {Record<string, number>} [faces] character id → face y in rig units
    */
-  function focusFaceY(shot, layout, world, faces) {
-    const anchor = propAnchor(shot);
+  /**
+   * How far a member's body has dropped at progress p: kok_yol ([[p, drop], …], a follow shot of
+   * someone sitting up or getting up) read at p, else the drop at the shot's end (kok_y).
+   */
+  function dropAt(m, p) {
+    if (!Array.isArray(m.kok_yol) || !m.kok_yol.length || p == null) return m.kok_y || 0;
+    return pathAt(m.kok_yol, p, 1);
+  }
+
+  /** Column `col` of a sampled path [[p, …], …] at progress p, linearly between samples (missing = 0). */
+  function pathAt(path, p, col) {
+    const v = (row) => row[col] || 0;
+    if (!Array.isArray(path) || !path.length) return 0;
+    const at = p || 0;
+    if (at <= path[0][0]) return v(path[0]);
+    for (let i = 1; i < path.length; i++) {
+      const p1 = path[i][0];
+      if (at <= p1) {
+        const p0 = path[i - 1][0];
+        return p1 > p0 ? v(path[i - 1]) + (v(path[i]) - v(path[i - 1])) * ((at - p0) / (p1 - p0)) : v(path[i]);
+      }
+    }
+    return v(path[path.length - 1]);
+  }
+
+  function focusFaceY(shot, layout, world, faces, p) {
+    const anchor = propAnchor(shot, p);
     if (anchor) return anchor[1];
     const cast = shot.camera.target ? shot.cast.filter((m) => m.id === shot.camera.target) : shot.cast;
     if (!cast.length) return null;
@@ -566,8 +603,8 @@
     for (const m of cast) {
       const fy = faces && faces[m.id] != null ? faces[m.id] : DEFAULT_FACE_Y;
       const d = depthOf(m, layout);
-      // kok_y: the body dropped by its pose (sitting, fallen), so the face is that much lower
-      sum += world.ground_y - d.rise - (950 - fy - (m.kok_y || 0)) * layout.scale * d.shrink;
+      // the body dropped by its pose (sitting, fallen), so the face is that much lower
+      sum += world.ground_y - d.rise - (950 - fy - dropAt(m, p)) * layout.scale * d.shrink;
     }
     return sum / cast.length;
   }
@@ -590,19 +627,33 @@
 
   /** Share of the visible width kept as lead room ahead of a walker the camera follows. */
   const LEAD_ROOM = 0.15;
+  /** Seconds over which the lead room closes as the walk ends: a person who stopped stands in the middle. */
+  const LEAD_EASE_S = 0.8;
+
+  /** How much lead room a follow shot keeps at progress p: 1 while walking, easing to 0 at the walk's end. */
+  function leadShare(shot, p) {
+    const id = shot.camera.target || (shot.cast.length === 1 ? shot.cast[0].id : null);
+    const m = id && shot.cast.filter((c) => c.id === id)[0];
+    if (!m || !m.walk) return 0;
+    const dur = shotDuration(shot);
+    const end = m.walk.time != null ? m.walk.time : dur;
+    return Math.min(1, Math.max(0, (end - (p || 0) * dur) / LEAD_EASE_S));
+  }
 
   /** Camera of a shot at progress p, with focus and cast framing worked out. */
   function shotCamera(shot, p, world, presets, viewport, faces) {
     const layout = layoutFor(world, viewport);
-    let x = focusX(shot, layout, p);
+    const x = focusX(shot, layout, p);
     const move = presets.moves[shot.camera.move || "static"];
+    let cam = cameraAt(shot.camera, p, x, world, presets, viewport, keepWidthFor(shot, layout), focusFaceY(shot, layout, world, faces, p), faceDrop(shot, layout, faces));
     if (move.follow && x != null) {
-      // tracking: stay with the walker and keep space ahead of them (lead room)
-      const fit = Math.max(viewport.width / world.width, viewport.height / world.height);
-      const zoom = presets.framings[shot.camera.framing].zoom * fit;
-      x += walkDirection(shot) * LEAD_ROOM * (viewport.width / zoom);
+      // tracking: stay with the walker and keep space ahead of them (lead room), measured on the frame
+      // the camera really has (a person-measured framing zooms differently from its preset), and gone
+      // once the walk is over (Faz 4.6: a stopped walker stayed off to the side)
+      const half = viewport.width / cam.zoom / 2;
+      const cx = cam.cx + walkDirection(shot) * LEAD_ROOM * 2 * half * leadShare(shot, p);
+      cam = { zoom: cam.zoom, cx: Math.min(Math.max(cx, half), world.width - half), cy: cam.cy };
     }
-    const cam = cameraAt(shot.camera, p, x, world, presets, viewport, keepWidthFor(shot, layout), focusFaceY(shot, layout, world, faces), faceDrop(shot, layout, faces));
     return keepShoulders(cam, shot, p, layout, world, presets, viewport);
   }
 
@@ -699,6 +750,39 @@
       }
     }
     return Object.keys(gone).filter((id) => gone[id] >= 2);
+  }
+
+  /** Share of a person's height the top of the frame may cut from a head before it shows. */
+  const HEAD_SLACK = 0.04;
+  /** The top of the head above the eyes, as a share of the eyes-to-feet height (an adult: ~120 rig units). */
+  const HEAD_ABOVE_FACE = 0.15;
+
+  /**
+   * Cast members whose head the top of the frame cuts at the start, middle or end of a medium or
+   * wider shot (a close-up crops its own subject on purpose). The framing checks were sideways only:
+   * a medium on a short character cut a tall one's face off at the top, unwarned.
+   * @returns {string[]} member ids
+   */
+  function headsCut(shot, world, presets, viewport, faces) {
+    if (propAnchor(shot)) return [];
+    if (((presets.framings[shot.camera.framing] || {}).boy || 1) < TIGHT_BOY) return [];
+    const layout = layoutFor(world, viewport);
+    const cut = {};
+    for (const p of [0, 0.5, 1]) {
+      const cam = shotCamera(shot, p, world, presets, viewport, faces);
+      const top = cam.cy - viewport.height / cam.zoom / 2;
+      for (const m of shot.cast) {
+        const d = depthOf(m, layout);
+        const tall = RIG_HEIGHT * layout.scale * d.shrink;
+        // the top of the head from the face (a dog or a child is drawn low in its frame): a head is
+        // HEAD_ABOVE_FACE of its eyes-to-feet height above the eyes
+        const fy = faces && faces[m.id] != null ? faces[m.id] : DEFAULT_FACE_Y;
+        const headTop = Math.max(0, fy - HEAD_ABOVE_FACE * (950 - fy));
+        const head = world.ground_y - d.rise - (950 - headTop - (m.kok_y || 0)) * layout.scale * d.shrink;
+        if (head < top - HEAD_SLACK * tall) cut[m.id] = true;
+      }
+    }
+    return Object.keys(cut);
   }
 
   /**
@@ -803,6 +887,7 @@
     focusFaceY,
     faceDrop,
     offFrame,
+    headsCut,
     segmentsOf,
     segmentAt,
     keepWidthFor,

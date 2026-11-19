@@ -90,7 +90,14 @@ test("a short track loops to fill the film; without loop it plays once", () => {
   const w = readWav(tone(1, 1000));
   const looped = mixMusic(w, 3, { volume: 1, fade_in: 0, fade_out: 0, duck: 1 }, []);
   assert.equal(looped.samples.length, 3000);
-  assert.equal(looped.samples[2000 + 37], w.samples[37]);
+  // each pass after the first starts a fade (X frames) before the track's end: period L = frames - X
+  const frames = w.samples.length / w.channels;
+  const X = Math.min(Math.round(0.5 * w.rate), Math.floor(frames / 4));
+  const L = frames - X;
+  assert.equal(looped.samples[2 * L + X + 37], w.samples[X + 37]);
+  // at the seam the tail fades into the head: no jump bigger than the tone's own steps
+  const steps = (arr, from, to) => Math.max(...Array.from({ length: to - from }, (_, k) => Math.abs(arr[from + k + 1] - arr[from + k])));
+  assert.ok(steps(looped.samples, L - 5, L + 5) <= steps(w.samples, 0, 50) * 1.5 + 1);
   const once = mixMusic(w, 3, { volume: 1, fade_in: 0, fade_out: 0, duck: 1, loop: false }, []);
   assert.equal(once.samples[2500], 0);
 });

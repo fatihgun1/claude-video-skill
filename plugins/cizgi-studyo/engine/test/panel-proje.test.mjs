@@ -293,6 +293,18 @@ test("production jobs start on the saved episode, from the panel's own origin on
   assert.equal(status.json.job.status, "running");
 });
 
+test("a video job is made in the episode's own format, not the stage view the panel shows", async () => {
+  // Hurda Kralı 1: a 9:16 episode came out as a 1920x1080 video because the stage was in 16:9
+  put("ornekler/dikey/bolum.json", SOKAK);
+  writeFileSync(join(root, "ornekler", "dikey", "bolum.json"), JSON.stringify({ ...read("ornekler/dikey/bolum.json"), format: "9:16" }));
+  const res = await call("POST", "/api/is", { body: { b: "ornekler/dikey/bolum.json", kind: "storyboard", format: "16:9" } });
+  assert.equal(res.status, 200, res.text);
+  assert.equal(started.at(-1).format, "9:16");
+  // an episode without a format of its own keeps the format the panel asked for
+  await call("POST", "/api/is", { body: { b: "ornekler/sokak/bolum.json", kind: "storyboard", format: "9:16" } });
+  assert.equal(started.at(-1).format, "9:16");
+});
+
 test("storyboard sheets and videos of an opened episode are served, nothing else", async () => {
   const dir = join(root, "ornekler", "sokak");
   mkdirSync(join(dir, "storyboard", "16x9"), { recursive: true });

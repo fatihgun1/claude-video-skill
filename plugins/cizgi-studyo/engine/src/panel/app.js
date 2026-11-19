@@ -27,7 +27,7 @@ import { decorId } from "./dekor.js";
 import {
   addShotAfter, duplicateShot, deleteShot, moveShot, createHistory, rowOfMessage,
   moveSegmentStart, insertSegment, replaceSegmentAction, removeSegment, segmentIndexAt,
-  delayFirstSegment, standingAction, placeAt, sfxAtAfterDrag,
+  delayFirstSegment, standingAction, placeAt, sfxAtAfterDrag, sfxTie,
 } from "./kurgu.js";
 
 const PREVIEW_DELAY_MS = 350;
@@ -409,7 +409,7 @@ function topicOf(kind, index) {
   }
   if (kind === "sfx") {
     const x = (f.shot.sfx || [])[index];
-    return x ? { tur: "efekt", id: `${f.shot.shot_id}-${index}`, ad: `Efekt: ${x.sfx}`, ...where, goster: { efekt: x.sfx, at: x.at } } : null;
+    return x ? { tur: "efekt", id: `${f.shot.shot_id}-${index}`, ad: `Efekt: ${x.sfx}`, ...where, goster: { efekt: x.sfx, at: x.at, ne: sfxTie(x) } } : null;
   }
   return null;
 }

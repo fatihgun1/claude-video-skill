@@ -6,6 +6,8 @@
 
 /** Defaults for episode.music fields left out. */
 export const MUSIC_DEFAULTS = Object.freeze({ volume: 0.35, fade_in: 1, fade_out: 1.5, duck: 0.4, loop: true });
+/** Seconds over which a looping track's end fades into its start again (a hard seam clicked; Faz 5.8). */
+export const LOOP_FADE_S = 0.5;
 /** Seconds the music takes to dip before a line and to come back after it. */
 const DUCK_RAMP = 0.3;
 /** How often the mix works out the gain (seconds); in between it interpolates. */
@@ -115,8 +117,9 @@ function gainOf(t, duration, m, speech) {
  * @param {number} duration seconds
  * @param {object} music episode.music
  * @param {{start:number, end:number}[]} speech
+ * @param {number} [level] gain that brings the track to the common music level (ses-duzey.mjs)
  */
-export function mixMusic(track, duration, music, speech) {
+export function mixMusic(track, duration, music, speech, level = 1) {
   const { rate, channels } = track;
   const frames = Math.round(duration * rate);
   const trackFrames = Math.floor(track.samples.length / channels);
@@ -125,6 +128,19 @@ export function mixMusic(track, duration, music, speech) {
   if (!trackFrames) return { rate, channels, samples };
   // The gain changes slowly (ramps of 0.3 s and more): work it out every GAIN_STEP_S and
   // interpolate in between, instead of for every sample.
+  // looping: each pass after the first starts over the last X frames of the one before, the head
+  // fading in as the tail fades out (X: LOOP_FADE_S, at most a quarter of a short track)
+  const X = m.loop ? Math.min(Math.round(LOOP_FADE_S * rate), Math.floor(trackFrames / 4)) : 0;
+  const L = trackFrames - X;
+  const at = (i, c) => {
+    if (!m.loop) return track.samples[i * channels + c];
+    const k = Math.floor(i / L);
+    const q = i - k * L;
+    const head = track.samples[q * channels + c];
+    if (k === 0 || q >= X) return head;
+    const a = q / X;
+    return head * a + track.samples[(L + q) * channels + c] * (1 - a);
+  };
   const block = Math.max(1, Math.round(rate * GAIN_STEP_S));
   const spans = speech.filter((s) => s.end + DUCK_RAMP >= 0 && s.start - DUCK_RAMP <= duration);
   let g0 = gainOf(0, duration, m, spans);
@@ -133,9 +149,8 @@ export function mixMusic(track, duration, music, speech) {
     const g1 = gainOf(end / rate, duration, m, spans);
     for (let i = b; i < end; i++) {
       if (!m.loop && i >= trackFrames) return { rate, channels, samples };
-      const g = g0 + ((g1 - g0) * (i - b)) / (end - b);
-      const src = (i % trackFrames) * channels;
-      for (let c = 0; c < channels; c++) samples[i * channels + c] = Math.round(track.samples[src + c] * g);
+      const g = (g0 + ((g1 - g0) * (i - b)) / (end - b)) * level;
+      for (let c = 0; c < channels; c++) samples[i * channels + c] = Math.max(-32768, Math.min(32767, Math.round(at(i, c) * g))); // an Int16Array wraps instead of clipping
     }
     g0 = g1;
   }

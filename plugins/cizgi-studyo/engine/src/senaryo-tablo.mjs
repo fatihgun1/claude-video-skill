@@ -16,11 +16,20 @@ function member(m) {
   return `${m.id}: ${m.action}${extra}${walk}`;
 }
 
+/** When an effect plays: its time, or what it is tied to (efekt.mjs). */
+function sfxWhen(x) {
+  const off = x.ofset ? ` ${x.ofset > 0 ? "+" : ""}${sec(x.ofset)}` : "";
+  if (x.at != null) return sec(x.at + (x.ofset || 0));
+  if (x.replik != null) return `${x.replik + 1}. replikle${x.kelime != null ? `, ${x.kelime + 1}. kelimede` : ""}${off}`;
+  if (x.adim) return `${x.oyuncu} her adımda`;
+  return `${x.oyuncu}: ${{ baslangic: "başta", grab: "alırken", release: "kaldırırken", put_down: "bırakırken" }[x.an || "baslangic"]}${off}`;
+}
+
 function actionsOf(shot) {
   return [
     ...shot.cast.map(member),
     ...(shot.props || []).map((p) => (p.holder ? `${p.holder} elinde: ${p.prop}` : `nesne: ${p.prop}`)),
-    ...(shot.sfx || []).map((x) => `efekt: ${x.sfx} (${sec(x.at)})`),
+    ...(shot.sfx || []).map((x) => `efekt: ${x.sfx} (${sfxWhen(x)})`),
   ].join("; ");
 }
 

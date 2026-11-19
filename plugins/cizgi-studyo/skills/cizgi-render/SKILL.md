@@ -1,9 +1,12 @@
 ---
 name: cizgi-render
+user-invocable: false
 description: Render the final MP4s (16:9 YouTube, 9:16 Reels/Shorts) of a Çizgi Stüdyo episode whose storyboard is approved, verify the files and deliver them. Use when the person wants the finished video, or a draft render to preview motion.
 ---
 
 # Render
+
+> **Önce oku:** eklentinin ortak kuralları `${CLAUDE_PLUGIN_ROOT}/kurallar.md`. Hangi yoldan başlanırsa başlansın sahne yazmadan, değiştirmeden ya da onaylatmadan önce oku; bu skill ayrıntıları verir.
 
 **When the panel is open, the person renders there:** the **🎬 Video çıkar** button in the top bar approves, speaks the lines and renders in one press, and plays the video in the panel. Point them to it. Do not render from chat and do not send the video file into the chat: the person watches it in the panel. The commands below are for when there is no panel.
 

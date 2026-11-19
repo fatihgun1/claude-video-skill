@@ -143,7 +143,7 @@ export function createObjectWindow(ctx) {
     }
     if (topic.tur === "efekt") {
       return el("div", { class: "npencere-kart" },
-        el("p", { text: `${g.efekt} · ${Number(g.at || 0).toFixed(1)} sn'de çalıyor` }),
+        el("p", { text: g.ne && g.at == null ? `${g.efekt} · ${g.ne} ile çalıyor` : `${g.efekt} · ${Number(g.at || 0).toFixed(1)} sn'de çalıyor` }),
         el("audio", { class: "kanal-ses", controls: "", preload: "none", src: `/kutuphane/ses/${encodeURIComponent(g.efekt)}.wav`, "aria-label": "Efekti dinle" }));
     }
     return el("div", { class: "npencere-govde" }, // cekim

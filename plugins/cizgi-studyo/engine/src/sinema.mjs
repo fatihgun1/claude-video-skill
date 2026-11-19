@@ -14,6 +14,8 @@
  *   - nobody stands inside a bench, chair or table
  *   - the reverse shots of a conversation match in size
  */
+import { shotBg } from "./arka-plan.mjs";
+import { readyShots, facesOf } from "./compile.mjs";
 
 const CLOSE_FRAMINGS = new Set(["close", "detay"]);
 const NEUTRAL_VIEWS = new Set(["front", "back"]);
@@ -26,6 +28,8 @@ const FURNITURE_HALF = 160; // world units: closer to its middle than this, a st
 const TALL_FACE_Y = 300; // a rig whose eyes are above this (rig units) is a tall, grown-up drawing
 const DOWN_Y = 80; // an action that ends with the body this far down (rig units) leaves its person sitting or lying
 const TALK_FRAMINGS = new Set(["close", "gogus", "medium", "detay"]);
+const ONE_ANGLE_SHOTS = 3; // this many shots on one picture with the same people the same way round: only the zoom changes
+const IDLE = /^bekle/; // standing-and-waiting actions: someone doing nothing while another speaks
 
 /** The action's pose at its end (last key), or null. */
 const lastPose = (lib, id) => lib.actions?.get(id)?.keys?.at(-1)?.pose || null;
@@ -36,11 +40,32 @@ function endsDown(member, lib) {
 }
 /** Whether a cast member starts the shot standing. */
 const startsUp = (member, lib) => ((lib.actions?.get(member.action)?.keys?.[0]?.pose?.root_y) || 0) < DOWN_Y && !member.from;
+/** Whether a cast member starts the shot sitting or lying (its first action begins with the body down). */
+const startsDown = (member, lib) => ((lib.actions?.get(member.action)?.keys?.[0]?.pose?.root_y) || 0) > DOWN_Y;
+const BEND_MIN = 40; // degrees of forward lean that take the head down to another person's waist
+/** The deepest forward lean (body angle) in a member's actions, if it bends at least BEND_MIN, else 0. */
+function deepestBend(member, lib) {
+  const seq = [member.action, ...(member.actions || []).map((a) => a.action)];
+  const most = Math.max(0, ...seq.flatMap((a) => (lib.actions?.get(a)?.keys || []).map((k) => k.pose?.body || 0)));
+  return most >= BEND_MIN ? most : 0;
+}
+/** Rig units from the hips (body pivot) up to the face: how far a bend swings the head. */
+function torsoOfRig(rig) {
+  const hipY = Number(/<g id="body" data-pivot="[^,"]+,([^"]+)"/.exec(rig?.svg || "")?.[1]);
+  const faceY = rig?.meta?.face_y;
+  return Number.isFinite(hipY) && Number.isFinite(faceY) && hipY > faceY ? hipY - faceY : 400;
+}
 /** A child's action, by its label ("Koş (çocuk, profil)"). */
 const childAction = (lib, id) => /çocuk|child/i.test(JSON.stringify(lib.actions?.get(id)?.label || ""));
 
-/** Whether a background is drawn in perspective (a street running into depth: data-vp). */
-const deep = (lib, bg) => /<svg\b[^>]*\bdata-vp=/.test(lib.backgrounds?.get(bg) || "");
+/**
+ * Whether a background is a street running into depth: drawn in perspective (data-vp) and not
+ * marked side-on (mekan.json yol: "yan" → data-yol="yan", a shop front whose kerbs still have a vanishing point).
+ */
+const deep = (lib, bg) => {
+  const svg = lib.backgrounds?.get(bg) || "";
+  return /<svg\b[^>]*\bdata-vp=/.test(svg) && !/<svg\b[^>]*\bdata-yol="yan"/.test(svg);
+};
 
 /** The person behind a character entry: rigs that are views of the same person share it. */
 function identityOf(character, lib) {
@@ -57,12 +82,50 @@ function directionOf(member, character, lib) {
   return drawn === "right" ? "left" : "right";
 }
 
+const SAMPLES = [0, 0.5, 1];
+const SAME_DEPTH = 0.25; // closer in cast.back than this: drawn in one row
+const OVERLAP = 0.5; // share of the narrower figure hidden behind the other
+export const OVERLAP_MARK = "are drawn over each other";
+
+/** Pairs of cast members drawn over each other at the start, middle or end of a shot dur seconds long. */
+export function overlaps(cast, layout, memberX, memberHalfWidth, dur = 1) {
+  const found = new Map();
+  for (const p of SAMPLES) {
+    for (let a = 0; a < cast.length; a++) {
+      for (let b = a + 1; b < cast.length; b++) {
+        const A = cast[a];
+        const B = cast[b];
+        if (Math.abs((A.back || 0) - (B.back || 0)) >= SAME_DEPTH) continue;
+        const xa = memberX(A, layout, p * dur, dur);
+        const xb = memberX(B, layout, p * dur, dur);
+        const ha = memberHalfWidth(A, layout);
+        const hb = memberHalfWidth(B, layout);
+        const shared = Math.min(xa + ha, xb + hb) - Math.max(xa - ha, xb - hb);
+        if (shared > OVERLAP * 2 * Math.min(ha, hb)) found.set(`${A.id}|${B.id}`, [A.id, B.id]);
+      }
+    }
+  }
+  return [...found.values()];
+}
+
 /**
  * @param {object} episode validated episode
  * @param {ReturnType<import("./library.mjs").loadLibrary>} lib
  * @returns {string[]} warnings prefixed with "film:"
  */
 export function filmWarnings(episode, lib) {
+  // camera-ready shots per format, made once (compile.readyShots); null when they cannot be made
+  const ready = {};
+  const readyOf = (f) => {
+    if (!(f in ready)) {
+      try {
+        ready[f] = new Map(readyShots(episode, lib, f === "9:16" ? { width: 1080, height: 1920 } : { width: 1920, height: 1080 }).map((s) => [s.shot_id, s]));
+      } catch {
+        ready[f] = null; // an episode the compiler would refuse: its errors are reported elsewhere
+      }
+    }
+    return ready[f];
+  };
   const chars = Object.fromEntries(episode.characters.map((c) => [c.id, c]));
   const shots = episode.scenes.flatMap((s) => s.shots);
   const sceneOf = new Map(episode.scenes.flatMap((s) => s.shots.map((sh) => [sh.shot_id, s.scene_id])));
@@ -111,7 +174,7 @@ export function filmWarnings(episode, lib) {
       }
     }
   });
-  warnings.push(...compositionWarnings(episode, lib, chars));
+  warnings.push(...compositionWarnings(episode, lib, chars, readyOf));
   return warnings;
 }
 
@@ -119,17 +182,17 @@ export function filmWarnings(episode, lib) {
  * Scene-wide composition (told on the scene's first shot): a scene seen only from the side, and a
  * conversation without an over-the-shoulder shot. Both made Test 11's film look flat.
  */
-function compositionWarnings(episode, lib, chars) {
+function compositionWarnings(episode, lib, chars, readyOf = () => null) {
   const out = [];
   const viewOf = (m) => lib.characters.get(chars[m.id]?.rig)?.meta?.view || "front";
   for (const scene of episode.scenes) {
     const where = `film: shot ${scene.shots[0].shot_id}`;
     // Köşe Başı: people crossed a deep street sideways, past a crowd that stood frozen in a row
-    if (deep(lib, scene.bg)) {
-      for (const shot of scene.shots) {
+    {
+      for (const shot of scene.shots.filter((s) => deep(lib, shotBg(scene, s)))) {
         const across = shot.cast.filter((m) => m.walk && viewOf(m).startsWith("profile"));
         if (across.length) {
-          out.push(`film: shot ${shot.shot_id}: ${across.map((m) => `"${m.id}"`).join(", ")} walks sideways across "${scene.bg}", a street that runs into depth (it looks like crossing the pavement, not walking down the street); walk along it in a front or back view with a dolly or follow move, or use a flat street`);
+          out.push(`film: shot ${shot.shot_id}: ${across.map((m) => `"${m.id}"`).join(", ")} walks sideways across "${shotBg(scene, shot)}", a street that runs into depth (it looks like crossing the pavement, not walking down the street); walk along it in a front or back view with a dolly or follow move, or use a flat street`);
         }
       }
     }
@@ -143,11 +206,19 @@ function compositionWarnings(episode, lib, chars) {
         out.push(`${where}: the crowd "${d.id}" (${d.prop}) faces the camera or away from it but slides sideways; move it with akis.back on a deep street, or use a crowd walking sideways (the library prop kalabalik-yuruyen-yandan, with ters for the direction)`);
       }
     }
+    // a dolly moves the background toward its vanishing point; without one the picture stands still
+    // and people walk in place (kpss-ajani s5_sh5)
+    for (const shot of scene.shots) {
+      if (lib.cameras?.moves?.[shot.camera?.move]?.dolly_to && !deep(lib, shotBg(scene, shot))) {
+        out.push(`film: shot ${shot.shot_id}: a ${shot.camera.move} on "${shotBg(scene, shot)}", which has no vanishing point (data-vp): the picture will not move; use push_in, or a street drawn into depth`);
+      }
+    }
     // the furniture of the scene: nobody stands inside it
     const furniture = (scene.dekor || []).filter((d) => FURNITURE.test(d.prop));
     for (const shot of scene.shots) {
       for (const m of shot.cast) {
-        if (endsDown(m, lib) || !furniture.length) continue;
+        // sitting on it, or getting up from it (starts down, ends standing at the bench): both right
+        if (endsDown(m, lib) || startsDown(m, lib) || !furniture.length) continue;
         const x = (lib.world.marks?.[m.mark] ?? 960) + (m.dx || 0);
         const inside = furniture.find((d) => Math.abs(d.x - x) < FURNITURE_HALF && Math.abs((d.back || 0) - (m.back || 0)) < 0.2);
         if (inside) out.push(`film: shot ${shot.shot_id}: "${m.id}" stands inside the ${inside.prop} "${inside.id}"; move them beside it (dx), or keep them sitting`);
@@ -199,18 +270,73 @@ function compositionWarnings(episode, lib, chars) {
     // someone in the shot whom the framing leaves out entirely (the front person of an over-the-shoulder)
     const C = globalThis.CizgiCore;
     if (C?.offFrame && lib.cameras && lib.world) {
-      const faces = Object.fromEntries(episode.characters.map((c) => [c.id, lib.characters.get(c.rig)?.meta?.face_y ?? 400]));
+      const faces = facesOf(episode, lib);
       const formats = episode.format === "both" ? ["16:9", "9:16"] : [episode.format || "16:9"];
+      // the shots as the player frames them (timed, settled, prop anchors): Faz 4.1
+      const asPlayed = (shot, f) => readyOf(f)?.get(shot.shot_id) || shot;
       for (const shot of scene.shots.filter((s) => s.cast.length >= 2)) {
         for (const f of formats) {
           const vp = f === "9:16" ? { width: 1080, height: 1920 } : { width: 1920, height: 1080 };
           let gone = [];
           try {
-            gone = C.offFrame(shot, lib.world, lib.cameras, vp, faces);
+            gone = C.offFrame(asPlayed(shot, f), lib.world, lib.cameras, vp, faces);
           } catch {
             gone = []; // a shot the camera cannot frame is reported elsewhere
           }
           if (gone.length) out.push(`film: shot ${shot.shot_id} (${f}): ${gone.map((id) => `"${id}"`).join(", ")} is in the shot but not on screen; bring them closer (dx) or frame wider`);
+        }
+      }
+      // a head cut off at the top in a medium or wider frame (people of very different heights)
+      if (C.headsCut) {
+        for (const shot of scene.shots.filter((s) => s.cast.length)) {
+          for (const f of formats) {
+            const vp = f === "9:16" ? { width: 1080, height: 1920 } : { width: 1920, height: 1080 };
+            let cut = [];
+            try {
+              cut = C.headsCut(asPlayed(shot, f), lib.world, lib.cameras, vp, faces);
+            } catch {
+              cut = [];
+            }
+            for (const id of cut) out.push(`film: shot ${shot.shot_id} (${f}): "${id}"'s head is cut at the top of the frame; frame wider, aim at both (no target), or put the shorter one forward`);
+          }
+        }
+      }
+    }
+    // someone bending forward with the head at a standing person's waist (Hurda Kralı 2 s2_sh1, 9:16:
+    // Kadir bent over the scale with his face at Necmi's crotch). In the episode's own layout: 9:16
+    // brings people much closer together than the marks say.
+    if (C?.layoutFor && lib.world) {
+      const formats = episode.format === "both" ? ["16:9", "9:16"] : [episode.format || "16:9"];
+      for (const shot of scene.shots.filter((s) => s.cast.length >= 2)) {
+        for (const f of formats) {
+          const layout = C.layoutFor(lib.world, f === "9:16" ? { width: 1080, height: 1920 } : { width: 1920, height: 1080 });
+          // a walk that runs through someone standing in its way at the same depth (walks keep their
+          // stride in 9:16 while the marks close up)
+          for (const m of shot.cast.filter((c) => c.walk)) {
+            const [a, b] = [C.memberX(m, layout, 0, 1), C.memberX(m, layout, 1e6, 1)].sort((p, q) => p - q);
+            for (const o of shot.cast) {
+              if (o === m || o.walk || Math.abs((o.back || 0) - (m.back || 0)) > 0.2) continue;
+              const xo = C.memberX(o, layout, 0, 1);
+              const half = C.memberHalfWidth(o, layout);
+              if (xo - half > a && xo + half < b) out.push(`film: shot ${shot.shot_id} (${f}): "${m.id}" walks through "${o.id}" standing in the way; stop the walk before them (walk.dx, arrive), or put them at another depth (back)`);
+            }
+          }
+          for (const [a, b] of overlaps(shot.cast, layout, C.memberX, C.memberHalfWidth)) {
+            out.push(`film: shot ${shot.shot_id} (${f}): "${a}" and "${b}" ${OVERLAP_MARK}; move one aside (dx) or back (back)`);
+          }
+          for (const m of shot.cast) {
+            const bend = deepestBend(m, lib);
+            const dir = directionOf(m, chars[m.id] || {}, lib);
+            if (!bend || !dir) continue;
+            const torso = torsoOfRig(lib.characters.get(chars[m.id]?.rig));
+            const head = C.memberX(m, layout, 0, 1) + (dir === "right" ? 1 : -1) * torso * Math.sin((bend * Math.PI) / 180) * layout.scale;
+            for (const o of shot.cast) {
+              if (o === m || deepestBend(o, lib) || endsDown(o, lib) || Math.abs((o.back || 0) - (m.back || 0)) > 0.2) continue;
+              if (Math.abs(head - C.memberX(o, layout, 0, 1)) < C.memberHalfWidth(o, layout)) {
+                out.push(`film: shot ${shot.shot_id} (${f}): "${m.id}" bends with the head at "${o.id}"'s waist (it reads as something else); move them apart (dx), or turn the one who bends`);
+              }
+            }
+          }
         }
       }
     }
@@ -233,6 +359,27 @@ function compositionWarnings(episode, lib, chars) {
     if (speakers.size >= 2 && !overShoulder) {
       out.push(`${where}: the conversation in scene ${scene.scene_id} has no over-the-shoulder shot; show the speaker over the listener's shoulder (the listener's back 3/4 in front, the speaker's front 3/4 behind)`);
     }
+    // Köşe Başı and Hurda Kralı: one picture, the same people the same way round, cut only by zoom
+    const angle = (shot) => [shotBg(scene, shot), ...shot.cast.map((m) => `${m.id}:${viewOf(m)}:${m.facing || ""}`).sort()].join("|");
+    if (peopled.length >= ONE_ANGLE_SHOTS && new Set(peopled.map(angle)).size === 1) {
+      out.push(`${where}: all ${peopled.length} shots of scene ${scene.scene_id} look from one angle and only zoom in or out; add another angle of the place (shot.bg), a reverse or over-the-shoulder shot, or turn the people`);
+    }
+    // everyone but the speaker frozen in a waiting pose: no secondary action
+    for (const shot of scene.shots.filter((s) => s.cast.length >= 2 && (s.utterances || []).length)) {
+      const speaking = new Set(shot.utterances.map((u) => u.speaker));
+      if (!shot.cast.some((m) => speaking.has(m.id))) continue; // the narrator or someone off screen speaks
+      // the listener seen from behind (over the shoulder) shows no face to be idle with
+      const others = shot.cast.filter((m) => !speaking.has(m.id) && !viewOf(m).startsWith("back"));
+      const idle = (m) => !m.walk && [m.action, ...(m.actions || []).map((a) => a.action)].every((a) => IDLE.test(a || ""));
+      if (others.length && others.every(idle)) {
+        out.push(`film: shot ${shot.shot_id}: ${others.map((m) => `"${m.id}"`).join(", ")} only stands and waits while the other speaks; give the listener something to do (a nod, a look, the work at hand)`);
+      }
+    }
+  }
+  // a skeleton: every scene a single static shot
+  const scenes = episode.scenes.filter((sc) => sc.shots.length);
+  if (scenes.length >= 2 && scenes.every((sc) => sc.shots.length === 1 && (sc.shots[0].camera?.move || "static") === "static")) {
+    out.push(`film: shot ${scenes[0].shots[0].shot_id}: every scene of the episode is one static shot (a skeleton); break the scenes into shots: an establishing shot, closer shots on who acts and speaks, an insert on the thing that matters`);
   }
   return out;
 }

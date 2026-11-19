@@ -18,36 +18,16 @@ import { validateEpisode, profileOf, NARRATOR } from "./validate.mjs";
 import { readApprovals, requireGate, scriptFingerprint } from "./onay.mjs";
 import { requireTools } from "./tools.mjs";
 import { withVoiceLock } from "./ses-kilit.mjs";
+import { DEFAULT_EDGE_VOICE, voicesOf, MOODS, edgeSettings, VIEW_SUFFIX } from "./ses-ayar.mjs";
+
+export { DEFAULT_EDGE_VOICE, voicesOf, MOODS, edgeSettings };
 
 const PYTHON_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "python");
 const TTS_SCRIPT = join(PYTHON_DIR, "tts_edge.py");
 const TTS_ENGINE = "edge-tts/1";
 const MANIFEST = join("ses", "manifest.json");
-/** The voice when a character has no ready voice and the library names none. */
-export const DEFAULT_EDGE_VOICE = "tr-TR-EmelNeural";
-
 function sha(value) {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
-}
-
-// a character's other views: the same person, drawn from the front or the back (rig "kiz-on" of "kiz")
-const VIEW_SUFFIX = /-(on|arka)$/;
-
-/**
- * Each character's voice. A view of a person (its rig is "<rig>-on" or "<rig>-arka" of another
- * character's rig) that has no voice of its own speaks with that person's voice, so one voice
- * choice covers every view.
- * @param {object} episode
- * @returns {Record<string, object>}
- */
-export function voicesOf(episode) {
-  const byRig = new Map(episode.characters.map((c) => [c.rig, c]));
-  const out = {};
-  for (const c of episode.characters) {
-    const person = !c.voice && VIEW_SUFFIX.test(c.rig) ? byRig.get(c.rig.replace(VIEW_SUFFIX, "")) : null;
-    out[c.id] = c.voice || person?.voice || {};
-  }
-  return out;
 }
 
 /**
@@ -61,52 +41,9 @@ export function voiceOwner(episode, id) {
 }
 
 /**
- * How a feeling is spoken. Edge has no speaking styles, so a feeling shifts the speed (rate, %),
- * the pitch (Hz) and the loudness (volume, %) of the speaker's own voice. Without a feeling every
- * line came out the same flat way (Test 16: "duygu aktarımı yok").
- */
-// A feeling never moves the pitch: the pitch is who is speaking. Moving it per line made one
-// character sound like five different people (Köşe Başı 2.16.0: "aynı karakter 5 farklı sesle
-// konuşuyor"). Only the pace and the loudness change, a little.
-export const MOODS = Object.freeze({
-  sakin: { rate: -6, pitch: 0, volume: -4 },
-  neseli: { rate: 4, pitch: 0, volume: 3 },
-  heyecanli: { rate: 10, pitch: 0, volume: 6 },
-  uzgun: { rate: -10, pitch: 0, volume: -8 },
-  kizgin: { rate: 6, pitch: 0, volume: 10 },
-  korkmus: { rate: 8, pitch: 0, volume: -3 },
-});
-const NO_MOOD = { rate: 0, pitch: 0, volume: 0 };
-const RATE_RANGE = [-50, 100];
-const PITCH_RANGE = [-80, 80];
-const VOLUME_RANGE = [-50, 50];
-
-const clamp = (x, [lo, hi]) => Math.min(hi, Math.max(lo, Math.round(x)));
-const signed = (n) => (n < 0 ? String(n) : `+${n}`);
-
-/**
- * What Edge is asked for one line: the ready voice's Edge voice and presets, the character's own
- * perde (Hz) and hiz (%), the feeling, and the profile tempo as a rate (0.85 → -15%).
- * @param {{hazir?:string, perde?:number, hiz?:number}} voice
- * @param {string|undefined} duygu
- * @param {{voices?: Map<string, {edge:string, perde?:number, hiz?:number}>}} lib
- * @param {number} [tempo]
- * @returns {{voice:string, rate:string, pitch:string, volume:string}}
- */
-export function edgeSettings(voice, duygu, lib, tempo = 1) {
-  const v = voice || {};
-  const preset = (v.hazir && lib?.voices?.get(v.hazir)) || lib?.voices?.values().next().value || { edge: DEFAULT_EDGE_VOICE };
-  const mood = MOODS[duygu] || NO_MOOD;
-  const rate = clamp((preset.hiz || 0) + (v.hiz || 0) + mood.rate + (tempo - 1) * 100, RATE_RANGE);
-  const pitch = clamp((preset.perde || 0) + (v.perde || 0) + mood.pitch, PITCH_RANGE);
-  const volume = clamp(mood.volume, VOLUME_RANGE);
-  return { voice: preset.edge || DEFAULT_EDGE_VOICE, rate: `${signed(rate)}%`, pitch: `${signed(pitch)}Hz`, volume: `${signed(volume)}%` };
-}
-
-/**
  * Every spoken line of an episode with its voice settings.
  * @param {object} episode
- * @returns {{key:string, shot_id:string, index:number, speaker:string, text:string, path:string, voice:object, duygu?:string}[]}
+ * @returns {{key:string, shot_id:string, index:number, speaker:string, text:string, path:string, voice:object, duygu?:string, own?:boolean}[]}
  */
 export function linesOf(episode) {
   const voices = voicesOf(episode);
@@ -121,6 +58,7 @@ export function linesOf(episode) {
         text: u.text,
         path: audioPathFor(u, shot, index),
         voice: voices[u.speaker] || {},
+        ...(u.audio ? { own: true } : {}), // the person's own recording (utterance.audio): never spoken over
         ...(u.duygu && MOODS[u.duygu] ? { duygu: u.duygu } : {}),
       })),
     ),
@@ -134,35 +72,55 @@ export function linesOf(episode) {
  * @param {number} tempo
  * @returns {string}
  */
-export function lineFingerprint(line, language, tempo) {
+export function lineFingerprint(line, language, tempo, lib) {
   // the feeling by what it does, not only its name: retuning MOODS speaks those lines again
-  return sha({ engine: TTS_ENGINE, text: line.text, language, tempo, voice: line.voice, duygu: line.duygu || null, mood: MOODS[line.duygu] || null }).slice(0, 16);
+  const base = { engine: TTS_ENGINE, text: line.text, language, tempo, voice: line.voice, duygu: line.duygu || null, mood: MOODS[line.duygu] || null };
+  // with the library: what Edge is actually asked (a ready voice's preset retuned in the library
+  // speaks its lines again; Faz 5.3). Without it: the fingerprint before that (manifests made then).
+  return sha(lib ? { ...base, edge: edgeSettings(line.voice, line.duygu, lib, tempo) } : base).slice(0, 16);
+}
+
+/**
+ * The fingerprints a line is checked against: the current one, and the one before the voice
+ * presets counted (accepted only for manifest entries written then, which carry no "ayar").
+ * @returns {(line) => string[]}
+ */
+export function fingerprintsOf(episode, lib) {
+  const tempo = profileOf(episode, lib).speech.tempo;
+  return (line) => [lineFingerprint(line, episode.language, tempo, lib), lineFingerprint(line, episode.language, tempo)];
 }
 
 /**
  * Split lines into those to (re)generate and those already up to date.
  * @param {ReturnType<typeof linesOf>} lines
  * @param {{lines?: Record<string, {fingerprint: string, ok: boolean}>}|null} manifest
- * @param {(line) => string} fingerprintOf
+ * @param {(line) => string|string[]} fingerprintOf the current fingerprint, or [current, older] (fingerprintsOf)
  * @param {(path: string) => boolean} fileExists
- * @param {{force?: boolean}} [opts]
- * @returns {{todo: object[], keep: object[]}}
+ * @param {{force?: boolean, only?: string}} [opts]
+ * @returns {{todo: object[], keep: object[], ownMissing: object[]}} ownMissing: the person's own
+ *   recordings (utterance.audio) whose file is not there; never spoken over (Faz 5.4)
  */
 export function planAudio(lines, manifest, fingerprintOf, fileExists, opts = {}) {
+  const own = lines.filter((l) => l.own);
+  const ownMissing = own.filter((l) => !fileExists(l.path));
+  const ownKept = own.filter((l) => fileExists(l.path));
+  const spoken = lines.filter((l) => !l.own);
   if (opts.only) {
     // one line spoken again (a new take), the others left as they are
     if (!lines.some((l) => l.key === opts.only)) throw new Error(`no line "${opts.only}" in this episode`);
-    return { todo: lines.filter((l) => l.key === opts.only), keep: lines.filter((l) => l.key !== opts.only) };
+    if (own.some((l) => l.key === opts.only)) throw new Error(`line "${opts.only}" is the person's own recording (utterance.audio); it is not spoken over`);
+    return { todo: spoken.filter((l) => l.key === opts.only), keep: lines.filter((l) => l.key !== opts.only && !ownMissing.includes(l)), ownMissing };
   }
   const known = manifest?.lines || {};
   const todo = [];
-  const keep = [];
-  for (const line of lines) {
+  const keep = [...ownKept];
+  for (const line of spoken) {
     const prev = known[line.key];
-    const fresh = prev && prev.fingerprint === fingerprintOf(line) && fileExists(line.path);
-    (fresh && !opts.force ? keep : todo).push(line);
+    const [now, older] = [].concat(fingerprintOf(line));
+    const same = prev && (prev.fingerprint === now || (older && !prev.ayar && prev.fingerprint === older));
+    (same && fileExists(line.path) && !opts.force ? keep : todo).push(line);
   }
-  return { todo, keep };
+  return { todo, keep, ownMissing };
 }
 
 /** Speak jobs [{id, text, voice, rate, pitch, volume, out}] with tts_edge.py (wav + words.json each). */
@@ -194,7 +152,7 @@ export function runAudio(episodePath, lib, tools, deps) {
   const speech = profileOf(episode, lib).speech;
   const manifestPath = join(dir, MANIFEST);
   const lines = linesOf(episode);
-  const fp = (line) => lineFingerprint(line, episode.language, speech.tempo);
+  const fp = fingerprintsOf(episode, lib);
   const abs = (rel) => safeJoin(dir, rel);
   const plan = (manifest) => planAudio(lines, manifest, fp, (p) => existsSync(abs(p)), deps);
   const readNow = () => (existsSync(manifestPath) ? readJson(manifestPath) : { lines: {} });
@@ -223,12 +181,28 @@ export function runAudio(episodePath, lib, tools, deps) {
     });
 
     const nextLines = { ...manifest.lines };
-    for (const line of todo) nextLines[line.key] = { fingerprint: fp(line), text: line.text, ok: true, attempts: 1 };
+    for (const line of todo) nextLines[line.key] = { fingerprint: fp(line)[0], ayar: true, text: line.text, ok: true, attempts: 1 };
     const known = new Set(lines.map((l) => l.key));
     const next = { lines: Object.fromEntries(Object.entries(nextLines).filter(([k]) => known.has(k))) };
     writeFileSync(manifestPath, `${JSON.stringify(next, null, 2)}\n`);
     return { generated: todo.map((l) => l.key), kept: keep.map((l) => l.key), failed: [] };
   }, lockOpts(deps, log));
+}
+
+/** Keys of the lines whose recording is missing or out of date for the current text, voice and feeling. */
+export function staleLines(episodePath, episode, lib) {
+  const dir = dirname(resolve(episodePath));
+  const { todo, ownMissing } = planAudio(linesOf(episode), readManifest(episodePath), fingerprintsOf(episode, lib), (p) => existsSync(safeJoin(dir, p)));
+  return [...todo, ...ownMissing].map((l) => l.key);
+}
+
+/**
+ * Refuse to go on with lines whose recording is missing or was made for other words, voice or
+ * feeling (kpss-ajani: a storyboard and a render would have shipped 19 takes of the old engine).
+ */
+export function requireFreshAudio(episodePath, episode, lib) {
+  const stale = staleLines(episodePath, episode, lib);
+  if (stale.length) throw new Error(`${stale.length} replik güncel metin, ses ya da duyguyla seslendirilmemiş (${stale.slice(0, 12).join(", ")}${stale.length > 12 ? ", …" : ""}); önce: cizgi ses <bolum.json>`);
 }
 
 /**

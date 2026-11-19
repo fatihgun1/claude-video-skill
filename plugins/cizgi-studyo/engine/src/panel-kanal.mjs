@@ -105,7 +105,7 @@ function cleanQuestion(q) {
 /**
  * @param {{onLateAnswer?:(answer:{id:string, soru:string, secim:string[], metin:string}) => void}} [opts]
  */
-export function createChannel({ onLateAnswer, onIdleChat, now = () => Date.now() } = {}) {
+export function createChannel({ onLateAnswer, onIdleChat, onIdleDraft, now = () => Date.now() } = {}) {
   const chats = createChats({ now }); // the object windows' conversations
   let seq = 0;
   let nav = null;
@@ -147,9 +147,12 @@ export function createChannel({ onLateAnswer, onIdleChat, now = () => Date.now()
       thinkingSince = 0;
       return nav;
     },
-    sor(q) {
+    sor(q, { yerine = false } = {}) {
       const clean = cleanQuestion(q);
-      release(null); // the open question is dropped: whoever waited for it learns that
+      // an open question is never dropped silently: its answer could never come (two questions at
+      // once, or one asked again). Replace it only on purpose; its waiter learns it was replaced.
+      if (question && !yerine) throw new Error(`panelde açık bir soru var ("${question.soru.slice(0, 60)}"); cevabını bekle (panel_dinle, panel_istekleri) ya da bilerek değiştir (yerine: true)`);
+      release(question ? { yerine: true } : null);
       question = { id: `s${Date.now().toString(36)}${randomBytes(3).toString("hex")}`, ...clean, seq: ++seq };
       thinkingSince = 0;
       return { id: question.id };
@@ -212,6 +215,8 @@ export function createChannel({ onLateAnswer, onIdleChat, now = () => Date.now()
       const item = { tur: "taslak", islem, cizimler, at: now() };
       if (hear([item])) return true;
       asks = [...asks, item].slice(-MAX_ASKS);
+      // also to the request queue: an idle session hears it through the watcher and the hooks
+      if (onIdleDraft) onIdleDraft(item);
       return false;
     },
     /** Claude's reply in an object window (panel_sohbet). */

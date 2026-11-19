@@ -1,9 +1,12 @@
 ---
 name: cizgi-sinema
+user-invocable: false
 description: Film grammar for Çizgi Stüdyo episodes — shot progression, continuity rules (180°, 30°, screen direction, match on action, eyeline), camera choices (tracking, over-the-shoulder, insert, close-up with shallow focus) and ready shot recipes. Use whenever you plan or revise the shots of a bolum.json, before the senaryo gate; `cizgi dogrula` reports the rules it can check as warnings.
 ---
 
 # Film grammar for episodes
+
+> **Önce oku:** eklentinin ortak kuralları `${CLAUDE_PLUGIN_ROOT}/kurallar.md`. Hangi yoldan başlanırsa başlansın sahne yazmadan, değiştirmeden ya da onaylatmadan önce oku; bu skill ayrıntıları verir.
 
 A shot list is not a list of poses. It must tell the viewer **where we are, who this is, what they see, what they do and what it means to them**, in that order, and the cuts must never confuse space or direction. Plan the shots with these rules **before** writing `bolum.json`, then show the plan at the senaryo gate.
 
@@ -29,6 +32,10 @@ Sources: [continuity editing (StudioBinder)](https://www.studiobinder.com/blog/w
 | **Walk along a deep street** | On a background in perspective (`sokak-derinlik`), people walk along the street: toward or away from the camera, in a front or back view with a `follow` or `dolly_ileri` move. A profile walk crosses the pavement sideways and looks wrong. | ✓ warns on a profile walk on a deep background |
 | **A crowd moves** | A crowd (`kalabalik-*` decor) walks: give each piece `akis` (`dx` sideways, `back` + going away / - coming closer, per second; e.g. `kalabalik-uzaklasan` `{"back": 0.04}`, `kalabalik-gelen` `{"back": -0.04}`, `kalabalik-karisik` `{"dx": 30}`). A frozen row of people reads as a wall. A crowd walks the way it faces: `kalabalik-uzaklasan`/`kalabalik-gelen` only into depth and only on a deep street (`sokak-derinlik`); on a flat street use the library prop `kalabalik-yuruyen-yandan` (profile walkers, `ters` to walk left) with `akis.dx` in the direction they face. Leave a crowd out rather than slide it the wrong way. Far decor goes soft in close framings by itself. | ✓ warns on a crowd without akis |
 | **Shot / reverse shot** | Two people talking: each line on its speaker (close or over the shoulder), not both in one static shot. | ✓ warns on lines of two people in one static shot |
+| **Another angle of the same place** | A scene seen from one picture only, cut by zoom, reads as a slideshow. Give a shot its own background with `shot.bg` (another drawing of the same place: the reverse side, the scale up close). It cuts straight, no fade; the scene's decor stays on the scene's own picture, so draw what the angle needs into it. A job with its own place (a scale, a table) gets its own angle this way, not a scene in the middle of another. | ✓ warns when 3+ shots of a scene share one picture and the same people the same way round |
+| **The listener acts** | While one speaks, the one listening on screen (not seen from behind) does something: a nod, a look, the work at hand. Everyone else in `bekle*` reads as a still. | ✓ warns |
+| **No skeleton** | An episode whose every scene is one static shot is an outline, not a film: break scenes into an establishing shot, closer shots and an insert. | ✓ warns |
+| **Nobody drawn over another** | Two people at about the same depth (`back`) must not cover each other in either format; 9:16 brings marks closer. | ✓ warns (per format) |
 | **Lead room** | A moving or looking character has more space in front of them than behind. | – camera `follow` keeps the walker left of centre when walking right |
 
 **Between scenes:** a scene that goes on in the same place at the same time of day as the one before begins with a hard cut (`kesme`): it is the same moment. Any other scene begins with a short dip to black, about 0.3 s out and 0.3 s in (`kararma`). Set `scene.gecis` only to change that, for example a cut to keep a chase going, or a dip for a jump in time in the same place. The person changes it in the place window (**Sahneye geçiş**).

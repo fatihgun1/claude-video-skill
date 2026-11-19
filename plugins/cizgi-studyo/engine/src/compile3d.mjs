@@ -12,6 +12,7 @@ import { createRequire } from "node:module";
 import { prepareMedia, facesOf, escapeHtml } from "./compile.mjs";
 import { readJson } from "./util.mjs";
 import { validateEpisode } from "./validate.mjs";
+import { episodeBgs } from "./arka-plan.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RUNTIME_DIR = join(HERE, "runtime");
@@ -85,7 +86,7 @@ export function recipesFor(episode, libDir) {
       problems0.push(err.message);
     }
   }
-  const bgs = [...new Set(episode.scenes.map((s) => s.bg))];
+  const bgs = episodeBgs(episode);
   const places = Object.fromEntries(bgs.map((bg) => [bg, read("mekanlar", bg)]));
   if (missing.length) throw new Error(`no 3D recipe for: ${missing.join(", ")}`);
   const problems = [...problems0]; // every broken recipe at once, characters and places

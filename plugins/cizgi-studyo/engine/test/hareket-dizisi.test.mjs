@@ -149,3 +149,20 @@ test("a later action started past its grab holds the prop from its own start; th
   assert.equal(grabTime({ action: "yuru-cocuk", actions: [{ action: "egil-al-cocuk", at: 2 }, { action: "bak", at: 2.5 }] }, lib), null);
   assert.deepEqual(C.segmentAt({ action: "a", actions: [{ action: "b", at: 2 }] }, 2).action, "b");
 });
+
+test("a walk without a time (the whole shot) keeps the timeline in numbers, for this shot and the next", () => {
+  // Hurda Kralı 3: walk {dx, arrive} with no time made every later shot start at null,
+  // and the scene stills came out black.
+  const ep = episode({ walk: { dx: 288 }, actions: [] });
+  ep.scenes[0].shots.push({ ...ep.scenes[0].shots[0], shot_id: "s1_sh2", cast: [{ id: "ela", action: "bekle-cocuk", mark: "orta" }], props: [] });
+  const timeline = buildTimeline(ep, () => ({ duration: 1 }));
+  for (const s of timeline.shots) {
+    assert.ok(Number.isFinite(s.start) && Number.isFinite(s.end) && s.end > s.start, `${s.shot_id}: ${s.start}-${s.end}`);
+  }
+  assert.ok(Number.isFinite(timeline.duration));
+});
+
+test("a shot whose length is not a number stops the timeline with its id instead of black stills", () => {
+  const ep = episode({ actions: [{ action: "egil-al-cocuk", at: Number.NaN }] });
+  assert.throws(() => buildTimeline(ep, () => ({ duration: 1 })), /shot s1_sh1/);
+});

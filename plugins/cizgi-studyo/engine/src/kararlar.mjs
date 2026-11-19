@@ -12,6 +12,7 @@
  */
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { episodeBgs } from "./arka-plan.mjs";
 
 export const DECISIONS = Object.freeze(["boyut", "muzik", "efekt", "altyazi"]);
 
@@ -41,7 +42,7 @@ function contradictions(episode, k) {
 function missing3d(episode, lib) {
   const has = (kind, id) => existsSync(join(lib.dir, "3d", kind, `${id}.json`));
   const rigs = [...new Set(episode.characters.map((c) => c.rig))].filter((r) => !has("karakterler", r));
-  const bgs = [...new Set(episode.scenes.map((s) => s.bg))].filter((b) => !has("mekanlar", b));
+  const bgs = episodeBgs(episode).filter((b) => !has("mekanlar", b));
   return [
     ...rigs.map((r) => `boyut: character "${r}" has no 3D recipe (library/3d/karakterler/${r}.json); a 3D render will be refused`),
     ...bgs.map((b) => `boyut: place "${b}" has no 3D recipe (library/3d/mekanlar/${b}.json); a 3D render will be refused`),
@@ -49,24 +50,53 @@ function missing3d(episode, lib) {
 }
 
 /**
+ * A drawing the library lacks (new_assets): the person's one rule for all of them, kararlar.eksik_cizim:
+ * "sor" (ask first: each needs their answer in new_assets[].cevap) or "yer_tutucu" (a stand-in, go on).
+ * Hurda Kralı 1: "kütüphanede yoksa önce bana sor" was overruled by a skill line that said stand-in.
+ */
+function missingDrawings(episode, k) {
+  const missing = episode.new_assets || [];
+  if (!missing.length) return [];
+  if (!k.eksik_cizim) return [`eksik_cizim: ${missing.length} drawing(s) missing; ask the person once: ask before each (sor) or use a stand-in and go on (yer_tutucu)`];
+  if (k.eksik_cizim !== "sor") return [];
+  return missing.filter((a) => !a.cevap).map((a) => `eksik_cizim: "${a.name}" is missing and the person said to ask first; ask them and write their answer in new_assets[].cevap`);
+}
+
+/**
+ * The person's wishes in their own words (hikaye.json kisi), recorded at their first message and read
+ * back to them; the outside review checks the episode against them. An empty list is a recorded
+ * "nothing special".
+ * @param {{exists: boolean, story: object}|undefined} story readStory(...) of the episode; undefined skips
+ */
+function wishes(story) {
+  if (!story) return [];
+  if (!story.exists) return ["hikaye: no hikaye.json next to the episode; write the story cards and kisi (the person's wishes, word for word)"];
+  if (!Array.isArray(story.story.kisi)) return ["kisi: the person's wishes are not recorded; write hikaye.json kisi: [{metin (their words), tur: yap|yapma|sor, yorum}] (an empty list if they wished nothing special)"];
+  return [];
+}
+
+/**
  * @param {object} episode a schema-valid episode
  * @param {{dir: string}} lib
+ * @param {{exists: boolean, story: object}} [story] the episode's story cards (readStory); checked when given
  * @returns {{eksik: string[], uyarilar: string[]}}
  */
-export function decisionProblems(episode, lib) {
+export function decisionProblems(episode, lib, story) {
   const k = episode.kararlar || {};
   const eksik = [
     ...(episode.format ? [] : [`format: ${ASK.format}`]),
     ...DECISIONS.filter((d) => !k[d]).map((d) => `${d}: ${ASK[d]}`),
     ...contradictions(episode, k),
+    ...missingDrawings(episode, k),
+    ...wishes(story),
   ];
   const uyarilar = k.boyut === "3b" ? missing3d(episode, lib) : [];
   return { eksik, uyarilar };
 }
 
 /** Throw unless every decision is recorded and the episode agrees with them. */
-export function requireDecisions(episode, lib) {
-  const { eksik } = decisionProblems(episode, lib);
+export function requireDecisions(episode, lib, story) {
+  const { eksik } = decisionProblems(episode, lib, story);
   if (!eksik.length) return;
   throw new Error(`the person's decisions are not complete (kararlar). Ask them, record the answers in bolum.json, then show the script again:\n- ${eksik.join("\n- ")}`);
 }

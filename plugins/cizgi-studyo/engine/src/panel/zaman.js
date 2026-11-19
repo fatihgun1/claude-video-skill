@@ -9,7 +9,7 @@
 import { el, svg } from "./dom.js";
 import { musicGain } from "./muzik.mjs";
 import { speakerColor, captionShown } from "./altyazi.mjs";
-import { MAX_HOLD, shotLength, minShotLength, holdForLength, sfxAtAfterDrag, reorderAt, segmentSpans, snapTo, snap as gridSnap,
+import { sfxAt, sfxTie, MAX_HOLD, shotLength, minShotLength, holdForLength, sfxAtAfterDrag, reorderAt, segmentSpans, snapTo, snap as gridSnap,
   ZOOM, zoomed, fitZoom, tickStep } from "./kurgu.js";
 
 let PX = ZOOM.start; // pixels per second: the zoom (one timeline per page)
@@ -421,12 +421,13 @@ export function createTimeline(els, ctx) {
       const info = ctx.sfxInfo(s.sfx);
       const len = info?.duration || 0.3;
       const shown = Math.max(len, FX_MIN_PX / PX); // wide enough for its name; the real length is the dark bar
-      const start = p.start + s.at;
+      const at = sfxAt(s, p.t, i) ?? 0;
+      const start = p.start + at;
       let lane = lanes.findIndex((end) => end <= start);
       if (lane === -1) lane = lanes.length;
       lanes[lane] = start + shown;
       const on = ctx.selected() === p.shot.shot_id && sel.kind === "sfx" && sel.index === i;
-      const label = el("span", { text: `${info?.label || s.sfx} · ${s.at.toFixed(2)} s` });
+      const label = el("span", { text: `${info?.label || s.sfx} · ${sfxTie(s, ctx.labelOf)}` });
       const clip = el("div", {
         class: `clip fx-clip${on ? " sel" : ""}`,
         title: `${info?.label || s.sfx} — sürükle: zamanı`,
@@ -439,7 +440,7 @@ export function createTimeline(els, ctx) {
           const r = snapIn(p, s.at + dx / PX, { settle: (x) => clamp(round2(x), 0, cap) });
           return r.hit === null ? sfxAtAfterDrag(s.at, dx / PX, p.len) : r.t;
         };
-        if (!p.t) { // not compiled yet: the shot's real length, and so the limit, is unknown
+        if (!p.t || s.at == null) { // not compiled yet (the limit is unknown), or tied to a line or someone: it moves with them
           ctx.choose(p.shot.shot_id);
           ctx.select("sfx", i);
           return;

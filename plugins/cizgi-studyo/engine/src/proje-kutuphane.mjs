@@ -19,8 +19,11 @@ import { homedir } from "node:os";
 import { createHash } from "node:crypto";
 import { checkProp, readCharacter, readAction } from "./library.mjs";
 import { loadLayered } from "./mekan.mjs";
+import { backgroundDraftErrors, declaredIn } from "./mekan-denetim.mjs";
+import { draftPoseErrors } from "./poz-denetim.mjs";
 import { checkSvgSafety, slidingDetails } from "./rigspec.mjs";
 import { ID_PATTERN } from "./util.mjs";
+import { episodeBgs } from "./arka-plan.mjs";
 
 export const PROJECT_LIBRARY = "kutuphane";
 const KIND = Object.freeze({ mekan: "backgrounds", nesne: "props", karakter: "characters", hareket: "actions" });
@@ -114,6 +117,9 @@ function inspect(proj, tur, id, lib) {
   } else if (tur === "hareket") {
     const a = readAction(where.path);
     out.errors.push(...a.errors);
+    // an action without views counts as fitting every view: a profile action could be given to a front view
+    if (a.action) out.errors.push(...draftPoseErrors(a.action, lib)); // tried on the drawings it is made for (for)
+    if (a.action && !(Array.isArray(a.action.views) && a.action.views.length)) out.errors.push("views gerekli: hareketin çizildiği görünüşler (örneğin [\"profile-right\"])");
     out.name = a.action?.label?.tr ?? null;
   } else if (tur === "mekan" && where.folder) {
     if (!existsSync(join(where.path, "mekan.json"))) out.errors.push("mekan.json yok");
@@ -122,11 +128,12 @@ function inspect(proj, tur, id, lib) {
       out.errors.push(...bg.errors);
       out.name = bg.name;
       out.layers = bg.layers.map((l) => ({ id: l.id, derinlik: l.derinlik }));
+      if (!bg.errors.length) out.errors.push(...backgroundDraftErrors(bg.layers.map((l) => l.svg), declaredIn(bg.svg))); // the place only: no people, no props
       out.svg = bg.errors.length ? null : bg.svg;
     }
   } else {
     const svg = readFileSync(where.path, "utf8");
-    const problems = tur === "nesne" ? checkProp(svg).errors : checkSvgSafety(svg);
+    const problems = tur === "nesne" ? checkProp(svg).errors : [...checkSvgSafety(svg), ...backgroundDraftErrors([svg])];
     out.errors.push(...problems);
     if (tur === "mekan") out.layers = [{ id: "tum", derinlik: 1 }];
     out.svg = problems.length ? null : svg;
@@ -182,7 +189,7 @@ const stampNow = () => new Date().toISOString().replace(/[:.]/g, "-");
  * (the project already has a drawing with this id) puts the old drawing aside first, kept in
  * taslak/_reddedilen/<tur>-<id>-eski-<time>, so nothing is lost.
  */
-export function approveDraft(proj, tur, id, lib) {
+export function approveDraft(proj, tur, id, lib, { onaylandi = false } = {}) {
   folderOf(tur);
   if (!ID_PATTERN.test(id || "")) throw new Error(`taslak adı geçersiz: ${id}`);
   const d = inspect(proj, tur, id, lib);
@@ -191,6 +198,12 @@ export function approveDraft(proj, tur, id, lib) {
   const from = draftPath(proj, tur, id);
   const target = join(proj, folderOf(tur), `${id}${from.ext}`);
   const old = inProject(proj, tur, id);
+  // a new version changes every episode that uses the drawing; one the person approved changes only on their yes
+  const etkilenen = old ? episodesUsing(dirname(proj), tur, id) : [];
+  const approved = etkilenen.filter((e) => e.onayli).map((e) => e.id);
+  if (approved.length && !onaylandi) {
+    throw new Error(`"${id}" onaylı bölümlerde kullanılıyor (${approved.join(", ")}); yeni sürüm onları değiştirir ve onayları eskir. Kişi "evet" derse --onaylandi ile al, ya da farklı görünüş için yeni bir ad ver (${id}-2)`);
+  }
   let oldAside = null;
   if (old) {
     const aside = join(proj, "taslak", ASIDE);
@@ -206,14 +219,53 @@ export function approveDraft(proj, tur, id, lib) {
     throw err;
   }
   dropNote(proj, tur, id);
-  return { tur, id, guncelleme: !!old };
+  return { tur, id, guncelleme: !!old, etkilenen: etkilenen.map((e) => e.id) };
+}
+
+/** The ids a saved episode uses of one kind of drawing. */
+function usedIds(episode, tur) {
+  const shots = (episode.scenes || []).flatMap((s) => s.shots || []);
+  if (tur === "karakter") return (episode.characters || []).map((c) => c.rig);
+  if (tur === "mekan") return episodeBgs(episode);
+  if (tur === "nesne") return [...(episode.scenes || []).flatMap((s) => (s.dekor || []).map((x) => x.prop)), ...shots.flatMap((s) => (s.props || []).map((p) => p.prop))];
+  return shots.flatMap((s) => (s.cast || []).flatMap((m) => [m.action, ...(m.actions || []).map((a) => a.action)]));
+}
+
+/**
+ * The episodes under <root>/bolumler that use a drawing, and whether any gate of theirs was approved.
+ * @returns {{id:string, onayli:boolean}[]}
+ */
+export function episodesUsing(root, tur, id) {
+  const dir = join(root, "bolumler");
+  if (!existsSync(dir)) return [];
+  const out = [];
+  for (const name of readdirSync(dir)) {
+    const file = join(dir, name, "bolum.json");
+    if (!existsSync(file)) continue;
+    let episode;
+    try {
+      episode = JSON.parse(readFileSync(file, "utf8"));
+    } catch {
+      continue; // a broken episode is dogrula's to report
+    }
+    if (!usedIds(episode, tur).includes(id)) continue;
+    const approvals = join(dir, name, "onay.json");
+    let onayli = false;
+    try {
+      onayli = existsSync(approvals) && Object.keys(JSON.parse(readFileSync(approvals, "utf8"))).length > 0;
+    } catch {
+      onayli = true; // unreadable approvals: treat as approved, ask the person
+    }
+    out.push({ id: episode.episode || name, onayli });
+  }
+  return out;
 }
 
 /**
  * Take every good draft in at once (of one kind, or all). Broken ones stay, each with its reason.
  * @returns {{alinan:{tur:string, id:string, guncelleme:boolean}[], hatalar:{tur:string, id:string, hata:string}[]}}
  */
-export function approveAll(proj, lib, tur = null) {
+export function approveAll(proj, lib, tur = null, opts = {}) {
   const alinan = [];
   const hatalar = [];
   for (const d of listDrafts(proj, lib)) {
@@ -223,7 +275,7 @@ export function approveAll(proj, lib, tur = null) {
       continue;
     }
     try {
-      alinan.push(approveDraft(proj, d.tur, d.id, lib));
+      alinan.push(approveDraft(proj, d.tur, d.id, lib, opts));
     } catch (err) {
       hatalar.push({ tur: d.tur, id: d.id, hata: err.message });
     }

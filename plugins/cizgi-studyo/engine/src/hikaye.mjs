@@ -29,9 +29,12 @@ const LOOKS = ["toon", "yumusak", "pastel", "golge"];
 const TIMES = ["sabah", "ogle", "aksam", "gece"];
 const CAPTIONS = ["yok", "var", "renkli"];
 const ID = /^[a-z0-9]+([_-][a-z0-9]+)*$/;
-const TOP = new Set(["fikir", "yas", "karakterler", "kartlar", "baslik", "istekler"]);
+const TOP = new Set(["fikir", "yas", "karakterler", "kartlar", "baslik", "istekler", "kisi", "seri"]);
+const WISH = new Set(["metin", "tur", "yorum"]);
+const WISH_KINDS = ["yap", "yapma", "sor"];
+const MAX_WISHES = 40;
 const CHARACTER = new Set(["ad", "rig", "not"]);
-const CARD = new Set(["id", "baslik", "olay", "kim", "duygu", "sure", "sahne", "mekan", "saat", "nesneler"]);
+const CARD = new Set(["id", "baslik", "olay", "kim", "duygu", "sure", "sahne", "mekan", "saat", "nesneler", "atlandi"]);
 
 /** The story a new episode starts with. */
 export const emptyStory = () => ({ fikir: "", yas: "", karakterler: [], kartlar: [] });
@@ -70,6 +73,22 @@ export function validateStory(story, lib) {
   text(story.yas, "yaş", LIMITS.short);
   text(story.baslik, "başlık", LIMITS.title);
   if (story.istekler !== undefined) checkWishes(story.istekler, lib, errors);
+  if (story.seri !== undefined && !(typeof story.seri === "string" && ID.test(story.seri))) errors.push("seri: bir seri kimliği olmalı (seriler/<id>.json)");
+  // the person's wishes word for word (Hurda Kralı 1: a "don't" read as a "do"); the review checks against them
+  if (story.kisi !== undefined) {
+    if (!Array.isArray(story.kisi) || story.kisi.length > MAX_WISHES) errors.push(`kisi: en çok ${MAX_WISHES} istekten oluşan bir liste olmalı`);
+    else {
+      story.kisi.forEach((w, i) => {
+        const where = `istek ${i + 1}`;
+        if (!w || typeof w !== "object" || Array.isArray(w)) return errors.push(`${where}: nesne olmalı`);
+        known(w, WISH, where);
+        text(w.metin, `${where} metin`, LIMITS.text, true);
+        text(w.yorum, `${where} yorum`);
+        if (!WISH_KINDS.includes(w.tur)) errors.push(`${where}: tur ${WISH_KINDS.join(", ")} olmalı`);
+        return undefined;
+      });
+    }
+  }
 
   const names = new Set();
   if (!Array.isArray(story.karakterler)) errors.push("karakterler bir liste olmalı");
@@ -116,6 +135,7 @@ export function validateStory(story, lib) {
       }
       if (k.sahne !== undefined && !(typeof k.sahne === "string" && ID.test(k.sahne))) errors.push(`${where}: sahne bir sahne kimliği olmalı (örneğin s1)`);
       text(k.mekan, `${where} mekânı`, LIMITS.place);
+      text(k.atlandi, `${where} atlandı nedeni`, LIMITS.place); // left out of the episode on purpose, with why
       if (k.saat !== undefined && !TIMES.includes(k.saat)) errors.push(`${where}: saat ${TIMES.join(", ")} olmalı`);
       if (k.nesneler !== undefined) {
         if (!Array.isArray(k.nesneler) || k.nesneler.length > LIMITS.props) errors.push(`${where}: nesneler en çok ${LIMITS.props} öğelik bir liste olmalı`);

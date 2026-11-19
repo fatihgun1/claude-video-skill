@@ -10,6 +10,24 @@ const round2 = (x) => Math.round(x * 100) / 100;
 export const snap = (x) => round2(Math.round(x / STEP) * STEP);
 const snapDown = (x) => round2(Math.floor(x / STEP + EPS) * STEP);
 
+/* ---------- sound effects: tied to a time, a line or someone (engine: efekt.mjs) ---------- */
+
+const MOMENT_NAMES = { baslangic: "başlangıcı", grab: "alışı", release: "kaldırışı", put_down: "bırakışı" };
+
+/** Where an effect plays in its shot (seconds), from its own at or the last compile (t.efekt_at); null when not known yet. */
+export function sfxAt(s, t, i) {
+  return s.at ?? t?.efekt_at?.[i]?.[0] ?? null;
+}
+
+/** What an effect is tied to, in words: "1.20 s", "2. replik, 3. kelime", "Kadir adımları", "Kadir: alışı" (+ ofset). */
+export function sfxTie(s, nameOf = (id) => id) {
+  const off = s.ofset ? ` ${s.ofset > 0 ? "+" : ""}${s.ofset.toFixed(2)} s` : "";
+  if (s.at != null) return `${(s.at + (s.ofset || 0)).toFixed(2)} s`;
+  if (s.replik != null) return `${s.replik + 1}. replik${s.kelime != null ? `, ${s.kelime + 1}. kelime` : ""}${off}`;
+  if (s.adim) return `${nameOf(s.oyuncu)} adımları${off}`;
+  return `${nameOf(s.oyuncu)}: ${MOMENT_NAMES[s.an || "baslangic"]}${off}`;
+}
+
 /* ---------- timeline math (seconds; px only where a drag is turned into time) ---------- */
 
 /**
@@ -25,7 +43,7 @@ export function shotLength(t, shot, rules) {
 
 /** Shortest a shot may be dragged: its lines, and every effect must still start inside it. */
 export function minShotLength(speech, rules, sfx = []) {
-  const lastAt = sfx.reduce((m, s) => Math.max(m, s.at), -Infinity);
+  const lastAt = sfx.filter((s) => s.at != null).reduce((m, s) => Math.max(m, s.at), -Infinity); // a tied effect moves with what it is tied to
   return Math.max(speech + rules.tail, rules.min_shot, lastAt + STEP);
 }
 

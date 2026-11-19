@@ -63,7 +63,7 @@ export function createVideoButton(ctx) {
       }
       progress = "";
       if (j?.status !== "done") throw new Error(tr(j?.error || "iş durdu"));
-      return { result: j.result, outputs: res.outputs, status: res.status };
+      return { result: j.result, outputs: res.outputs, status: res.status, format: j.format };
     }
   }
 
@@ -108,10 +108,11 @@ export function createVideoButton(ctx) {
       });
       await step("video", async () => {
         const res = await job("render");
-        const tag = ctx.format().replace(":", "x");
+        // the format the job was made in (the episode's own), never another format's older file
+        const tag = (res.format || ctx.format()).replace(":", "x");
         const finals = res.outputs.videos.filter((p) => !/-taslak\.mp4$/.test(p));
-        const path = finals.find((p) => p.includes(tag)) || finals[0];
-        if (!path) throw new Error("video çıktı ama dosyası bulunamadı");
+        const path = finals.find((p) => p.includes(`-${tag}.mp4`) || p.includes(`-${tag}-3b.mp4`));
+        if (!path) throw new Error(`${tag} videosu bulunamadı`);
         video = `${ctx.outputsUrl()}${path}?v=${Date.now()}`;
         return false;
       });

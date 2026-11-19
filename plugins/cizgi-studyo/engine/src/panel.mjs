@@ -39,11 +39,12 @@ import { compileEpisode, safeJoin, propLayer, VIEWPORTS } from "./compile.mjs";
 import { compileEpisode3d } from "./compile3d.mjs";
 import { reviewScene } from "./inceleme.mjs";
 import { vocabulary, libraryFile, actionPreview } from "./panel-kutuphane.mjs";
-import { readManifest, failedLines } from "./ses.mjs";
+import { readManifest, failedLines, staleLines } from "./ses.mjs";
 import { outputsOf, OUTPUT_DIRS } from "./panel-is.mjs";
 import { HttpError, MAX_EPISODES, findEpisodes, episodePathOf, summarize, createEpisode, newEpisodeChoices, workspaceOf, insideReally } from "./panel-proje.mjs";
 import { requestRoutes } from "./panel-istek.mjs";
 import { storyRoutes } from "./panel-hikaye.mjs";
+import { readStory } from "./hikaye.mjs";
 import { draftRoutes, draftFile } from "./panel-taslak.mjs";
 import { createChannel, channelRoutes, LINE_AUDIO } from "./panel-kanal.mjs";
 import { levelledWav } from "./ses-duzey.mjs";
@@ -65,6 +66,16 @@ const SHARED_FILES = {
 const MAX_BODY = 1024 * 1024;
 const PREVIEW_FORMAT = "16:9";
 const PREVIEW_FORMATS = new Set(["16:9", "9:16"]);
+
+/** The format a saved episode is made in, or null when it has none of its own (or cannot be read). */
+function formatOfEpisode(path) {
+  try {
+    const format = JSON.parse(readText(path))?.format;
+    return PREVIEW_FORMATS.has(format) ? format : null;
+  } catch {
+    return null; // the job itself reports an unreadable episode
+  }
+}
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8", ".wav": "audio/wav", ".mp4": "video/mp4", ".jpg": "image/jpeg", ".png": "image/png", ".svg": "image/svg+xml", ".css": "text/css; charset=utf-8" };
 // Only the panel itself may frame its pages (its preview iframe); no MIME sniffing.
 const SECURITY = { "x-content-type-options": "nosniff", "content-security-policy": "frame-ancestors 'self'", "x-frame-options": "SAMEORIGIN" };
@@ -132,7 +143,7 @@ export function createPanel(opts) {
     try {
       // A line not spoken yet (new or just written) plays silent with a guessed length, so it
       // can be placed and saved; the audio step comes after saving. Renders stay strict.
-      const out = (ep.d3 ? compileEpisode3d : compile)(ep.path, lib, ep.previewDir, { format: ep.format, episode, missingAudio: "estimate", silentTrack: false }); // a silent track is for the video file only
+      const out = (ep.d3 ? compileEpisode3d : compile)(ep.path, lib, ep.previewDir, { format: ep.format, episode, missingAudio: "estimate", stale: staleLines(ep.path, episode, lib), silentTrack: false }); // a silent track is for the video file only
       const timing = JSON.parse(readFileSync(join(ep.previewDir, "timing.json"), "utf8"));
       const { lead, tail, min_shot, default_hold } = profileOf(episode, lib).timing;
       return {
@@ -227,8 +238,11 @@ export function createPanel(opts) {
     "POST /api/is": (body) => {
       if (!jobs) throw new HttpError(501, "production jobs are not available here");
       const ep = episodeOf(body?.b);
+      // the film is made in the episode's own format; the panel's format is only how its stage
+      // shows it (Hurda Kralı 1: a 9:16 episode came out 1920x1080 from a stage left in 16:9)
+      const own = formatOfEpisode(ep.path);
       try {
-        return { job: jobs.start(ep.path, body?.kind, body?.format, body?.sahne) };
+        return { job: jobs.start(ep.path, body?.kind, own || body?.format, body?.sahne) };
       } catch (err) {
         throw new HttpError(err.code || 500, err.message);
       }
@@ -240,7 +254,7 @@ export function createPanel(opts) {
       const episode = JSON.parse(readText(ep.path));
       const { ok, errors } = validateEpisode(episode, lib);
       if (!ok) throw new HttpError(422, `bölümde hata var: ${errors.slice(0, 3).join("; ")}`);
-      return { ...scriptTable(episode), kararlar: decisionProblems(episode, lib), new_assets: episode.new_assets || [] };
+      return { ...scriptTable(episode), kararlar: decisionProblems(episode, lib, readStory(ep.path)), new_assets: episode.new_assets || [] };
     },
     // An approval: only from the button the person presses in the panel (the handler checks the origin)
     "POST /api/onay": (body) => {

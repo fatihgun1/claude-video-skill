@@ -31,11 +31,12 @@ export function draftRoutes({ project, loadLib, channel = null }) {
       const { islem, tur, id } = body || {};
       let all = null;
       try {
-        if (islem === "al") approveDraft(project, tur, id, loadLib());
+        // the person pressed Al / Yeni sürümü al themselves: that is their yes for the episodes it changes
+        if (islem === "al") approveDraft(project, tur, id, loadLib(), { onaylandi: true });
         else if (islem === "reddet") rejectDraft(project, tur, id);
         else if (islem === "hepsini-al") {
           if (!KINDS.includes(tur)) throw new Error(`tür ${KINDS.join(", ")} olmalı`);
-          all = approveAll(project, loadLib(), tur);
+          all = approveAll(project, loadLib(), tur, { onaylandi: true });
         } else throw new Error('islem "al", "hepsini-al" ya da "reddet" olmalı');
       } catch (err) {
         throw new HttpError(400, err.message);

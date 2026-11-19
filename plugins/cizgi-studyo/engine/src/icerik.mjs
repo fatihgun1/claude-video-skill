@@ -12,6 +12,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { episodeBgs } from "./arka-plan.mjs";
 
 export const MANIFEST = "icerik.json";
 const TEXT = /\.(svg|json|md|txt)$/i;
@@ -70,7 +71,7 @@ function usedPaths(episode) {
     `profiles/${episode.profile || "genel"}.json`,
     ...episode.characters.map((c) => `characters/${c.rig}/`),
     ...actions.map((a) => `actions/${a}.json`),
-    ...episode.scenes.flatMap((s) => [`backgrounds/${s.bg}.svg`, `backgrounds/${s.bg}/`]),
+    ...episodeBgs(episode).flatMap((bg) => [`backgrounds/${bg}.svg`, `backgrounds/${bg}/`]),
     ...props.map((p) => `props/${p}.svg`),
     ...shots.flatMap((s) => (s.sfx || []).map((x) => `sfx/${x.sfx}.wav`)),
     ...(episode.music ? [`muzik/${episode.music.track}.wav`] : []),

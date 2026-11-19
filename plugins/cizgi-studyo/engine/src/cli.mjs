@@ -17,7 +17,11 @@
  *   cizgi derle      <bolum.json> <out-dir> [16:9|9:16]
  *   cizgi panel      <klasör|bolum.json> [--port 4810] local control panel (127.0.0.1): pick an episode, edit shots with a live preview
  *   cizgi taslaklar  <klasör>                         drafts of the project library (kutuphane/taslak) and their problems
- *   cizgi taslak-al  <klasör> <tur>/<id>...           take the drafts you drew (and checked) into the project library
+ *   cizgi taslak-al  <klasör> <tur>/<id>... [--onaylandi]  take the drafts you drew (and checked) into the project library
+ *                    (an update of a drawing an approved episode uses needs --onaylandi, after the person's yes)
+ *   cizgi seri-ozet  <seriler/<id>.json>              a series and its episodes in order: read before writing a new one
+ *   cizgi uyari-kabul <bolum.json> <kod>... --neden "…"  keep warnings the person accepted (only after their yes)
+ *   cizgi istek-bekle <klasör> [dakika]              in the background while idle: exits when the panel leaves a request
  *
  * Options: --kutuphane <dir> (default: ../library next to the engine)
  *          --proje-kutuphane <dir> (default: the nearest kutuphane/ above the episode, below the home folder)
@@ -30,7 +34,7 @@ import { validateEpisode, profileOf } from "./validate.mjs";
 import { compileEpisode, safeJoin } from "./compile.mjs";
 import { readJson } from "./util.mjs";
 import { GATES, readApprovals, gateStatus, scriptFingerprint, storyboardFingerprint, libraryFingerprint } from "./onay.mjs";
-import { runAudio, readManifest, linesOf, planAudio, lineFingerprint, failedLines, acceptLine, voiceSample } from "./ses.mjs";
+import { runAudio, readManifest, linesOf, planAudio, fingerprintsOf, failedLines, acceptLine, voiceSample } from "./ses.mjs";
 import { storyboard, sceneStills, render, qaPages } from "./uretim.mjs";
 import { loadTools, run } from "./tools.mjs";
 import { lockHolder, pidAlive, defaultLockPath } from "./ses-kilit.mjs";
@@ -38,12 +42,18 @@ import { openPanel } from "./panel-baslat.mjs";
 import { projectLibraryOf, listDrafts, approveDraft } from "./proje-kutuphane.mjs";
 import { decisionProblems } from "./kararlar.mjs";
 import { approveEpisode } from "./onayla.mjs";
+import { queueOf, markWatcher } from "./istekler.mjs";
+import { waitForRequest } from "./istek-bekle.mjs";
+import { openWarnings, acceptWarnings } from "./uyari-kabul.mjs";
+import { readStory } from "./hikaye.mjs";
+import { seriesSummary } from "./seri.mjs";
+import { contextWarnings } from "./baglam.mjs";
 import { scriptTable } from "./senaryo-tablo.mjs";
 import { checkLibrary, integrityErrors } from "./icerik.mjs";
 
 const DEFAULT_LIBRARY = fileURLToPath(new URL("../../library", import.meta.url));
-const FLAGS = new Set(["--hepsi", "--taslak", "--3b"]);
-const NEEDS = { "ses-ornek": 2, dogrula: 1, durum: 1, senaryo: 1, ses: 1, storyboard: 1, render: 1, onayla: 2, derle: 2, kabul: 2, qa: 1, panel: 1, taslaklar: 1, "taslak-al": 2 };
+const FLAGS = new Set(["--hepsi", "--taslak", "--3b", "--onaylandi"]);
+const NEEDS = { "seri-ozet": 1, "uyari-kabul": 2, "ses-ornek": 2, dogrula: 1, durum: 1, senaryo: 1, ses: 1, storyboard: 1, render: 1, onayla: 2, derle: 2, kabul: 2, qa: 1, panel: 1, taslaklar: 1, "taslak-al": 2 };
 const USAGE =
   "usage: cizgi dogrula|durum|senaryo|ses|storyboard|render <bolum.json> · cizgi panel <klasör|bolum.json> · cizgi onayla senaryo|storyboard <bolum.json> · cizgi kabul <bolum.json> <line> · cizgi ses-ornek <bolum.json> <karakter> · cizgi derle <bolum.json> <dir> [format]\n";
 
@@ -62,11 +72,11 @@ export function parseArgs(argv) {
   let text;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === "--kutuphane" || a === "--format" || a === "--port" || a === "--sahne" || a === "--proje-kutuphane" || a === "--metin") {
+    if (a === "--kutuphane" || a === "--format" || a === "--port" || a === "--sahne" || a === "--proje-kutuphane" || a === "--metin" || a === "--neden") {
       const value = argv[++i];
       if (!value) throw new Error(`${a} needs a value`);
       if (a === "--sahne") scene = value;
-      else if (a === "--metin") text = value;
+      else if (a === "--metin" || a === "--neden") text = value;
       else if (a === "--proje-kutuphane") project = value;
       else if (a === "--port") {
         port = Number(value);
@@ -88,21 +98,21 @@ export function parseArgs(argv) {
  */
 export function status(episodePath, lib) {
   const episode = readJson(episodePath);
-  const { ok, errors, warnings } = validateEpisode(episode, lib);
+  const { ok, errors, warnings: own } = validateEpisode(episode, lib);
   if (!ok) return { valid: false, errors, next: "fix the episode (cizgi dogrula)" };
+  const warnings = [...own, ...contextWarnings(episodePath, episode, lib)];
   const approvals = readApprovals(episodePath);
   const manifest = readManifest(episodePath);
   const dir = dirname(resolve(episodePath));
-  const tempo = profileOf(episode, lib).speech.tempo;
   const lines = linesOf(episode);
-  const plan = planAudio(lines, manifest, (l) => lineFingerprint(l, episode.language, tempo), (p) => existsSync(safeJoin(dir, p)));
+  const plan = planAudio(lines, manifest, fingerprintsOf(episode, lib), (p) => existsSync(safeJoin(dir, p)));
   const failed = failedLines(manifest);
   const gates = {
     senaryo: gateStatus(approvals, "senaryo", scriptFingerprint(episode)),
     storyboard: gateStatus(approvals, "storyboard", storyboardFingerprint(episode, manifest, libraryFingerprint(episode, lib))),
   };
   let next;
-  const kararlar = decisionProblems(episode, lib);
+  const kararlar = decisionProblems(episode, lib, readStory(episodePath));
   if (gates.senaryo !== "onayli" && kararlar.eksik.length) next = `ask the person the open decisions (kararlar: ${kararlar.eksik.length}), record them in bolum.json, show the script, then: cizgi onayla senaryo`;
   else if (gates.senaryo !== "onayli") next = "show the script to the person, then: cizgi onayla senaryo";
   else if (plan.todo.length) next = `cizgi ses (${plan.todo.length} line(s) to speak)`;
@@ -126,7 +136,7 @@ function main(argv) {
     return 2;
   }
   // The project's own library (<project>/kutuphane, the nearest above the episode) joins the plugin's.
-  const episodeArg = command === "onayla" ? a2 : ["qa", "panel", "taslaklar", "taslak-al"].includes(command) ? null : a1;
+  const episodeArg = command === "onayla" ? a2 : ["qa", "panel", "taslaklar", "taslak-al", "seri-ozet"].includes(command) ? null : a1;
   // (--proje-kutuphane names it: the panel's jobs pass the one the panel uses)
   const lib = loadLibrary(library, { project: project ? resolve(project) : episodeArg ? projectLibraryOf(dirname(resolve(episodeArg))) : null });
   const deps = { run, formats, log: (m) => process.stderr.write(`${m}\n`) };
@@ -134,26 +144,37 @@ function main(argv) {
   switch (command) {
     case "dogrula": {
       const episode = readJson(a1);
-      const res = validateEpisode(episode, lib);
-      if (!res.ok) {
-        print(res);
+      const own = validateEpisode(episode, lib);
+      if (!own.ok) {
+        print(own);
         return 1;
       }
+      const res = { ...own, warnings: [...own.warnings, ...contextWarnings(a1, episode, lib)] };
       // files added to or changed in this installed copy of the plugin library: lost on the next update
       const check = checkLibrary(library);
       const errors = integrityErrors(episode, check);
       const local = check.eklenen.length || check.degisen.length ? { eklenti_kutuphanesi: { eklenen: check.eklenen, degisen: check.degisen } } : {};
-      print({ ...res, ok: !errors.length, errors, ...local, kararlar: decisionProblems(episode, lib) });
+      // every warning with its code: an open one holds the approvals until fixed or accepted by the person
+      print({ ...res, ok: !errors.length, errors, acik_uyarilar: openWarnings(episode, res.warnings), ...local, kararlar: decisionProblems(episode, lib, readStory(a1)) });
       return errors.length ? 1 : 0;
     }
     case "durum":
       print(status(a1, lib));
+      return 0;
+    case "seri-ozet":
+      // what a new episode of a series reads first: the series file, then each episode in order
+      print(seriesSummary(a1));
       return 0;
     case "senaryo": {
       const episode = readJson(a1);
       const { ok, errors } = validateEpisode(episode, lib);
       if (!ok) throw new Error(`episode is invalid:\n- ${errors.join("\n- ")}`);
       print(scriptTable(episode));
+      return 0;
+    }
+    case "uyari-kabul": {
+      // only after the person said yes to keeping these warnings, with their reason
+      print({ kabul: acceptWarnings(a1, args.slice(2), text) });
       return 0;
     }
     case "onayla": {
@@ -218,7 +239,7 @@ function main(argv) {
       for (const name of args.slice(2)) {
         const [tur, id] = name.split("/");
         try {
-          alinan.push(approveDraft(proj, tur, id, loadLibrary(library, { project: proj })));
+          alinan.push(approveDraft(proj, tur, id, loadLibrary(library, { project: proj }), { onaylandi: flags.has("--onaylandi") }));
         } catch (err) {
           hatalar.push({ taslak: name, hata: err.message });
         }
@@ -234,8 +255,39 @@ function main(argv) {
   }
 }
 
+/**
+ * cizgi istek-bekle <proje klasörü> [dakika]: runs in the background while the session is idle and
+ * exits as soon as the panel leaves a request, so the finished command brings the session back.
+ */
+const SINCE_SLACK_MS = 5000; // a request sent in the seconds the turn was ending still counts
+async function waitForPanel([given, minutes = "60"]) {
+  // the session's project folder by default: the queue the MCP server and the hooks use
+  const folder = given || process.env.CLAUDE_PROJECT_DIR;
+  const limit = Number(minutes);
+  if (!folder || !Number.isFinite(limit) || limit <= 0 || limit > 600) {
+    process.stderr.write("usage: cizgi istek-bekle [proje klasörü] [dakika, 1-600]\n");
+    return 2;
+  }
+  markWatcher(folder, process.pid); // the Stop hook sees someone is listening
+  const unmark = () => markWatcher(folder, null);
+  process.on("exit", unmark);
+  const found = await waitForRequest(queueOf(folder), { since: new Date(Date.now() - SINCE_SLACK_MS), timeoutMs: limit * 60_000 });
+  // what to do next, for the session this wakes (the request texts come through panel_istekleri)
+  print(found
+    ? { istek: found.length, sonraki: "panel_istekleri ile al, yap, panel_yanitla ile cevapla; sonra panel_dinle (tur biterken istek-bekle'yi yeniden başlat)" }
+    : { istek: 0, sonraki: `${limit} dakikada panelden istek gelmedi; panel açıksa istek-bekle'yi yeniden başlat` });
+  return 0;
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  try {
+  if (process.argv[2] === "istek-bekle") {
+    waitForPanel(process.argv.slice(3)).then((code) => {
+      process.exitCode = code;
+    }, (err) => {
+      process.stderr.write(`error: ${err.message}\n`);
+      process.exitCode = 1;
+    });
+  } else try {
     process.exitCode = main(process.argv.slice(2));
   } catch (err) {
     process.stderr.write(`error: ${err.message}\n`);

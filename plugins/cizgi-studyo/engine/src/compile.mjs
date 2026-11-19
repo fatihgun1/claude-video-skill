@@ -14,9 +14,10 @@ import { validateEpisode, profileOf } from "./validate.mjs";
 import { buildTimeline, wavDuration } from "./timing.mjs";
 import { readJson, has } from "./util.mjs";
 import { readWav, writeWav, mixMusic } from "./muzik.mjs";
-import { gateCues, silencesOfFile } from "./dudak.mjs";
-import { levelledWav } from "./ses-duzey.mjs";
-import { captionPlace, captionShown, speakerColor } from "./altyazi.mjs";
+import { gateCues, silencesOfFile, decodeWav } from "./dudak.mjs";
+import { levelledWav, levelGain, moodGain, SFX_TARGET_DB, MUSIC_TARGET_DB } from "./ses-duzey.mjs";
+import { captionPlace, captionShown, speakerColor, captionMax, captionChunks } from "./altyazi.mjs";
+import { placeEffects } from "./efekt.mjs";
 
 const RUNTIME_DIR = join(dirname(fileURLToPath(import.meta.url)), "runtime");
 export const VIEWPORTS = { "16:9": { width: 1920, height: 1080 }, "9:16": { width: 1080, height: 1920 } };
@@ -96,6 +97,22 @@ export function readAudioInfo(wavPath) {
 }
 
 /**
+ * The shots as the player frames them, for the checks (Faz 4.1): timed (lines by their guessed
+ * length, the moments that must be seen), the cast settled (sitting, bending: kok_y, kok_x, kok_yol)
+ * and the prop anchors in this format. The film checks framed raw, untimed shots with a default
+ * face height and could pass a frame the player then cut. Lines take their guessed length here, so
+ * nothing is read from disk.
+ * @param {{width:number, height:number}} viewport
+ * @returns {object[]} timeline shots with settled cast and anchors, in order
+ */
+export function readyShots(episode, lib, viewport) {
+  const timeline = buildTimeline(episode, (u) => ({ duration: estimateSpeech(u.text || "") }), profileOf(episode, lib).timing, momentsOf(lib));
+  const props = propLayer(timeline, episode, lib, viewport);
+  const rigOf = (id) => lib.characters.get(episode.characters.find((c) => c.id === id)?.rig);
+  return timeline.shots.map((s, i) => ({ ...s, cast: s.cast.map((m) => settled(m, s, lib, rigOf(m.id))), anchors: props.anchors[i] }));
+}
+
+/**
  * Face height of each character's rig (character.json face_y, rig units), for face-anchored framing.
  * @returns {Record<string, number>}
  */
@@ -106,6 +123,8 @@ export function facesOf(episode, lib) {
 /** Rig units per world unit at the landscape base scale (rigs are 900 units tall). */
 const rigUnitsPerWorld = (lib) => 900 / lib.world.character_height;
 const RIG_FEET_Y = 950; // where a rig's feet stand, in rig units (core.js RIG_HEIGHT notes)
+const CLOSE_INSERT = new Set(["detay", "close"]);
+const SET_DOWN_REACH = 250; // rig units in front of the feet where a bent person's hand sets a thing down // framings tight enough to lose a prop that is not where the camera looks
 
 /**
  * Seconds a line takes to say, guessed from its text: the spoken lines of the examples run
@@ -129,6 +148,30 @@ export function grabTime(member, lib) {
     // started part-way (from), an action reaches its grab that much earlier; a later action
     // started past its grab holds the prop from its own start
     const t = i === 0 ? g - s.from : s.at + Math.max(0, g - s.from);
+    if (t < (segs[i + 1]?.at ?? Infinity)) return t; // the next action may cut it off first
+  }
+  return null;
+}
+
+/**
+ * When a member's actions put the held prop away (release.t of an action: into a bag, a pocket),
+ * in shot seconds, or null. From then on the prop is gone from the hand and the floor.
+ */
+export function releaseTime(member, lib) {
+  return momentOf(member, lib, "release");
+}
+
+/** The moments of a cast member that must be on screen before the cut: its grab and its put-away. */
+export const momentsOf = (lib) => (member) => [grabTime(member, lib), releaseTime(member, lib), momentOf(member, lib, "put_down")].filter((t) => t != null);
+
+/** When the first action with this moment (release, put_down) reaches it, in shot seconds, or null. */
+function momentOf(member, lib, field) {
+  const segs = globalThis.CizgiCore.segmentsOf(member);
+  for (let i = 0; i < segs.length; i++) {
+    const s = segs[i];
+    const r = lib.actions.get(s.action)?.[field]?.t;
+    if (r == null || r < s.from) continue; // started past that moment: it has nothing left to put away
+    const t = (i === 0 ? 0 : s.at) + (r - s.from);
     if (t < (segs[i + 1]?.at ?? Infinity)) return t; // the next action may cut it off first
   }
   return null;
@@ -177,9 +220,13 @@ export function propLayer(timeline, episode, lib, viewport) {
           bg: shot.bg,
           markup: `<g id="prop-${key}-yer" display="none" transform="translate(${dx} ${dy}) scale(${scale}) translate(${-bx} ${-by})">${inner}</g>`,
         });
-        return { key, holder: null, grab: null };
+        // a camera aimed at it looks where it is drawn, its grip point (it showed the middle of the world; Faz 4.12)
+        anchors[si][pr.id] = [dx, dy - (by - (prop.grip || prop.base)[1]) * scale];
+        return { key, holder: null, grab: null, release: null };
       }
-      const x = layout.marks[pr.mark] + (pr.dx || 0) * ratio;
+      // a place beside a mark shrinks like a person's (layout.spread): a prop given its holder's dx lies at the holder in 9:16 too
+      const spread = layout.spread ?? layout.ratio;
+      const x = layout.marks[pr.mark] + (pr.dx || 0) * spread;
       // A prop someone standing back (cast.back) will pick up lies at their depth, so it does not
       // jump up and shrink when it goes into their hand.
       const holderMember = pr.holder ? shot.cast.find((m) => m.id === pr.holder) : null;
@@ -188,30 +235,60 @@ export function propLayer(timeline, episode, lib, viewport) {
       const lieScale = ratio * depth.shrink;
       // where the camera looks when it targets this prop: its grip point as it lies on the ground
       anchors[si][pr.id] = [x, floorY - (by - (prop.grip || prop.base)[1]) * lieScale]; // a prop no one holds: its base
-      const groundInner = prefixIds(svgInner(prop.svg), `prop-${key}-yer`);
-      ground.push(
-        `<g id="prop-${key}-yer" display="none" transform="translate(${x.toFixed(1)} ${floorY}) scale(${lieScale.toFixed(4)}) translate(${-bx} ${-by})">${groundInner}</g>`,
-      );
-      if (!pr.holder) return { key, holder: null, grab: null };
-      const hand = pr.hand || "L";
-      const handGroup = parseGroups(lib.characters.get(rigOf[pr.holder]).svg).get(`hand_${hand}`);
-      const [gx, gy] = (handGroup.attrs["data-grip"] || handGroup.attrs["data-pivot"]).split(",").map(Number);
+      // taken out of a bag or a pocket (gizli): it lies nowhere before the grab
+      if (!pr.gizli) {
+        const groundInner = prefixIds(svgInner(prop.svg), `prop-${key}-yer`);
+        ground.push(
+          `<g id="prop-${key}-yer" display="none" transform="translate(${x.toFixed(1)} ${floorY}) scale(${lieScale.toFixed(4)}) translate(${-bx} ${-by})">${groundInner}</g>`,
+        );
+      }
+      if (!pr.holder) return { key, holder: null, grab: null, release: null };
+      const member = shot.cast.find((m) => m.id === pr.holder);
+      const grab = grabTime(member, lib);
+      // A close insert of the pick-up itself keeps its eye on the floor spot, where the hand closes
+      // on the prop: the holder's body is bent away from it (Hurda Kralı 1: the bottle was off frame)
+      const pickUpInsert = shot.camera.target === pr.id && CLOSE_INSERT.has(shot.camera.framing) && grab != null && grab > 0;
+      /** A copy of the prop in someone's hand (`suffix`: el for the holder, al for whom it is handed to). */
+      const inHand = (who, hand, suffix) => {
+        const handGroup = parseGroups(lib.characters.get(rigOf[who]).svg).get(`hand_${hand}`);
+        const [gx, gy] = (handGroup.attrs["data-grip"] || handGroup.attrs["data-pivot"]).split(",").map(Number);
+        // A hand holds a bottle or handle across the palm, perpendicular to the forearm:
+        // data-grip-angle turns the prop in the hand (90 = across a hand that hangs down).
+        const gripAngle = Number(handGroup.attrs["data-grip-angle"] || 0);
+        const [px, py] = prop.grip;
+        const inner = prefixIds(svgInner(prop.svg), `prop-${key}-${suffix}`);
+        const markup = `<g id="prop-${key}-${suffix}" display="none" transform="translate(${gx} ${gy}) rotate(${gripAngle}) scale(${rigUnitsPerWorld(lib).toFixed(4)}) translate(${-px} ${-py})">${inner}</g>`;
+        held.set(who, [...(held.get(who) || []), { hand, markup }]);
+        return gy;
+      };
+      const gy = inHand(pr.holder, pr.hand || "L", "el");
       // A held prop is in the hand for the shot: the camera looks at the holder's hand height, over
       // the holder (its mid-shot place), not at the spot on the floor it was picked up from.
       const dur = shot.end != null && shot.start != null ? shot.end - shot.start : 1;
-      anchors[si][pr.id] = [
-        globalThis.CizgiCore.memberX(holderMember, layout, dur / 2, dur),
-        lib.world.ground_y - depth.rise - (RIG_FEET_Y - gy) * layout.scale * depth.shrink,
-      ];
-      // A hand holds a bottle or handle across the palm, perpendicular to the forearm:
-      // data-grip-angle turns the prop in the hand (90 = across a hand that hangs down).
-      const gripAngle = Number(handGroup.attrs["data-grip-angle"] || 0);
-      const [px, py] = prop.grip;
-      const heldInner = prefixIds(svgInner(prop.svg), `prop-${key}-el`);
-      const markup = `<g id="prop-${key}-el" display="none" transform="translate(${gx} ${gy}) rotate(${gripAngle}) scale(${rigUnitsPerWorld(lib).toFixed(4)}) translate(${-px} ${-py})">${heldInner}</g>`;
-      held.set(pr.holder, [...(held.get(pr.holder) || []), { hand, markup }]);
-      const member = shot.cast.find((m) => m.id === pr.holder);
-      return { key, holder: pr.holder, grab: grabTime(member, lib) };
+      if (!pickUpInsert) {
+        const handY = lib.world.ground_y - depth.rise - (RIG_FEET_Y - gy) * layout.scale * depth.shrink;
+        const atX = (p) => globalThis.CizgiCore.memberX(holderMember, layout, p * dur, dur);
+        // carried by someone walking: the anchor walks with them (Faz 4.7), sampled over the shot
+        const path = holderMember.walk ? Array.from({ length: FOLLOW_SAMPLES + 1 }, (_, i) => [i / FOLLOW_SAMPLES, Math.round(atX(i / FOLLOW_SAMPLES) * 10) / 10]) : null;
+        anchors[si][pr.id] = [atX(0.5), handY, ...(path ? [path] : [])];
+      }
+      const release = releaseTime(member, lib);
+      // handed over (to): at the giver's release it is in the taker's hand, never in both
+      // (Hurda Kralı 2: one note in two hands at once)
+      if (pr.to) inHand(pr.to, pr.to_hand || "L", "al");
+      // set down (an action with put_down): from then on it lies where it was put (sonra), or at the
+      // holder's feet (Hurda Kralı 2: the bottle put on the scale vanished)
+      const put = momentOf(member, lib, "put_down");
+      if (put != null) {
+        // without sonra: in front of the holder, where the hand reaches down at that moment (not where they first stood)
+        const ahead = (holderMember.facing === "sol" ? -1 : 1) * SET_DOWN_REACH * layout.scale * depth.shrink;
+        const sx = pr.sonra
+          ? layout.marks[pr.sonra.mark] + (pr.sonra.dx || 0) * spread
+          : globalThis.CizgiCore.memberX(holderMember, layout, put, shot.end != null ? shot.end - shot.start : put) + ahead;
+        const afterInner = prefixIds(svgInner(prop.svg), `prop-${key}-sonra`);
+        ground.push(`<g id="prop-${key}-sonra" display="none" transform="translate(${sx.toFixed(1)} ${floorY}) scale(${lieScale.toFixed(4)}) translate(${-bx} ${-by})">${afterInner}</g>`);
+      }
+      return { key, holder: pr.holder, grab, release, ...(put != null ? { put } : {}), ...(pr.to ? { to: pr.to } : {}) };
     }),
   );
   return { ground, held, data, anchors, inBackground };
@@ -245,13 +322,47 @@ export function sceneTransition(episode, sceneId) {
  * played out in this shot. The camera looks there: a close-up of someone sitting on the ground
  * framed the empty air where a standing face would be (Köşe Başı: a caption, nobody on screen).
  */
-function settled(member, shot, lib) {
+function settled(member, shot, lib, rig) {
   const C = globalThis.CizgiCore;
-  const t = Math.max(0, shot.end - shot.start);
-  const seg = C.segmentAt(member, t);
-  const action = lib.actions.get(seg.action);
-  const drop = action ? C.sampleAction(action, seg.time).root_y || 0 : 0;
-  return Math.abs(drop) < 1 ? member : { ...member, kok_y: Math.round(drop) };
+  const dur = Math.max(0, shot.end - shot.start);
+  const poseAt = (t) => {
+    const seg = C.segmentAt(member, t);
+    const action = lib.actions.get(seg.action);
+    return action ? C.sampleAction(action, seg.time) : {};
+  };
+  const drop = poseAt(dur).root_y || 0;
+  const out = Math.abs(drop) < 1 ? member : { ...member, kok_y: Math.round(drop) };
+  if (shot.camera?.target !== member.id || !dur) return out;
+  // Where the face is, against standing: the hips drop (root) and the body turns about them, so a
+  // bend takes the face down and forward (Hurda Kralı 1 s2_sh2: framed for the hips alone, the head
+  // went out at the top, then at the side)
+  const torso = torsoOf(rig);
+  const face = (pose) => {
+    const a = ((pose.body || 0) * Math.PI) / 180;
+    return [Math.round((pose.root_y || 0) + torso * (1 - Math.cos(a))), Math.round((pose.root_x || 0) + torso * Math.sin(a))];
+  };
+  const path = Array.from({ length: FOLLOW_SAMPLES + 1 }, (_, i) => [i / FOLLOW_SAMPLES, ...face(poseAt((dur * i) / FOLLOW_SAMPLES))]);
+  const ys = path.map(([, y]) => y);
+  const xs = path.map(([, , x]) => x);
+  const range = (v) => Math.max(...v) - Math.min(...v);
+  if (range(ys) < 1 && range(xs) < 1 && !xs[0]) return out;
+  // A follow shot rises and leans with them (s1_sh1: one unbroken shot from the cardboard to standing)
+  if (shot.camera.move === "follow") return { ...out, kok_yol: path };
+  // A framing wide enough to hold the whole movement centres on it; a close one keeps the end
+  if (TIGHT_FRAMINGS.has(shot.camera.framing)) return out;
+  const mid = (v) => Math.round((Math.max(...v) + Math.min(...v)) / 2);
+  return { ...out, kok_y: mid(ys), kok_x: mid(xs) };
+}
+const FOLLOW_SAMPLES = 24; // pose samples over a shot: smooth enough for a rise of a second or two
+const TIGHT_FRAMINGS = new Set(["close", "gogus", "detay"]); // these frame the face as the shot ends
+
+/** Rig units from the hips (the body's pivot) up to the face: how far a bend swings the face. */
+function torsoOf(rig) {
+  if (!rig?.svg) return 0;
+  const pivot = parseGroups(rig.svg).get("body")?.attrs["data-pivot"];
+  const hipY = pivot ? Number(pivot.split(",")[1]) : NaN;
+  const faceY = rig.meta?.face_y;
+  return Number.isFinite(hipY) && Number.isFinite(faceY) && hipY > faceY ? hipY - faceY : 0;
 }
 
 /** Decor this far back (0-1) is part of the background: soft in a close framing, like it. */
@@ -287,29 +398,8 @@ export function decorLayer(episode, lib, viewport) {
   return { markup, scenes: scenes.map((sc) => sc.scene_id) };
 }
 
-/**
- * Place every sound effect on the episode clock, before anything is written to disk.
- * Each occurrence gets its own track (utterances use track 1) so overlapping effects never
- * cut each other off; an effect is cut where the film ends.
- * @throws when an effect starts after its shot ends
- */
-function soundEffects(episode, timeline, lib) {
-  const sfxOf = new Map(episode.scenes.flatMap((sc) => sc.shots).map((s) => [s.shot_id, s.sfx || []]));
-  const out = [];
-  for (const shot of timeline.shots) {
-    sfxOf.get(shot.shot_id).forEach((s, i) => {
-      const length = shot.end - shot.start;
-      if (s.at >= length) throw new Error(`shot ${shot.shot_id}: sound effect "${s.sfx}" at ${s.at}s starts after the shot ends (${length.toFixed(2)}s)`);
-      const { path, duration } = lib.sfx.get(s.sfx);
-      const start = Math.round((shot.start + s.at) * 1000) / 1000;
-      out.push({
-        id: `efekt-${shot.shot_id}-${i}`, path, start, track: 2 + out.length, volume: s.volume ?? 1,
-        duration: Math.min(duration, timeline.duration - start),
-      });
-    });
-  }
-  return out;
-}
+/** Shot seconds of an action moment of a cast member (efekt.mjs: an effect tied to it), or null. */
+const momentAtOf = (lib) => (member, an) => (an === "grab" ? grabTime(member, lib) : momentOf(member, lib, an));
 
 /**
  * Vanishing point of a perspective background (data-vp on its <svg>), or null.
@@ -357,7 +447,8 @@ function captionMarkup(shot, episode, format) {
     .map((u, i) => {
       if (!captionShown(episode, lines[i])) return "";
       const words = u.words.length ? u.words.map((w) => w.word) : u.text.trim().split(/\s+/);
-      const spans = words.map((w) => `<span class="kelime">${escapeHtml(w)}</span>`).join(" ");
+      const pieces = captionChunks(words, captionMax(scene, format)); // at most two lines on screen at a time
+      const spans = words.map((w, k) => `<span class="kelime" data-parca="${pieces[k]}">${escapeHtml(w)}</span>`).join(" ");
       const colour = coloured ? ` style="--konusan: ${escapeHtml(speakerColor(episode, u.speaker))}"` : "";
       return `<div class="altyazi konum-${konum} boyut-${boyut}${coloured ? " konusan" : ""}" id="altyazi-${shot.shot_id}-${i}"${colour}>${spans}</div>`;
     })
@@ -424,7 +515,7 @@ function pageHtml({ episode, timeline, viewport, lib, audioTags, data, props, de
         <g id="kamera" data-layout-allow-overflow>
           ${bgs.join("\n          ")}
           ${decor.markup.join("\n          ")}
-          ${props.ground.join("\n          ")}
+          <g id="yerdekiler">${props.ground.join("\n          ")}</g>
           ${chars.join("\n          ")}
         </g>
         </g>
@@ -474,18 +565,26 @@ export function prepareMedia(episodePath, lib, outDir, opts = {}) {
   const estimated = [];
   const audioInfo = (u, shot, i) => {
     const file = audioFile(u, shot, i);
-    if (opts.missingAudio === "estimate" && !existsSync(file)) {
+    // a recording made for other words or another voice is not played either (opts.stale: the
+    // keys staleLines gives): after a line was put in between, the old takes slid onto the wrong lines
+    if (opts.missingAudio === "estimate" && (!existsSync(file) || opts.stale?.includes(`${shot.shot_id}-${i}`))) {
       estimated.push(`${shot.shot_id}-${i}`);
       return { duration: estimateSpeech(u.text), words: [], cues: [] };
     }
     return readAudioInfo(file);
   };
-  const timeline = buildTimeline(episode, audioInfo, profileOf(episode, lib).timing);
+  const laidOut = buildTimeline(episode, audioInfo, profileOf(episode, lib).timing, momentsOf(lib));
   const estimatedKeys = new Set(estimated);
   const isEstimated = (shot, i) => estimatedKeys.has(`${shot.shot_id}-${i}`);
 
-  checkActionTimes(timeline);
-  const effects = soundEffects(episode, timeline, lib);
+  checkActionTimes(laidOut);
+  const effects = placeEffects(episode, laidOut, lib, momentAtOf(lib));
+  // each shot's effects where they play (shot seconds, a list per effect: steps play many times),
+  // for the panel's timeline: an effect tied to a line or a moment has no "at" of its own
+  const timeline = {
+    ...laidOut,
+    shots: laidOut.shots.map((s) => (s.sfx?.length ? { ...s, efekt_at: s.sfx.map((_, i) => effects.filter((e) => e.shot_id === s.shot_id && e.index === i).map((e) => e.at)) } : s)),
+  };
 
   mkdirSync(join(outDir, "assets", "audio"), { recursive: true });
 
@@ -498,7 +597,7 @@ export function prepareMedia(episodePath, lib, outDir, opts = {}) {
       const id = `ses-${shot.shot_id}-${i}`;
       // every line at the same clear level (the cloned voices came out far too quiet)
       // a volume over 1 (the panel goes to 200%) is baked into the file: an audio tag stops at 1
-      const loud = (u.volume ?? 1) * mix.lines;
+      const loud = (u.volume ?? 1) * mix.lines * moodGain(u.duygu); // the feeling after the levelling, which would undo it
       writeFileSync(join(outDir, "assets", "audio", `${id}.wav`), levelledWav(audioFile(u, shot, i), loud));
       const dur = (u.end - u.start).toFixed(3);
       audioTags.push(`<audio id="${id}" src="assets/audio/${id}.wav" data-start="${u.start}" data-duration="${dur}" data-track-index="1" data-volume="${vol(Math.min(1, loud))}"></audio>`);
@@ -506,7 +605,7 @@ export function prepareMedia(episodePath, lib, outDir, opts = {}) {
   }
 
   for (const e of effects) {
-    copyFileSync(e.path, join(outDir, "assets", "audio", `${e.id}.wav`));
+    writeFileSync(join(outDir, "assets", "audio", `${e.id}.wav`), levelledWav(e.path, 1, SFX_TARGET_DB)); // every effect at one level
     audioTags.push(`<audio id="${e.id}" src="assets/audio/${e.id}.wav" data-start="${e.start}" data-duration="${e.duration.toFixed(3)}" data-track-index="${e.track}" data-volume="${vol(e.volume * mix.sfx)}"></audio>`);
   }
 
@@ -514,8 +613,15 @@ export function prepareMedia(episodePath, lib, outDir, opts = {}) {
     // One file with the fades and the dips under the lines already in it, on a track of its own
     // after the effects (lines use 1, effects 2 and up).
     const speech = timeline.shots.flatMap((s) => s.utterances.map((u) => ({ start: u.start, end: u.end })));
-    const track = readWav(readFileSync(lib.music.get(episode.music.track).path));
-    writeFileSync(join(outDir, "assets", "audio", "muzik.wav"), writeWav(mixMusic(track, timeline.duration, episode.music, speech)));
+    const raw = readFileSync(lib.music.get(episode.music.track).path);
+    const track = readWav(raw);
+    let level = 1;
+    try {
+      level = levelGain(decodeWav(raw), MUSIC_TARGET_DB);
+    } catch {
+      level = 1; // a WAV the level reader cannot read plays at its own level
+    }
+    writeFileSync(join(outDir, "assets", "audio", "muzik.wav"), writeWav(mixMusic(track, timeline.duration, episode.music, speech, level)));
     audioTags.push(`<audio id="muzik" src="assets/audio/muzik.wav" data-start="0" data-duration="${timeline.duration.toFixed(3)}" data-track-index="${2 + effects.length}" data-volume="1"></audio>`);
   }
   if (!audioTags.length && opts.silentTrack !== false) {
@@ -556,9 +662,11 @@ export function compileEpisode(episodePath, lib, outDir, opts = {}) {
     layers: Object.fromEntries(usedBgs.map((bg) => [bg, lib.layers.get(bg).map((l) => ({ id: l.id, derinlik: l.derinlik }))])),
     decor: decor.scenes, // scenes with a decor group (dekor-<scene>)
     shots: timeline.shots.map((s, i) => ({
-      shot_id: s.shot_id, scene_id: s.scene_id, bg: s.bg, start: s.start, end: s.end, cast: s.cast.map((m) => settled(m, s, lib)), camera: s.camera,
-      ...(sceneOf.get(s.scene_id)?.katmanlar ? { katmanlar: sceneOf.get(s.scene_id).katmanlar } : {}),
+      shot_id: s.shot_id, scene_id: s.scene_id, bg: s.bg, start: s.start, end: s.end, cast: s.cast.map((m) => settled(m, s, lib, lib.characters.get(episode.characters.find((c) => c.id === m.id)?.rig))), camera: s.camera,
+      ...(sceneOf.get(s.scene_id)?.katmanlar && s.bg === sceneOf.get(s.scene_id).bg ? { katmanlar: sceneOf.get(s.scene_id).katmanlar } : {}),
+      ...(s.bg !== sceneOf.get(s.scene_id)?.bg ? { aci: true } : {}), // another angle: the scene's decor stands on its own picture
       ...(sceneOf.get(s.scene_id)?.isik ? { isik: sceneOf.get(s.scene_id).isik } : {}),
+      ...(s.zaman_atlama ? { zaman_atlama: true } : {}),
       gecis: sceneTransition(episode, s.scene_id),
       utterances: s.utterances.map((u) => ({ speaker: u.speaker, start: u.start, end: u.end, words: u.words, cues: u.cues, ...(u.duygu ? { duygu: u.duygu } : {}) })),
       props: props.data[i],

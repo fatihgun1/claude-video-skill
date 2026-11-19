@@ -87,3 +87,59 @@ test("adding a sound effect changes the library fingerprint; episodes without ef
   const noSfxLib = { ...lib, sfx: new Map() };
   assert.equal(libraryFingerprint(episode(), noSfxLib), plain);
 });
+
+test("an effect tied to a line, a word, a moment or a walk plays on it (efekt.mjs)", async () => {
+  // a "ding" tied to seconds fell on the wrong line when a recording got longer
+  const { effectTimes } = await import("../src/efekt.mjs");
+  const shot = {
+    shot_id: "x", start: 10, end: 16,
+    utterances: [{ start: 10.4, words: [] }, { start: 12, words: [{ start: 0 }, { start: 0.35 }] }],
+    cast: [{ id: "ela", action: "yuru", walk: { dx: 300, time: 3 } }, { id: "ali", action: "egil-al" }],
+  };
+  const momentAt = (m, an) => (m.id === "ali" && an === "grab" ? 1.1 : null);
+  assert.deepEqual(effectTimes({ sfx: "tik", at: 1 }, shot, lib, momentAt), [1]);
+  assert.deepEqual(effectTimes({ sfx: "tik", replik: 1 }, shot, lib, momentAt), [2]);
+  assert.deepEqual(effectTimes({ sfx: "tik", replik: 1, kelime: 1, ofset: 0.05 }, shot, lib, momentAt).map((t) => Math.round(t * 100) / 100), [2.4]);
+  assert.deepEqual(effectTimes({ sfx: "tik", oyuncu: "ali", an: "grab" }, shot, lib, momentAt), [1.1]);
+  assert.deepEqual(effectTimes({ sfx: "adim-beton", oyuncu: "ela", adim: true }, shot, lib, momentAt), [0, 0.6, 1.2, 1.8, 2.4], "a step every half walk cycle while the walk lasts");
+  assert.throws(() => effectTimes({ sfx: "tik", oyuncu: "ela", an: "grab" }, shot, lib, momentAt), /no action of theirs/);
+  assert.throws(() => effectTimes({ sfx: "tik", replik: 5 }, shot, lib, momentAt), /does not have/);
+});
+
+test("a tied effect follows its line in the film, steps fill a walk, and an effect stops at its shot's end", () => {
+  const ep = episode([{ sfx: "tik", replik: 0 }, { sfx: "kapi-ac", at: 0.2 }]);
+  ep.scenes[0].shots[0].utterances = [{ speaker: "ela", text: "Merhaba." }];
+  ep.scenes[0].shots.push({ shot_id: "s1_sh2", cast: [{ id: "ela", action: "bekle", mark: "orta" }], camera: { framing: "wide" }, hold: 1 });
+  const dir = mkdtempSync(join(tmpdir(), "cizgi-sfx-"));
+  try {
+    const path = join(dir, "bolum.json");
+    writeFileSync(path, JSON.stringify(ep));
+    compileEpisode(path, lib, join(dir, "out"), { missingAudio: "estimate" });
+    const html = readFileSync(join(dir, "out", "index.html"), "utf8");
+    const timing = JSON.parse(readFileSync(join(dir, "out", "timing.json"), "utf8"));
+    const [one, two] = timing.shots;
+    const tik = Number(/<audio id="efekt-s1_sh1-0" [^>]*data-start="([\d.]+)"/.exec(html)[1]);
+    assert.equal(tik, one.utterances[0].start, "on the line's start");
+    assert.deepEqual(one.efekt_at, [[Math.round((one.utterances[0].start - one.start) * 1000) / 1000], [0.2]], "the panel gets where each plays");
+    const kapi = /<audio id="efekt-s1_sh1-1" [^>]*data-start="([\d.]+)" data-duration="([\d.]+)"/.exec(html);
+    assert.ok(Number(kapi[1]) + Number(kapi[2]) <= one.end + 1e-6, "cut at the end of its own shot");
+    assert.ok(two.start >= one.end);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("an effect is tied to exactly one thing, and to something that is there", () => {
+  const errs = (sfx, extra = {}) => {
+    const ep = episode(sfx);
+    Object.assign(ep.scenes[0].shots[0], extra);
+    return validateEpisode(ep, lib).errors.join("\n");
+  };
+  assert.match(errs([{ sfx: "tik" }]), /needs exactly one of at/);
+  assert.match(errs([{ sfx: "tik", at: 1, replik: 0 }]), /has at, replik/);
+  assert.match(errs([{ sfx: "tik", replik: 2 }]), /tied to line 2/);
+  assert.match(errs([{ sfx: "tik", oyuncu: "ali" }]), /not in this shot's cast/);
+  assert.match(errs([{ sfx: "adim-beton", oyuncu: "ela", adim: true }]), /does not walk/);
+  assert.match(errs([{ sfx: "tik", oyuncu: "ela", an: "grab" }]), /none of their actions has one/);
+  assert.equal(errs([{ sfx: "tik", replik: 0, kelime: 0 }], { utterances: [{ speaker: "ela", text: "Merhaba." }] }), "");
+});

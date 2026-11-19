@@ -4,9 +4,13 @@
  * and needs a human decision before it can be used.
  */
 import { readFileSync } from "node:fs";
+import { voicesOf, edgeSettings, SLOWEST_RATE } from "./ses-ayar.mjs";
+import { placeWarnings } from "./mekan-denetim.mjs";
+import { poseWarnings } from "./poz-denetim.mjs";
 import Ajv from "ajv";
 import { has } from "./util.mjs";
 import { filmWarnings } from "./sinema.mjs";
+import { continuityWarnings } from "./sureklilik.mjs";
 import { slidingDetails, parseGroups } from "./rigspec.mjs";
 import "./runtime/core.js"; // CizgiCore.segmentsOf: the same reading of cast actions as the player
 import "./runtime/yuz.js"; // CizgiYuz: which parts each facial expression needs
@@ -112,12 +116,33 @@ function checkShot(shot, where, ctx) {
       errors.push(`${where}: prop "${pr.prop}" cannot be held (no data-grip in its drawing)`);
     }
     if (pr.hand && !pr.holder) errors.push(`${where}: prop "${pr.id}" has a hand but no holder`);
+    if (pr.to && !castIds.includes(pr.to)) errors.push(`${where}: prop "${pr.id}" is handed to "${pr.to}", who is not in this shot's cast`);
+    if (pr.to && (!pr.holder || pr.to === pr.holder)) errors.push(`${where}: prop "${pr.id}" is handed over (to) but has no other holder to give it`);
+    if ((pr.to_hand && !pr.to) || ((pr.sonra || pr.gizli) && !pr.holder)) errors.push(`${where}: prop "${pr.id}": to_hand needs to; sonra and gizli need a holder`);
     if (!pr.mark && !pr.depth) errors.push(`${where}: prop "${pr.id}" needs a mark or a depth placement`);
     if (pr.depth && pr.holder) errors.push(`${where}: prop "${pr.id}" lies in the background (depth) and cannot be held in the same shot`);
   }
 
   for (const s of shot.sfx || []) {
     if (!lib.sfx?.has(s.sfx)) errors.push(`${where}: sound effect "${s.sfx}" is not in the library (${list((lib.sfx || new Map()).keys())})`);
+    // tied to exactly one thing: a time, a line, or someone (efekt.mjs)
+    const ties = ["at", "replik", "oyuncu"].filter((k) => s[k] != null);
+    if (ties.length !== 1) errors.push(`${where}: sound effect "${s.sfx}" needs exactly one of at (seconds), replik (a line) or oyuncu (someone)${ties.length ? ` (has ${ties.join(", ")})` : ""}`);
+    if (s.replik != null && !(shot.utterances || [])[s.replik]) errors.push(`${where}: sound effect "${s.sfx}" is tied to line ${s.replik}, but the shot has ${(shot.utterances || []).length} line(s)`);
+    if (s.kelime != null && s.replik == null) errors.push(`${where}: sound effect "${s.sfx}": kelime needs replik`);
+    if (s.replik != null && s.kelime != null && (shot.utterances || [])[s.replik] && s.kelime >= shot.utterances[s.replik].text.split(/s+/).filter(Boolean).length) {
+      errors.push(`${where}: sound effect "${s.sfx}" is tied to word ${s.kelime} of line ${s.replik}, which has fewer words`);
+    }
+    if ((s.an || s.adim) && s.oyuncu == null) errors.push(`${where}: sound effect "${s.sfx}": an and adim need oyuncu`);
+    if (s.an && s.adim) errors.push(`${where}: sound effect "${s.sfx}": an or adim, not both`);
+    if (s.oyuncu != null) {
+      const m = shot.cast.find((c) => c.id === s.oyuncu);
+      if (!m) errors.push(`${where}: sound effect "${s.sfx}" is tied to "${s.oyuncu}", who is not in this shot's cast`);
+      else if (s.adim && !m.walk) errors.push(`${where}: sound effect "${s.sfx}" steps with "${s.oyuncu}", who does not walk in this shot (cast.walk)`);
+      else if (s.an && s.an !== "baslangic" && ![m.action, ...(m.actions || []).map((x) => x.action)].some((id) => lib.actions.get(id)?.[s.an]?.t != null)) {
+        errors.push(`${where}: sound effect "${s.sfx}" is tied to "${s.oyuncu}"'s ${s.an}, but none of their actions has one`);
+      }
+    }
   }
 
   for (const u of shot.utterances || []) {
@@ -330,6 +355,9 @@ export function validateEpisode(input, lib) {
         if (!ids.includes(k)) errors.push(`scene ${scene.scene_id}: background "${scene.bg}" has no layer "${k}" (${ids.join(", ")})`);
       }
     }
+    for (const shot of scene.shots || []) {
+      if (shot.bg && !lib.backgrounds.has(shot.bg)) errors.push(`shot ${shot.shot_id}: background "${shot.bg}" is not in the library (${list(lib.backgrounds.keys())})`);
+    }
     // decor: library props, one id each in the scene
     const decorIds = new Set();
     for (const d of scene.dekor || []) {
@@ -345,7 +373,16 @@ export function validateEpisode(input, lib) {
     }
   }
   const warnings = [...notes, ...(profile ? ruleWarnings(episode, profile.rules || {}) : [])];
-  if (errors.length === 0) warnings.push(...viewWarnings(episode, lib), ...expressionWarnings(episode, lib), ...filmWarnings(episode, lib));
+  if (errors.length === 0) warnings.push(...viewWarnings(episode, lib), ...expressionWarnings(episode, lib), ...filmWarnings(episode, lib), ...continuityWarnings(episode, lib), ...speedWarnings(episode, lib, profile), ...placeWarnings(episode, lib), ...poseWarnings(episode, lib));
+  // a shot the person locked (shot.kilit): the film rules give way to their choice (Hurda Kralı 1:
+  // an unbroken shot they asked for was cut on action); shown as their decision, it holds no gate
+  const locks = new Map(episode.scenes.flatMap((s) => s.shots).filter((s) => s.kilit).map((s) => [s.shot_id, s.kilit.neden]));
+  const lockedBy = (w) => {
+    const id = /^film: shot ([A-Za-z0-9_-]+)\b/.exec(w)?.[1];
+    return id && locks.has(id) ? locks.get(id) : null;
+  };
+  const decided = warnings.filter(lockedBy).map((w) => `${w} — kişinin kararı: ${lockedBy(w)}`);
+  if (decided.length) return { ok: errors.length === 0, errors, warnings: warnings.filter((w) => !lockedBy(w)), kisi_kararlari: decided };
   return { ok: errors.length === 0, errors, warnings };
 }
 
@@ -355,6 +392,25 @@ export function validateEpisode(input, lib) {
  * @param {ReturnType<import("./library.mjs").loadLibrary>} lib
  * @returns {object}
  */
+/**
+ * Lines whose final speed drags: the ready voice's speed, the character's own, the feeling and the
+ * profile tempo add up (Faz 5.6: down to -45%). One warning per speaker and feeling.
+ */
+export function speedWarnings(episode, lib, profile) {
+  const voices = { ...voicesOf(episode), [NARRATOR]: episode.narrator_voice || {} };
+  const tempo = profile?.speech?.tempo ?? 1;
+  const seen = new Map();
+  for (const shot of episode.scenes.flatMap((sc) => sc.shots)) {
+    for (const u of shot.utterances || []) {
+      const key = `${u.speaker}|${u.duygu || ""}`;
+      if (seen.has(key)) continue;
+      const rate = parseInt(edgeSettings(voices[u.speaker], u.duygu, lib, tempo).rate, 10);
+      seen.set(key, rate < SLOWEST_RATE ? `shot ${shot.shot_id}: "${u.speaker}"${u.duygu ? ` (${u.duygu})` : ""} speaks at ${rate}% speed (voice, character, feeling and profile tempo together); under ${SLOWEST_RATE}% a line drags: raise the character's hiz or pick a faster voice` : null);
+    }
+  }
+  return [...seen.values()].filter(Boolean);
+}
+
 export function profileOf(episode, lib) {
   return lib.profiles.get(episode.profile || "genel");
 }

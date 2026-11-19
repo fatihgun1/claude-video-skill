@@ -3,11 +3,11 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, appendFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { queueOf, addRequest, readRequests } from "../src/istekler.mjs";
+import { queueOf, addRequest, readRequests, updateRequest, markPanelOpen, markWatcher } from "../src/istekler.mjs";
 
 const HOOK = fileURLToPath(new URL("../src/panel-hook.mjs", import.meta.url));
 let project;
@@ -23,6 +23,40 @@ const ask = (metin) => addRequest(queueOf(project), { root: "C:/p", b: "bolum.js
 beforeEach(() => {
   project = mkdtempSync(join(tmpdir(), "cizgi-hook-"));
   process.env.CIZGI_ISTEK_KOK = mkdtempSync(join(tmpdir(), "cizgi-hook-kuyruk-")); // children inherit it
+});
+
+test("Stop with the panel open and no watcher running asks once for istek-bekle, with the exact command", () => {
+  // Hurda Kralı 1 and 2: the turn ended on a chat question; the panel's fixes sat "Sırada"
+  markPanelOpen(project, process.pid);
+  const r = run("Stop", { stop_hook_active: false });
+  assert.equal(r.json?.decision, "block", r.stdout);
+  assert.match(r.json.reason, /istek-bekle/);
+  assert.match(r.json.reason, /run_in_background/);
+  // once: a second Stop in the same chain lets the turn end (no loop if the watcher could not start)
+  assert.equal(run("Stop", { stop_hook_active: true }).stdout, "");
+  // a watcher running: nothing to say
+  markWatcher(project, process.pid);
+  assert.equal(run("Stop", { stop_hook_active: false }).stdout, "");
+  // the panel closed (or its process gone): nothing to say
+  markWatcher(project, null);
+  markPanelOpen(project, null);
+  assert.equal(run("Stop", { stop_hook_active: false }).stdout, "");
+  markPanelOpen(project, 999999); // a process that is not running
+  assert.equal(run("Stop", { stop_hook_active: false }).stdout, "");
+});
+
+test("Stop asks once to answer a request taken minutes ago and never answered", () => {
+  // a request taken in a busy turn and forgotten showed "Claude üzerinde çalışıyor" for an hour
+  const a = ask("kapıyı aç");
+  updateRequest(queueOf(project), a.id, { durum: "alindi", duyuruldu: true });
+  assert.equal(run("Stop", { stop_hook_active: false }).stdout, "", "just taken: it is being worked on");
+  const old = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  appendFileSync(queueOf(project), `${JSON.stringify({ id: a.id, guncel: old, durum: "alindi" })}
+`); // taken ten minutes ago
+  const r = run("Stop", { stop_hook_active: false });
+  assert.equal(r.json?.decision, "block", r.stdout);
+  assert.match(r.json.reason, new RegExp(`${a.id}.*panel_yanitla`, "s"));
+  assert.equal(run("Stop", { stop_hook_active: true }).stdout, "", "once");
 });
 
 test("with no queue or nothing waiting, the hooks say nothing and let things go on", () => {

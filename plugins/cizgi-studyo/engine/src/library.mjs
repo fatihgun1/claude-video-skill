@@ -66,9 +66,22 @@ export function checkAction(action, name) {
   if (action.grab !== undefined && !(isNum(action.grab?.t) && action.grab.t >= 0 && action.grab.t <= action.duration)) {
     errors.push(`${name}: grab.t must be a time within the action`);
   }
+  // release: the moment the action puts a held prop away (into a bag); it then leaves the hand
+  if (action.release !== undefined && !(isNum(action.release?.t) && action.release.t >= 0 && action.release.t <= action.duration)) {
+    errors.push(`${name}: release.t must be a time within the action`);
+  }
+  // put_down: the moment the action sets a held prop down; it then lies where it was put (props[].sonra)
+  if (action.put_down !== undefined && !(isNum(action.put_down?.t) && action.put_down.t >= 0 && action.put_down.t <= action.duration)) {
+    errors.push(`${name}: put_down.t must be a time within the action`);
+  }
+  if (action.release !== undefined && action.put_down !== undefined) errors.push(`${name}: an action either puts away (release) or sets down (put_down), not both`);
   if (action.loop && action.keys.at(-1)?.t !== action.duration) {
     errors.push(`${name}: a looping action needs its last key at t=duration`);
   }
+  // temas: what the body rests on instead of the feet (poz-denetim.mjs), for the action or one key
+  const CONTACTS = ["oturma", "yatma", "havada"];
+  for (const k of [action, ...action.keys]) if (k && typeof k === "object" && k.temas !== undefined && !CONTACTS.includes(k.temas)) errors.push(`${name}: temas must be ${CONTACTS.join(", ")}`);
+  if (action.for !== undefined && !(Array.isArray(action.for) && action.for.every((x) => typeof x === "string"))) errors.push(`${name}: for must be a list of character drawings`);
   if (action.views !== undefined) {
     if (!Array.isArray(action.views) || !action.views.length) errors.push(`${name}: views must be a non-empty list`);
     else for (const v of action.views) if (!VIEWS.includes(v)) errors.push(`${name}: unknown view "${v}" (${VIEWS.join(", ")})`);

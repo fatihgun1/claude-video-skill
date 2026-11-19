@@ -18,10 +18,26 @@ function episode(overrides = {}) {
     episode: "deneme",
     language: "tr",
     characters: [{ id: "pamuk", rig: "pamuk" }],
+    narrator_voice: { hazir: "kadin" },
     scenes: [{ scene_id: "s1", bg: "cayir", shots: [shot] }],
     ...overrides.episode,
   };
 }
+
+test("a shot the person locked keeps their choice: its film warnings become their decisions, not warnings", () => {
+  // Hurda Kralı 1: "kamera plandan çıkmadan devam etsin" was cut on action because a film rule said so
+  const two = episode({ episode: { scenes: [{ scene_id: "s1", bg: "cayir", shots: [
+    { shot_id: "a", cast: [{ id: "pamuk", action: "selam", mark: "orta" }], camera: { framing: "close", target: "pamuk" } },
+    { shot_id: "b", cast: [{ id: "pamuk", action: "selam", mark: "orta" }], camera: { framing: "close", target: "pamuk" } },
+  ] }] } });
+  const loose = validateEpisode(two, lib);
+  assert.ok(loose.warnings.some((w) => /shot b: .*jump cut/.test(w)), loose.warnings.join("\n"));
+  two.scenes[0].shots[1].kilit = { neden: "kişi: aynı yakın plan tekrar etsin" };
+  const locked = validateEpisode(two, lib);
+  assert.equal(locked.ok, true);
+  assert.ok(!locked.warnings.some((w) => /shot b\b/.test(w)), locked.warnings.join("\n"));
+  assert.ok(locked.kisi_kararlari.some((w) => /shot b: .*jump cut/.test(w) && /aynı yakın plan/.test(w)));
+});
 
 test("a valid episode passes", () => {
   assert.deepEqual(validateEpisode(episode(), lib), { ok: true, errors: [], warnings: [] });

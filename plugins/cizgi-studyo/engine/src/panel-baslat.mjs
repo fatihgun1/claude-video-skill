@@ -42,10 +42,22 @@ export async function openPanel({ target, library, status, port = DEFAULT_PORT, 
           root: space.root, b: k.bolum || "", hedef: { tur: "bolum", etiket: `Nesne penceresi: ${k.ad || k.id}` },
           metin: `Nesne penceresinde (${k.tur} ${k.id}${k.shot ? `, shot ${k.shot}` : ""}${k.oyuncu ? `, oyuncu ${k.oyuncu}` : ""}): ${item.metin}
 Yalnız bu şey üzerinde çalış; cevabı panel_sohbet {konu: "${k.tur}:${k.id}"} ile pencereye yaz, sonra panel_dinle ile dinlemeye dön.`.slice(0, 2000),
-        });
+        }, { kisinin: true });
       } catch (err) {
         process.stderr.write(`cizgi panel: sohbet kuyruğa yazılamadı: ${err.message}
 `);
+      }
+    } : undefined,
+    // drafts the person took in (or put aside) while Claude was not listening: to the queue too
+    onIdleDraft: requests ? (item) => {
+      const list = (item.cizimler || []).map((c) => `${c.tur} ${c.id}`).join(", ");
+      try {
+        addRequest(requests, {
+          root: space.root, b: "", hedef: { tur: "bolum", etiket: "Taslaklar" },
+          metin: `Kişi panelde taslakları ${item.islem === "al" ? "kütüphaneye aldı" : "reddetti"}: ${list}. Onları bekleyen işe devam et (yeni çizimi bölüme koy).`.slice(0, 2000),
+        }, { kisinin: true });
+      } catch (err) {
+        process.stderr.write(`cizgi panel: taslak haberi kuyruğa yazılamadı: ${err.message}\n`);
       }
     } : undefined,
     onLateAnswer: (a, bolum) => {
@@ -57,7 +69,7 @@ Yalnız bu şey üzerinde çalış; cevabı panel_sohbet {konu: "${k.tur}:${k.id
           metin: `Panelde sorduğun soruya cevap (#${a.id}): "${a.soru}"
 Seçim: ${picked}${a.metin ? `
 Not: ${a.metin}` : ""}`.slice(0, 2000),
-        });
+        }, { kisinin: true });
       } catch (err) {
         process.stderr.write(`cizgi panel: cevap kuyruğa yazılamadı: ${err.message}
 `);

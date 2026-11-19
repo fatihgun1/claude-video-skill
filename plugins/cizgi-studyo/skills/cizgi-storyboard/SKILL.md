@@ -1,9 +1,12 @@
 ---
 name: cizgi-storyboard
+user-invocable: false
 description: Build the storyboard of a Çizgi Stüdyo episode — compile, run the HyperFrames checks, photograph every shot in 16:9 and 9:16 — show the stills to the person and record the storyboard approval gate. Use after the audio step, or after any change to actions, camera, characters or audio.
 ---
 
 # Storyboard gate
+
+> **Önce oku:** eklentinin ortak kuralları `${CLAUDE_PLUGIN_ROOT}/kurallar.md`. Hangi yoldan başlanırsa başlansın sahne yazmadan, değiştirmeden ya da onaylatmadan önce oku; bu skill ayrıntıları verir.
 
 ```bash
 CLI="node ${CLAUDE_PLUGIN_ROOT}/engine/src/cli.mjs"
@@ -20,7 +23,7 @@ The command compiles the episode, runs `hyperframes check` (it must pass) and ta
    - captions do not cover a face
    - nothing is cut off
    - the 9:16 frame works too
-3. **Show the person the contact sheets.** Send the image files so they can see them, list what is in each shot, and repeat any failed audio lines.
+3. **Show the person the contact sheets in the panel** (`panel_git` to Üretim → Storyboard, or the scene's İncele), never as files in the chat. In the chat, a few lines: what to look at, and any failed audio lines.
 4. Ask **in the chat**, with the contact sheets shown: approve, or what to change. Never send the person to the Üretim page. Changes to action, camera, mark or palette go into `bolum.json`; run `storyboard` again afterwards. A change to the words needs the script gate again (**cizgi-senaryo**), then **cizgi-ses**.
 5. Render a draft so the motion can be judged: `$CLI render <bolum.json> --taslak --format 16:9`. Then run `$CLI qa <the draft>` and go through **every** page with the checklist in **cizgi-render** before showing it. Stills alone miss walks, contact and cut problems.
 6. Record the approval **on an explicit yes from the person in this conversation**. If they approved in the panel's **Video çıkar**, it is already recorded (check with `cli.mjs durum`):

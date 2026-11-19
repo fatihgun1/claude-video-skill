@@ -59,6 +59,15 @@ const ep = {
 };
 const info = (u) => ({ duration: u.audio === "1.wav" ? 1 : 2, words: [{ start: 0 }] });
 
+test("buildTimeline keeps a shot on until its moments (a grab, a put-away) are seen", () => {
+  // a silent shot of a pick-up ended before the hand reached the bottle; the next shot had it in hand
+  const ep = { scenes: [{ scene_id: "s", shots: [{ shot_id: "a", cast: [{ id: "x", action: "egil-al" }], hold: 0 }] }] };
+  const short = buildTimeline(ep, () => ({ duration: 0 }));
+  const kept = buildTimeline(ep, () => ({ duration: 0 }), TIMING, (m) => (m.id === "x" ? [3.35] : []));
+  assert.ok(short.shots[0].end < 3.35, `without moments the shot is short (${short.shots[0].end})`);
+  assert.ok(kept.shots[0].end >= 3.35 + 0.3, `kept until the grab is seen (${kept.shots[0].end})`);
+});
+
 test("buildTimeline places lines with lead, gap, hold and tail", () => {
   const tl = buildTimeline(ep, info);
   const [a, b] = tl.shots;

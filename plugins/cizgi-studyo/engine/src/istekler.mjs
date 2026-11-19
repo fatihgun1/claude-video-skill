@@ -21,7 +21,7 @@
  * States: bekliyor (waiting) → alindi (Claude took it) → yapildi | soru | olmadi.
  * A request taken and never answered stops counting as open after STALE_MS (the session died).
  */
-import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, statSync } from "node:fs";
+import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { createHash, randomBytes } from "node:crypto";
@@ -61,6 +61,38 @@ export function queueOf(projectDir, base = process.env.CIZGI_ISTEK_KOK || join(h
   if (process.platform === "win32") key = key.toLowerCase(); // C:\Video and c:\video are one folder
   return join(base, `${createHash("sha256").update(key).digest("hex").slice(0, 16)}.jsonl`);
 }
+
+/**
+ * Who is listening for a project's panel, by process: the session's MCP server marks the panel open
+ * (<queue>.panel), `cizgi istek-bekle` marks itself running (<queue>.bekci). The Stop hook reads both:
+ * a turn that ends with the panel open and no watcher would leave the person's panel requests "Sırada".
+ */
+const markPath = (project, kind) => `${queueOf(project)}.${kind}`;
+function mark(project, kind, pid) {
+  const path = markPath(project, kind);
+  if (pid == null) {
+    if (existsSync(path)) writeFileSync(path, ""); // an empty mark is no mark (no deleting needed)
+    return;
+  }
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, JSON.stringify({ pid }));
+}
+function markedAlive(project, kind) {
+  const path = markPath(project, kind);
+  if (!existsSync(path)) return false;
+  try {
+    const { pid } = JSON.parse(readFileSync(path, "utf8") || "{}");
+    if (!Number.isInteger(pid)) return false;
+    process.kill(pid, 0); // throws when no such process is running
+    return true;
+  } catch (err) {
+    return err?.code === "EPERM"; // running, owned by someone else
+  }
+}
+export const markPanelOpen = (project, pid) => mark(project, "panel", pid);
+export const markWatcher = (project, pid) => mark(project, "bekci", pid);
+export const panelOpen = (project) => markedAlive(project, "panel");
+export const watcherRunning = (project) => markedAlive(project, "bekci");
 
 const oneLine = (v) => String(v).replace(CONTROL, " ");
 const shortText = (v, max = MAX_FIELD) => typeof v === "string" && v.length <= max;
@@ -155,14 +187,16 @@ const isOpen = (r, now) => r.durum === "bekliyor" || (r.durum === "alindi" && !i
  * Add what the person wrote in the panel.
  * @param {{root:string, b:string, hedef:object, metin:string, zaman?:number}} req
  */
-export function addRequest(file, req) {
+export function addRequest(file, req, { kisinin = false } = {}) {
   const metin = cleanText(req?.metin, "istek");
   const hedef = cleanTarget(req?.hedef);
   if (!hedef) throw new Error("hedef geçersiz");
   if (req.zaman !== undefined && !(typeof req.zaman === "number" && Number.isFinite(req.zaman) && req.zaman >= 0)) throw new Error("zaman geçersiz");
   if (!shortText(req.root, MAX_PATH) || !shortText(req.b, MAX_PATH)) throw new Error("bölüm geçersiz");
   const now = Date.now();
-  if (readRequests(file).filter((r) => isOpen(r, now)).length >= MAX_OPEN) {
+  // kisinin: the person's answer to a question or a message in an object window, already shown as
+  // "sırada": it must never be dropped for a full queue (the limit is for new requests)
+  if (!kisinin && readRequests(file).filter((r) => isOpen(r, now)).length >= MAX_OPEN) {
     throw new Error(`açık istek çok fazla (${MAX_OPEN}): Claude'un yanıtlamasını bekle`);
   }
   const record = {

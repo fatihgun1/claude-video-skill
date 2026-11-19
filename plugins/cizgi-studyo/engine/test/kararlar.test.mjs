@@ -22,7 +22,7 @@ function episode(overrides = {}) {
     language: "tr",
     format: "9:16",
     kararlar: KARARLAR,
-    characters: [{ id: "genc", rig: "genc" }],
+    characters: [{ id: "genc", rig: "genc", voice: { hazir: "erkek" } }],
     scenes: [{ scene_id: "s1", bg: "sokak", shots: [{
       shot_id: "s1_sh1",
       utterances: [{ speaker: "genc", text: "Merhaba." }],
@@ -35,6 +35,26 @@ function episode(overrides = {}) {
 
 test("an episode with every decision recorded has no problems", () => {
   assert.deepEqual(decisionProblems(episode(), lib), { eksik: [], uyarilar: [] });
+});
+
+test("the person's wishes must be recorded in hikaye.json (kisi) before the script approval", () => {
+  // Hurda Kralı 1: "bir oyun gibi davranmayalım" was read as "davranalım"; nothing kept the words
+  const story = (kisi) => ({ exists: true, story: { fikir: "x", karakterler: [], kartlar: [], ...(kisi ? { kisi } : {}) } });
+  assert.match(decisionProblems(episode(), lib, { exists: false, story: {} }).eksik.join("\n"), /hikaye\.json/);
+  assert.match(decisionProblems(episode(), lib, story(null)).eksik.join("\n"), /kisi/);
+  assert.deepEqual(decisionProblems(episode(), lib, story([])).eksik, [], "an empty list: asked, nothing special wished");
+  assert.deepEqual(decisionProblems(episode(), lib, story([{ metin: "bir oyun gibi davranmayalım", tur: "yapma", yorum: "oyun dili yok" }])).eksik, []);
+});
+
+test("a missing drawing needs the person's rule: ask first, or a stand-in; with 'sor' every one needs an answer", () => {
+  const missing = { new_assets: [{ name: "necmi", type: "character", note: "hurdacı" }] };
+  assert.match(decisionProblems(episode(missing), lib).eksik.join("\n"), /eksik_cizim/);
+  assert.deepEqual(decisionProblems(episode({ ...missing, kararlar: { ...KARARLAR, eksik_cizim: "yer_tutucu" } }), lib).eksik, []);
+  const ask = { ...missing, kararlar: { ...KARARLAR, eksik_cizim: "sor" } };
+  assert.match(decisionProblems(episode(ask), lib).eksik.join("\n"), /necmi.*cevap/);
+  ask.new_assets[0].cevap = "yeni çiz";
+  assert.deepEqual(decisionProblems(episode(ask), lib).eksik, []);
+  assert.equal(validateEpisode(episode(ask), lib).ok, true, "the schema takes eksik_cizim and cevap");
 });
 
 test("the schema accepts kararlar and refuses unknown values", () => {
@@ -98,6 +118,10 @@ test("cizgi onayla senaryo refuses an episode with open decisions", () => {
   assert.equal(existsSync(join(dir, "onay.json")), false);
 
   writeFileSync(path, JSON.stringify(episode()));
+  const noWishes = spawnSync(process.execPath, [CLI, "onayla", "senaryo", path], { encoding: "utf8" });
+  assert.equal(noWishes.status, 1, "no hikaye.json with the person's wishes yet");
+  assert.match(noWishes.stderr, /hikaye/);
+  writeFileSync(join(dir, "hikaye.json"), JSON.stringify({ fikir: "x", karakterler: [], kartlar: [], kisi: [] }));
   const ok = spawnSync(process.execPath, [CLI, "onayla", "senaryo", path], { encoding: "utf8" });
   assert.equal(ok.status, 0, ok.stderr);
 });

@@ -8,7 +8,7 @@ import { el, select, number, setKey } from "./dom.js";
 import { header, section, quietSection, folded, labelled, segment, valueSlider, percent, withUnit, check, dangerButton } from "./denetleyici-alan.js";
 import { rigThumb } from "./kutuphane.js";
 import { listen } from "./dinle.js";
-import { segmentSpans, replaceSegmentAction, moveSegmentStart, removeSegment, addLine, removeLine, rowOfMessage } from "./kurgu.js";
+import { sfxTie, segmentSpans, replaceSegmentAction, moveSegmentStart, removeSegment, addLine, removeLine, rowOfMessage } from "./kurgu.js";
 import { sceneLayers } from "./katman.js";
 import { sceneDecor } from "./dekor.js";
 import { sceneLight } from "./isik.js";
@@ -229,7 +229,9 @@ export function createInspector(box, ctx) {
     const t = ctx.shotTime(shot.shot_id);
     return el("div", { class: "detail" },
       labelled("Efekt", select(s.sfx, ctx.vocab().sfx, (val) => { s.sfx = val; ctx.changed(true); })),
-      labelled("Zaman", withUnit(number(s.at, (val) => {
+      s.at == null
+        ? labelled("Bağlı", withUnit(number(s.ofset ?? 0, (val) => { setKey(s, "ofset", val ? Math.min(5, Math.max(-5, val)) : undefined); ctx.changed(true); }, { min: -5, max: 5, step: 0.05 }), "s", "Kayma (saniye)"), `${sfxTie(s, ctx.labelOf)}: replik ya da hareket değişse de onunla birlikte çalar.`)
+        : labelled("Zaman", withUnit(number(s.at, (val) => {
         // A typed value ignores the box's max: keep the effect inside its shot.
         const last = t ? Math.max(0, Math.floor((t.end - t.start - 0.05) * 100) / 100) : Infinity;
         s.at = Math.min(Math.max(0, val ?? 0), last);
@@ -391,7 +393,7 @@ export function createInspector(box, ctx) {
     if (sel.kind === "sfx" && shot.sfx?.[i]) {
       const s = shot.sfx[i];
       const name = labelIn(v.sfx, s.sfx);
-      return [...head("Efekt", name, `${s.at.toFixed(2)} s · shot ${shot.shot_id}`), sfxDetail(shot, s),
+      return [...head("Efekt", name, `${sfxTie(s, ctx.labelOf)} · shot ${shot.shot_id}`), sfxDetail(shot, s),
         drop("Efekti sil", `“${name}” efekti silinsin mi?`, () => removeFrom(shot, "sfx", i))];
     }
     if (sel.kind === "line" && shot.utterances?.[i]) {
@@ -429,7 +431,7 @@ export function createInspector(box, ctx) {
     }));
     const sounds = (shot.sfx || []).map((s, i) => row({
       key: `sfx:${i}`, img: el("span", { class: "btn icon", "aria-hidden": "true", text: "♪" }), title: labelIn(v.sfx, s.sfx),
-      meta: `${s.at.toFixed(2)} s${s.volume !== undefined ? ` · düzey ${percent(s.volume)}` : ""}`,
+      meta: `${sfxTie(s, ctx.labelOf)}${s.volume !== undefined ? ` · düzey ${percent(s.volume)}` : ""}`,
       onPick: () => ctx.select("sfx", i),
       onDelete: () => removeFrom(shot, "sfx", i), deleteText: "Efekti sil",
       deleteQuestion: `“${labelIn(v.sfx, s.sfx)}” efekti silinsin mi?`, badge: badgeFor("sfx", i),

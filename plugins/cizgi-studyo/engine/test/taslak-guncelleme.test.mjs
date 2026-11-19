@@ -49,6 +49,39 @@ test("taking an update in replaces the drawing and keeps the old one aside", () 
   assert.equal(existsSync(join(kut, "taslak", "props", "brosur.svg")), false);
 });
 
+test("an update of a drawing an approved episode uses waits for the person's yes; the episodes it touches are named", () => {
+  // _reddedilen held 17 replaced drawings, some used by approved episodes (kose-basi, hurda-kral-01)
+  const kut = project();
+  const root = join(kut, "..");
+  mkdirSync(join(kut, "props"));
+  writeFileSync(join(kut, "props", "brosur.svg"), PROP("#aaa"));
+  mkdirSync(join(kut, "taslak", "props"), { recursive: true });
+  writeFileSync(join(kut, "taslak", "props", "brosur.svg"), PROP("#f00"));
+  const ep = (id, props) => ({ episode: id, scenes: [{ scene_id: "s1", bg: "sokak", dekor: props.dekor || [], shots: [{ shot_id: "a", cast: [], props: props.shot || [] }] }], characters: [] });
+  for (const [id, e] of [["onayli", ep("onayli", { shot: [{ id: "b", prop: "brosur", mark: "orta" }] })], ["taslak", ep("taslak", { dekor: [{ id: "b", prop: "brosur", x: 1 }] })], ["baska", ep("baska", {})]]) {
+    mkdirSync(join(root, "bolumler", id), { recursive: true });
+    writeFileSync(join(root, "bolumler", id, "bolum.json"), JSON.stringify(e));
+  }
+  writeFileSync(join(root, "bolumler", "onayli", "onay.json"), JSON.stringify({ senaryo: { fingerprint: "x", at: "y" } }));
+  assert.throws(() => approveDraft(kut, "nesne", "brosur", lib(kut)), /onayli.*onaylandi/s);
+  assert.match(readFileSync(join(kut, "props", "brosur.svg"), "utf8"), /#aaa/, "nothing replaced");
+  const res = approveDraft(kut, "nesne", "brosur", lib(kut), { onaylandi: true });
+  assert.deepEqual(res.etkilenen.sort(), ["onayli", "taslak"]);
+  assert.match(readFileSync(join(kut, "props", "brosur.svg"), "utf8"), /#f00/);
+});
+
+test("an action draft must say the views it is drawn for", () => {
+  const kut = project();
+  mkdirSync(join(kut, "taslak", "actions"), { recursive: true });
+  const action = { label: { tr: "El salla" }, duration: 1, loop: false, keys: [{ t: 0, pose: { head: 0 } }, { t: 1, pose: { head: 5 } }] };
+  writeFileSync(join(kut, "taslak", "actions", "salla.json"), JSON.stringify(action));
+  const [d] = listDrafts(kut, lib(kut));
+  assert.equal(d.ok, false);
+  assert.match(d.errors.join("; "), /views gerekli/);
+  writeFileSync(join(kut, "taslak", "actions", "salla.json"), JSON.stringify({ ...action, views: ["front"] }));
+  assert.equal(listDrafts(kut, lib(kut))[0].ok, true, listDrafts(kut, lib(kut))[0].errors.join("; "));
+});
+
 test("a character update replaces the whole folder", () => {
   const kut = project();
   putCharacter(join(kut, "characters"), "ali");

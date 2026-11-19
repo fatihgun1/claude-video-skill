@@ -14,15 +14,10 @@
  */
 import { VIEWPORTS } from "./compile.mjs";
 import "./runtime/core.js";
-import { captionPlace, captionShown } from "./altyazi.mjs";
+import { captionShown, captionMax as captionMaxOf, captionChunks, CAPTION_MAX } from "./altyazi.mjs";
+import { overlaps, OVERLAP_MARK } from "./sinema.mjs";
 
-/** Characters that fit in two caption lines (54/58 px bold on 88% of the width, roughly). */
-export const CAPTION_MAX = Object.freeze({ "16:9": 110, "9:16": 56 });
-/** How many more (or fewer) letters fit at each caption size (the usual font size over its own). */
-const CAPTION_FIT = Object.freeze({ kucuk: 54 / 42, orta: 1, buyuk: 54 / 68 });
-const SAMPLES = [0, 0.5, 1];
-const SAME_DEPTH = 0.25; // closer in cast.back than this: drawn in one row
-const OVERLAP = 0.5; // share of the narrower figure hidden behind the other
+export { CAPTION_MAX };
 
 const shotOfMessage = (msg) => /(?:^|: )shot ([a-z0-9_-]+)/.exec(msg)?.[1] ?? null;
 
@@ -48,7 +43,7 @@ export function reviewScene({ episode, sceneId, lib, timing, anchors, format, va
   const named = `scene ${sceneId}`;
   const aboutScene = (m) => mine.has(shotOfMessage(m)) || m.split(named).slice(1).some((after) => !/^[\w-]/.test(after));
   for (const m of validation.errors || []) if (aboutScene(m)) add("hata", "dogrulama", shotOfMessage(m), m);
-  for (const m of validation.warnings || []) if (aboutScene(m)) add("uyari", "dogrulama", shotOfMessage(m), m);
+  for (const m of validation.warnings || []) if (aboutScene(m) && !m.includes(OVERLAP_MARK)) add("uyari", "dogrulama", shotOfMessage(m), m);
 
   const { outOfFrame, layoutFor, memberX, memberHalfWidth } = globalThis.CizgiCore;
   const layout = layoutFor(lib.world, viewport);
@@ -58,19 +53,20 @@ export function reviewScene({ episode, sceneId, lib, timing, anchors, format, va
     for (const id of outOfFrame(shot, lib.world, lib.cameras, viewport, null)) {
       add("uyari", "kadraj", t.shot_id, `${name(id)} kadraja tam sığmıyor (${format}).`);
     }
-    for (const pair of overlaps(t, layout, memberX, memberHalfWidth)) {
+    for (const pair of overlaps(t.cast, layout, memberX, memberHalfWidth, t.end - t.start)) {
       add("uyari", "ust-uste", t.shot_id, `${name(pair[0])} ile ${name(pair[1])} üst üste biniyor: birini kaydır ya da arkaya al.`);
     }
   });
 
   // bigger captions fit fewer letters in two lines (font sizes as compile.mjs sets them)
-  const captionMax = Math.round(CAPTION_MAX[format] * CAPTION_FIT[captionPlace(scene, format).boyut]);
+  const captionMax = captionMaxOf(scene, format);
   for (const shot of scene.shots) {
     (Array.isArray(shot.utterances) ? shot.utterances : []).forEach((u, n) => {
       if (typeof u?.text !== "string") return; // an invalid draft: the validator already says so
       const key = `${shot.shot_id}-${n}`;
       if (captionShown(episode, u) && u.text.length > captionMax) {
-        add("uyari", "altyazi", shot.shot_id, `“${u.text.slice(0, 40)}…” ${u.text.length} harf: ${format} altyazıda iki satıra sığmaz; repliği böl ya da altyazıyı küçült.`);
+        const pieces = captionChunks(u.text.trim().split(/s+/), captionMax).at(-1) + 1;
+        add("bilgi", "altyazi", shot.shot_id, `“${u.text.slice(0, 40)}…” ${u.text.length} harf: ${format} altyazıda iki satıra sığmaz, ${pieces} parçada sırayla gösterilir; tek parça istersen repliği böl ya da altyazıyı küçült.`);
       }
       if (unspoken.includes(key)) add("bilgi", "ses", shot.shot_id, `${name(u.speaker)} repliği henüz seslendirilmedi: süresi tahmini.`);
       if (failed.some((f) => f.key === key)) add("uyari", "dinleme", shot.shot_id, `${name(u.speaker)} repliği dinleme kontrolünden geçmedi: dinleyip kabul et ya da yeniden seslendir.`);
@@ -80,26 +76,4 @@ export function reviewScene({ episode, sceneId, lib, timing, anchors, format, va
   const sayac = { hata: 0, uyari: 0, bilgi: 0 };
   for (const s of sorunlar) sayac[s.seviye]++;
   return { sahne: sceneId, shots: ids, sorunlar, sayac };
-}
-
-/** Pairs of cast members drawn over each other at some moment of the shot. */
-function overlaps(t, layout, memberX, memberHalfWidth) {
-  const dur = t.end - t.start;
-  const found = new Map();
-  for (const p of SAMPLES) {
-    for (let a = 0; a < t.cast.length; a++) {
-      for (let b = a + 1; b < t.cast.length; b++) {
-        const A = t.cast[a];
-        const B = t.cast[b];
-        if (Math.abs((A.back || 0) - (B.back || 0)) >= SAME_DEPTH) continue;
-        const xa = memberX(A, layout, p * dur, dur);
-        const xb = memberX(B, layout, p * dur, dur);
-        const ha = memberHalfWidth(A, layout);
-        const hb = memberHalfWidth(B, layout);
-        const shared = Math.min(xa + ha, xb + hb) - Math.max(xa - ha, xb - hb);
-        if (shared > OVERLAP * 2 * Math.min(ha, hb)) found.set(`${A.id}|${B.id}`, [A.id, B.id]);
-      }
-    }
-  }
-  return [...found.values()];
 }

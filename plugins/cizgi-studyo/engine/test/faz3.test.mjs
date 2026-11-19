@@ -101,12 +101,12 @@ test("propLayer: ground copy in the world, held copy in the holder's hand, grab 
   assert.ok(ground[0].includes(`id="prop-a-sise-yer"`) && ground[0].includes(`translate(${x.toFixed(1)} ${lib.world.ground_y})`));
   assert.equal(held.get("genc").length, 2);
   assert.ok(held.get("genc")[0].markup.includes("translate(530 583) rotate(90)"), "uses the hand's data-grip and holds the bottle across the palm");
-  assert.deepEqual(data, [[{ key: "a-sise", holder: "genc", grab: 0.9 }], [{ key: "b-sise", holder: "genc", grab: null }]]);
+  assert.deepEqual(data, [[{ key: "a-sise", holder: "genc", grab: 0.9, release: null }], [{ key: "b-sise", holder: "genc", grab: null, release: null }]]);
   const portrait = propLayer(timeline, ep, lib, { width: 1080, height: 1920 });
   assert.ok(portrait.ground[0].includes("scale(0.7500)"), "props shrink with characters in portrait");
   const loose = { ...ep, scenes: [{ ...ep.scenes[0], shots: [{ ...ep.scenes[0].shots[0], props: [{ id: "s", prop: "plastik-sise", mark: "orta" }] }] }] };
   const free = propLayer(buildTimeline(loose, () => ({ duration: 0 })), loose, lib, { width: 1920, height: 1080 });
-  assert.deepEqual(free.data[0], [{ key: "a-s", holder: null, grab: null }]);
+  assert.deepEqual(free.data[0], [{ key: "a-s", holder: null, grab: null, release: null }]);
 });
 
 test("compiled page puts the held prop first inside the hand group", () => {
@@ -209,6 +209,90 @@ test("propLayer: the camera looks at a held prop in the holder's hand, not where
   const loose = { ...ep, scenes: [{ ...ep.scenes[0], shots: [{ ...ep.scenes[0].shots[0], props: [{ id: "s", prop: "plastik-sise", mark: "orta" }] }] }] };
   const free = propLayer(buildTimeline(loose, () => ({ duration: 0 })), loose, lib, { width: 1920, height: 1080 });
   assert.equal(free.anchors[0].s[0], lib.world.marks.orta, "a prop nobody holds: still its floor spot");
+});
+
+test("propLayer: a prop put away (an action's release) leaves the hand at that moment", () => {
+  // Hurda Kralı 1: the bottle Kadir picked up vanished at the next cut; it never went into his bag
+  const actions = new Map(lib.actions);
+  actions.set("cantaya-koy", { duration: 1.6, release: { t: 0.9 }, keys: [{ t: 0, pose: {} }, { t: 1.6, pose: {} }] });
+  const withPut = { ...lib, actions };
+  const ep = episode({ cast: [{ id: "genc", action: "egil-al", mark: "sol", actions: [{ action: "cantaya-koy", at: 3.2 }] }] });
+  const { data } = propLayer(buildTimeline(ep, () => ({ duration: 0 })), ep, withPut, { width: 1920, height: 1080 });
+  assert.equal(data[0][0].grab, 0.9, "picked up by egil-al");
+  assert.ok(Math.abs(data[0][0].release - 4.1) < 1e-9, "put away 0.9 s into cantaya-koy, which starts at 3.2");
+  assert.equal(propLayer(buildTimeline(episode(), () => ({ duration: 0 })), episode(), lib, { width: 1920, height: 1080 }).data[0][0].release, null);
+});
+
+test("propLayer: in 9:16 a prop's dx shrinks like a person's, so a prop given its holder's dx lies at the holder", () => {
+  // the camera audit: in 9:16 a prop with the holder's dx lay 0.4·dx away (157 units in Hurda Kralı 2 s2_sh4)
+  const C = globalThis.CizgiCore;
+  const vp = { width: 1080, height: 1920 };
+  const layout = C.layoutFor(lib.world, vp);
+  const ep = episode({
+    cast: [{ id: "genc", action: "bak", mark: "orta", dx: 300 }],
+    props: [{ id: "sise", prop: "plastik-sise", mark: "orta", dx: 300 }],
+  });
+  const { ground } = propLayer(buildTimeline(ep, () => ({ duration: 0 })), ep, lib, vp);
+  const x = Number(/id="prop-a-sise-yer"[^>]*?translate\(([-\d.]+) /.exec(ground.join(""))[1]);
+  assert.ok(Math.abs(x - C.memberX(ep.scenes[0].shots[0].cast[0], layout, 0, 1)) < 1, `${x} vs the holder`);
+});
+
+test("propLayer: a prop taken out of a bag (gizli) has no copy on the ground", () => {
+  // Hurda Kralı 2: copies were parked off frame (sag +600) to be "picked up" from the bag
+  const ep = episode({ props: [{ id: "sise", prop: "plastik-sise", mark: "sol", holder: "genc", gizli: true }] });
+  const { ground, data } = propLayer(buildTimeline(ep, () => ({ duration: 0 })), ep, lib, { width: 1920, height: 1080 });
+  assert.ok(!ground.some((g) => g.includes('id="prop-a-sise-yer"')), "nothing on the ground");
+  assert.equal(data[0][0].grab, 0.9, "still in the hand from the grab on");
+  assert.equal(validateEpisode(ep, lib).errors.length, 0, validateEpisode(ep, lib).errors.join("; "));
+});
+
+test("propLayer: a prop set down (put_down) lies where it was put, not gone", () => {
+  // Hurda Kralı 2: the bottle put on the scale vanished (release only puts away)
+  const actions = new Map(lib.actions);
+  actions.set("birak", { duration: 2, put_down: { t: 1.2 }, keys: [{ t: 0, pose: {} }, { t: 2, pose: {} }] });
+  const withPut = { ...lib, actions };
+  const ep = episode({
+    cast: [{ id: "genc", action: "birak", mark: "sol" }],
+    props: [{ id: "sise", prop: "plastik-sise", mark: "sol", holder: "genc", sonra: { mark: "orta", dx: 40 } }],
+  });
+  const { data, ground } = propLayer(buildTimeline(ep, () => ({ duration: 0 })), ep, withPut, { width: 1920, height: 1080 });
+  assert.equal(data[0][0].put, 1.2);
+  const after = ground.find((g) => g.includes('id="prop-a-sise-sonra"'));
+  assert.ok(after, "a copy on the ground where it was put");
+  assert.match(after, new RegExp(`translate\\(${lib.world.marks.orta + 40}\\.0 `));
+  assert.equal(validateEpisode(ep, withPut).errors.length, 0, validateEpisode(ep, withPut).errors.join("; "));
+});
+
+test("propLayer: a prop handed over (to) is in one hand at a time: the giver's until release, then the taker's", () => {
+  // Hurda Kralı 2: the same note was in both hands at once (two props, para and para_k)
+  const actions = new Map(lib.actions);
+  actions.set("uzat", { duration: 2, release: { t: 1.25 }, keys: [{ t: 0, pose: {} }, { t: 2, pose: {} }] });
+  const two = { ...lib, actions };
+  const ep = episode({
+    cast: [{ id: "genc", action: "uzat", mark: "sol" }, { id: "kiz", action: "bak", mark: "sag" }],
+    props: [{ id: "para", prop: "plastik-sise", mark: "sol", holder: "genc", to: "kiz" }],
+  });
+  ep.characters.push({ id: "kiz", rig: "genc" });
+  const { data, held } = propLayer(buildTimeline(ep, () => ({ duration: 0 })), ep, two, { width: 1920, height: 1080 });
+  assert.equal(data[0][0].release, 1.25);
+  assert.equal(data[0][0].to, "kiz");
+  assert.ok((held.get("kiz") || []).some((h) => h.markup.includes('id="prop-a-para-al"')), "a copy in the taker's hand");
+  const bad = structuredClone(ep);
+  bad.scenes[0].shots[0].props[0].to = "yok";
+  assert.match(validateEpisode(bad, two).errors.join("\n"), /handed to "yok", who is not in this shot's cast/);
+});
+
+test("propLayer: a close insert of a pick-up looks where the hand closes on the prop, not at the bent back", () => {
+  // Hurda Kralı 1 s2_sh3: a detail shot of the bottle being picked up showed the man's back, the bottle off frame
+  for (const framing of ["detay", "close"]) {
+    const ep = episode({ camera: { framing, target: "sise" } });
+    const { anchors } = propLayer(buildTimeline(ep, () => ({ duration: 0 })), ep, lib, { width: 1920, height: 1080 });
+    assert.equal(anchors[0].sise[0], lib.world.marks.sol + 178, `${framing}: at the floor spot (sol + 178)`);
+  }
+  // picked up before the shot starts (from past the grab): it is in the hand, the camera looks there
+  const late = episode({ camera: { framing: "detay", target: "sise" }, cast: [{ id: "genc", action: "egil-al", mark: "sol", from: 2 }] });
+  const held = propLayer(buildTimeline(late, () => ({ duration: 0 })), late, lib, { width: 1920, height: 1080 });
+  assert.equal(held.anchors[0].sise[0], lib.world.marks.sol);
 });
 
 test("a change of scene dips to black and back; a hard cut and the film's first frame stay clear", () => {

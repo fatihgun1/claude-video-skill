@@ -52,6 +52,14 @@ test("a request taken and never answered stops blocking new ones after a while",
   assert.ok(!readRequests(file).some((r) => isStale(r)));
 });
 
+test("the person's own answer or window message is written even when the queue is full", () => {
+  // a late answer and an object-window message were dropped with only a line on stderr
+  for (let i = 0; i < MAX_OPEN; i++) addRequest(file, { ...base, metin: `istek ${i}` });
+  assert.throws(() => addRequest(file, base), /fazla/);
+  const kept = addRequest(file, { ...base, metin: "Panel sorusunun cevabı" }, { kisinin: true });
+  assert.ok(readRequests(file).some((r) => r.id === kept.id));
+});
+
 test("a request is stored waiting, with an id and time, and reads back", () => {
   const r = addRequest(file, base);
   assert.match(r.id, /^p[0-9a-z]+$/);

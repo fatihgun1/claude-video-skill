@@ -5,6 +5,7 @@
 
 /** A timed action is on screen at least this long before the shot may end. */
 const ACTION_SEEN_S = 0.6;
+const MOMENT_SEEN_S = 0.3; // a grab or a put-away stays on screen this long before the cut
 
 /** Defaults, identical to profiles/genel.json. */
 export const TIMING = Object.freeze({
@@ -54,13 +55,18 @@ const ms = (x) => Math.round(x * 1000) / 1000;
  * @param {typeof TIMING} [timing]
  * @returns {{duration: number, shots: object[]}}
  */
-export function buildTimeline(episode, audioInfo, timing = TIMING) {
+export function buildTimeline(episode, audioInfo, timing = TIMING, momentsOf = () => []) {
   const shots = [];
   let clock = 0;
-  /** How long the people of a shot are busy: their walks end, their timed actions have begun and shown. */
+  /**
+   * How long the people of a shot are busy: their walks end, their timed actions have begun and shown,
+   * and the moments that must be seen (momentsOf: a grab, a put-away) have happened on screen.
+   */
   const busyFor = (shot) => Math.max(0, ...(shot.cast || []).map((m) => Math.max(
-    m.walk ? (m.walk.at || 0) + m.walk.time : 0,
+    // a walk with no time lasts the whole shot: it does not make the shot longer
+    m.walk?.time !== undefined ? (m.walk.at || 0) + m.walk.time : 0,
     ...(m.actions || []).map((a) => a.at + ACTION_SEEN_S),
+    ...momentsOf(m).map((t) => t + MOMENT_SEEN_S),
   )));
   for (const scene of episode.scenes) {
     for (const shot of scene.shots) {
@@ -76,6 +82,9 @@ export function buildTimeline(episode, audioInfo, timing = TIMING) {
       });
       const hold = shot.hold == null ? timing.default_hold : shot.hold;
       const end = ms(Math.max(cursor + hold + timing.tail, start + timing.min_shot, start + busyFor(shot) + timing.tail));
+      // a time that is not a number shifted every later shot to null and the stills came out black
+      // (Hurda Kralı 3): stop here, naming the shot, instead of drawing nothing
+      if (!Number.isFinite(end)) throw new Error(`shot ${shot.shot_id}: its length could not be worked out (a time in its cast, actions or lines is not a number)`);
       shots.push({ scene_id: scene.scene_id, bg: scene.bg, ...shot, start, end, utterances });
       clock = end;
     }

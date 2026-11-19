@@ -1,9 +1,12 @@
 ---
 name: cizgi-panel
+user-invocable: false
 description: Open the Çizgi Stüdyo editor panel — a local web page laid out like a video editor (library on the left, stage in the middle, properties on the right, shot strip at the bottom) where the person picks characters, actions, places, props, sounds and camera shots from visual cards, sees the change in a live preview and saves it to bolum.json. Use when the person wants to make or adjust a video in the panel, wants to adjust shots themselves, says the panel / editör / kontrol paneli, or asks for a change that is easier to try by eye than to describe.
 ---
 
 # Editor panel
+
+> **Önce oku:** eklentinin ortak kuralları `${CLAUDE_PLUGIN_ROOT}/kurallar.md`. Hangi yoldan başlanırsa başlansın sahne yazmadan, değiştirmeden ya da onaylatmadan önce oku; bu skill ayrıntıları verir.
 
 In a Claude session, open it with the `panel_ac` tool of the plugin's `cizgi-studyo` MCP server (see the `cizgi-studyo` skill): that panel lives as long as the session. The CLI below starts one that lives until it is stopped.
 
@@ -16,7 +19,19 @@ $CLI panel <klasör> --port 4900
 
 ## Steps
 1. Open the panel at once, before anything else, even when the request already describes a video: `panel_ac` (or the CLI below when the MCP server is missing), then **open its URL for the person right away**: in the Claude desktop app with the built-in browser (`mcp__Claude_Browser__preview_start {url}`; load the tool with ToolSearch if it is deferred). Until that tab is open the person sees nothing: `panel_sor` refuses to ask and `panel_git` warns.
-2. If the request is a new video or story, follow the **cizgi-proje** steps from step 2: the story is talked through in the chat, the person picks pictures, voices and options from cards in the panel, and every change shows there. If it names an existing episode, open it (`panel_ac` with `bolum`) and ask what they want to change.
+2. If the request is a new video or story, **load the `cizgi-proje` skill with the Skill tool now** (its rules are not in this file; reading its name here is not reading it) and follow its steps from step 2. Load `cizgi-sinema` the same way before you plan any shot. Hurda Kralı 2 was built from this file alone: no story cards, people standing in one angle with only a zoom, no over-the-shoulder shot, and the bottles, the weighing and the money never on screen. In that flow the story is talked through in the chat, the person picks pictures, voices and options from cards in the panel, and every change shows there. If it names an existing episode, open it (`panel_ac` with `bolum`) and ask what they want to change.
+
+   **Where to ask what** (one rule; the other skills follow it):
+
+   | What | Where |
+   |---|---|
+   | The story, the characters, an open question | the chat, a few short lines; then keep listening (`panel_dinle`) |
+   | A choice between options (a drawing, a place, a voice, music) | `panel_sor` cards, one question at a time |
+   | A thing the person clicked (object window) | that window (`panel_sohbet`), never the chat |
+   | A gate (script, storyboard) | an explicit yes in the chat, or the person presses 🎬 Video çıkar; never `panel_sor`, never the Üretim page |
+   | A warning to keep, a missing drawing (with `eksik_cizim: sor`) | one line each in the chat; record their answer (`uyari-kabul`, `new_assets[].cevap`) |
+
+   **Chat messages stay short:** at most about 6 lines a message: what changed, what is open, the one question. Show tables and stills in the panel (`panel_git`), and after a change only what changed. Never paste the same script twice.
 3. While the panel is open, show every change there: after you edit `bolum.json` or `hikaye.json`, tell the person what to look at (a scene, a shot, **İncele**).
 4. **Studio mode.** Once an episode is open in the panel and nothing else is running, listen.
    - Before you listen, leave the stage in view:
@@ -24,6 +39,12 @@ $CLI panel <klasör> --port 4900
      - The panel then shows the person a strip over the stage: "click anything, or 🎬 Video çıkar".
    - Call `panel_dinle` (bekle 120: a chat message reaches you only when it returns) again and again for as long as the person works in the panel. An empty list means nobody wrote, so call it again.
    - Do not end your turn just to wait while the panel is open: the person works in the panel, not in chat.
+   - **A chat question never closes the panel.** When you do ask something in the chat (a story question, a script approval), write the question, then go on listening with `panel_dinle` instead of ending your turn. Their chat answer reaches you when `panel_dinle` returns. A request they send from the panel in the meantime is done at once; the chat question stays open.
+   - **Whenever your turn ends while the panel is open** (for any reason: an approval asked, the app's end-of-turn question, a long pause), first start the panel watcher **in the background** (Bash with `run_in_background`), as the very last tool call of the turn. Use the exact command `panel_ac` returned as `bekci` (it names this session's queue); the Stop hook reminds you with the same command if you forget:
+     ```bash
+     node ${CLAUDE_PLUGIN_ROOT}/engine/src/cli.mjs istek-bekle "<the project folder: CLAUDE_PROJECT_DIR>" 60
+     ```
+     It exits as soon as the person sends something from the panel (a request, an object-window message, **Claude düzeltsin**), and its finishing brings you back: take it with `panel_istekleri`, do it, answer, then listen again. An ended turn cannot be woken by the panel otherwise: in Hurda Kralı 1 and 2 the person's panel fixes sat "Claude şu an başka bir işte: mesajın sırada" while the session waited on a chat question. If it exits with `istek: 0` (an hour with nothing) and the panel is still open, start it again. Never start a second one while one runs.
    - **Object windows.** The person clicks something on the stage (a character, a prop, the place, a caption; a click while the film plays stops it there), and a window opens beside it with the thing, quick actions and a chat. Their message comes as `{tur: "sohbet", konu: {tur: "karakter"|"nesne", id, ad?, bolum?, shot?, oyuncu?}, metin}`:
      - `id` is the drawing id: the character's rig, or the prop's library id.
      - `oyuncu` is the character id in the episode.
@@ -48,13 +69,13 @@ $CLI panel <klasör> --port 4900
        - a ready voice (Kadın, Kadın 2, Erkek, Kalın erkek, Yaşlı erkek, Çocuk): ▶ to hear it, **Seç** to use it. It becomes `voice.hazir`.
        - **Perde** and **Hız** sliders: `voice.perde` (Hz) and `voice.hiz` (%) on top of the ready voice; **▶ Örnek dinle** speaks a sentence with them.
        - All are set on that person. Their front and back views (`<rig>-on`, `<rig>-arka`) speak with the same voice unless they have their own. Voices are Edge TTS (online, no recording of one's own voice); see `cizgi-ses`.
-     - `efekt <shot>-<n>`: sfx n of that shot (its `sfx`, `at`, `volume`). Change it in `bolum.json`, using only effects in the library.
+     - `efekt <shot>-<n>`: sfx n of that shot (its `sfx`; `at`, or what it is tied to: `replik`/`kelime`, `oyuncu` + `an` or `adim`; `ofset`, `volume`). Change it in `bolum.json`, using only effects in the library.
      - `cekim <shot>`: the shot itself, its camera and composition (framing, move, target, who stands where, which view).
        - The window lists the film rules' findings for the shot and its scene (with **Claude düzeltsin**, which comes to you as a message). It also has ready composition cards the person applies at once, without you: **Omuz üstü**, **İki kişi derinlikli**, **Arkadan takip**, **Yakın, önden**.
        - The karakter window switches a person's view in that shot (**Yandan / Önden / Arkadan**); a view nobody drew is greyed out. When asked, draw the missing view as a draft (`<rig>-on` / `<rig>-arka` with `same_as`).
        - Plan it with the `cizgi-sinema` skill: over-the-shoulder uses the back 3/4 view in front of a front 3/4 view; a two-shot with depth uses `back`.
        - Validate, then look at its still (`cli.mjs storyboard <bolum.json> --sahne <scene id> --format <format>`).
-   - Ask nothing in chat. If you truly need a choice, ask it in the window with `oneriler` (the person clicks one) or with `panel_sor`.
+   - In an object window, ask nothing in the chat. If you truly need a choice, ask it in the window with `oneriler` (the person clicks one) or with `panel_sor`.
    - A request written in the panel's **Claude'a yaz** box comes through `panel_dinle` as well: `{tur: "istek", id, bolum, hedef, metin}`.
      - It also includes any request that waited in the queue.
      - Do it, answer with `panel_yanitla {id, durum, yanit}`, then go back to `panel_dinle`.

@@ -10,6 +10,7 @@ import { createHash } from "node:crypto";
 import { existsSync, writeFileSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { readJson } from "./util.mjs";
+import { episodeBgs } from "./arka-plan.mjs";
 
 export const GATES = Object.freeze(["senaryo", "storyboard"]);
 
@@ -18,12 +19,27 @@ function sha(value) {
 }
 
 /**
- * Fingerprint of the words of an episode.
+ * A fingerprint may carry earlier versions after "|": the first is recorded at an approval, any of
+ * them matches. Approvals given before a fingerprint grew (plan v3) stay valid until the content
+ * changes, and new ones are recorded with the wider one.
+ */
+const ALT = "|";
+const alternatives = (fingerprint) => String(fingerprint).split(ALT);
+
+/**
+ * Fingerprint of the words of an episode: who says what, in order. Shots without lines, shot ids
+ * and how lines are split over shots are not words (Hurda Kralı 1: the script was approved again
+ * after every shot edit).
  * @param {object} episode
  * @returns {string}
  */
 export function scriptFingerprint(episode) {
-  return sha({
+  const current = sha({
+    language: episode.language,
+    profile: episode.profile || "genel",
+    lines: episode.scenes.flatMap((scene) => scene.shots.flatMap((s) => (s.utterances || []).map((u) => [u.speaker, u.text]))),
+  });
+  const before = sha({
     language: episode.language,
     profile: episode.profile || "genel",
     characters: episode.characters.map((c) => c.id),
@@ -31,6 +47,7 @@ export function scriptFingerprint(episode) {
       scene.shots.map((s) => ({ id: s.shot_id, lines: (s.utterances || []).map((u) => [u.speaker, u.text]) })),
     ),
   });
+  return `${current}${ALT}${before}`;
 }
 
 /**
@@ -45,10 +62,10 @@ export function libraryFingerprint(episode, lib) {
   const shots = episode.scenes.flatMap((s) => s.shots);
   const actions = [...new Set(shots.flatMap((s) => s.cast.flatMap((m) => [m.action, ...(m.actions || []).map((a) => a.action)])))].sort();
   const rigs = [...new Set(episode.characters.map((c) => c.rig))].sort();
-  const bgs = [...new Set(episode.scenes.map((s) => s.bg))].sort();
+  const bgs = episodeBgs(episode).sort();
   const props = [...new Set(shots.flatMap((s) => (s.props || []).map((p) => p.prop)))].sort();
   const sounds = [...new Set(shots.flatMap((s) => (s.sfx || []).map((x) => x.sfx)))].sort();
-  return sha({
+  const before = sha({
     world: lib.world,
     cameras: lib.cameras,
     profile: lib.profiles.get(episode.profile || "genel") ?? null,
@@ -61,6 +78,18 @@ export function libraryFingerprint(episode, lib) {
     // music files are large: hash the bytes directly, without a base64 copy
     ...(episode.music ? { music: lib.music?.get(episode.music.track) ? createHash("sha256").update(readFileSync(lib.music.get(episode.music.track).path)).digest("hex") : null } : {}),
   });
+  // and what that left out: the character data (face_y frames the shots, limits, views), the decor
+  // of the scenes, and the ready voices the speakers use (a voice without hazir speaks with the first)
+  const decor = [...new Set(episode.scenes.flatMap((s) => (s.dekor || []).map((d) => d.prop)))].sort();
+  const voiceIds = [...new Set([...episode.characters.map((c) => c.voice?.hazir), episode.narrator_voice?.hazir].filter(Boolean))].sort();
+  const current = sha({
+    before,
+    characters: rigs.map((r) => lib.characters.get(r)?.meta ?? null),
+    decor: decor.map((p) => lib.props?.get(p)?.svg ?? null),
+    voices: voiceIds.map((v) => lib.voices?.get(v) ?? null),
+    firstVoice: lib.voices?.values().next().value ?? null,
+  });
+  return `${current}${ALT}${before}`;
 }
 
 /**
@@ -81,7 +110,9 @@ export function storyboardFingerprint(episode, audioManifest, libFingerprint = "
     shots: scene.shots.map(({ status, notes, ...shot }) => shot),
   }));
   const audio = audioManifest ? Object.fromEntries(Object.entries(audioManifest.lines || {}).map(([k, v]) => [k, v.fingerprint])) : null;
-  return sha({ episode: { ...rest, scenes }, audio, library: libFingerprint });
+  // the person's accepted warnings are bookkeeping too: accepting one does not change the film
+  const { kabul_uyarilar, ...film } = { ...rest, scenes };
+  return alternatives(libFingerprint).map((library) => sha({ episode: film, audio, library })).join(ALT);
 }
 
 /**
@@ -111,7 +142,7 @@ export function readApprovals(episodePath) {
  */
 export function approve(episodePath, gate, fingerprint, now = new Date()) {
   if (!GATES.includes(gate)) throw new Error(`unknown gate "${gate}" (${GATES.join(", ")})`);
-  const next = { ...readApprovals(episodePath), [gate]: { fingerprint, at: now.toISOString() } };
+  const next = { ...readApprovals(episodePath), [gate]: { fingerprint: alternatives(fingerprint)[0], at: now.toISOString() } };
   writeFileSync(approvalsPath(episodePath), `${JSON.stringify(next, null, 2)}\n`);
   return next;
 }
@@ -125,7 +156,7 @@ export function approve(episodePath, gate, fingerprint, now = new Date()) {
 export function gateStatus(approvals, gate, fingerprint) {
   const a = approvals[gate];
   if (!a) return "yok";
-  return a.fingerprint === fingerprint ? "onayli" : "eskimis";
+  return alternatives(fingerprint).includes(a.fingerprint) ? "onayli" : "eskimis";
 }
 
 /**

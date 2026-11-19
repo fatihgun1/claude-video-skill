@@ -108,7 +108,7 @@ test("caption falls back to text words and script data cannot close the tag", ()
   compileEpisode(join(dir, "bolum.json"), lib, out, { format: "9:16" });
   const html = readFileSync(join(out, "index.html"), "utf8");
   assert.ok(html.includes('data-width="1080" data-height="1920"'));
-  assert.ok(html.includes('<span class="kelime">&lt;/script&gt;</span>'));
+  assert.ok(html.includes('<span class="kelime" data-parca="0">&lt;/script&gt;</span>'));
   assert.equal(html.split("</script>").length - 1, 4, "only the four real script tags close");
 });
 
@@ -118,4 +118,15 @@ test("compileEpisode refuses an invalid episode", () => {
   ep.scenes[0].shots[0].cast[0].action = "uc";
   writeFileSync(join(dir, "bolum.json"), JSON.stringify(ep));
   assert.throws(() => compileEpisode(join(dir, "bolum.json"), lib, join(dir, "p")), /episode is invalid[\s\S]*"uc"/);
+});
+
+test("a jump in time reaches the player, so a pose does not blend over it", () => {
+  // the player eased a seated pose into the next shot even after a cut to another moment
+  const dir = makeEpisodeDir();
+  const ep = JSON.parse(readFileSync(join(dir, "bolum.json"), "utf8"));
+  ep.scenes[0].shots[0].zaman_atlama = true;
+  writeFileSync(join(dir, "bolum.json"), JSON.stringify(ep));
+  const out = join(dir, "proje");
+  compileEpisode(join(dir, "bolum.json"), lib, out);
+  assert.ok(readFileSync(join(out, "index.html"), "utf8").includes('"zaman_atlama":true'));
 });

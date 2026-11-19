@@ -68,6 +68,27 @@ test("questions are checked: text, 1-8 options, pictures only from the panel's o
   assert.doesNotThrow(() => ch.sor({ soru: "x", secenekler: [{ etiket: "a", gorsel: "/kutuphane-taslak/konsept/suluman.svg" }, { etiket: "b", gorsel: "/kutuphane/karakter/genc.svg" }] }));
 });
 
+test("a second question while one is open is refused; replacing it on purpose tells the first waiter", async () => {
+  // a question asked again (or two at once) dropped the first one; its answer could never come
+  const ch = createChannel();
+  const { id } = ch.sor(Q);
+  const waiting = ch.bekle(id, 5000);
+  assert.throws(() => ch.sor({ ...Q, soru: "Hangi ses?" }), /açık bir soru var/);
+  assert.equal(ch.durum().soru.id, id, "the first question is still shown");
+  const second = ch.sor({ ...Q, soru: "Hangi ses?" }, { yerine: true });
+  assert.notEqual(second.id, id);
+  assert.deepEqual(await waiting, { yerine: true }, "the first waiter learns it was replaced, not that time ran out");
+});
+
+test("drafts taken in while nobody listens go to the idle handler (the queue), not only to memory", () => {
+  // the news reached an idle session only at its next panel_dinle, and the oldest were dropped
+  const sent = [];
+  const ch = createChannel({ onIdleDraft: (item) => sent.push(item) });
+  assert.equal(ch.taslak({ islem: "al", cizimler: [{ tur: "karakter", id: "necmi" }] }), false);
+  assert.equal(sent.length, 1);
+  assert.deepEqual(sent[0].cizimler, [{ tur: "karakter", id: "necmi" }]);
+});
+
 test("waiting runs out without an answer, and a later answer goes to the late handler", async () => {
   const late = [];
   const ch = createChannel({ onLateAnswer: (a) => late.push(a) });
@@ -78,12 +99,12 @@ test("waiting runs out without an answer, and a later answer goes to the late ha
   assert.deepEqual(late, [{ id, soru: "Hangi mekân?", secim: ["Park"], metin: "" }]);
 });
 
-test("a new question replaces the open one; its waiter learns it was dropped", async () => {
+test("a question replaced on purpose: its waiter learns it was replaced, its answer is refused", async () => {
   const ch = createChannel();
   const first = ch.sor(Q);
   const waiting = ch.bekle(first.id, 1000);
-  const second = ch.sor({ ...Q, soru: "Hangi saat?" });
-  assert.equal(await waiting, null);
+  const second = ch.sor({ ...Q, soru: "Hangi saat?" }, { yerine: true });
+  assert.deepEqual(await waiting, { yerine: true });
   assert.equal(ch.durum().soru.id, second.id);
   assert.throws(() => ch.cevapla(first.id, { secim: ["Sokak"] }));
 });
@@ -128,7 +149,7 @@ test("a question can carry a spoken line to play; only an episode's ses/*.wav or
   ch.sor({ ...Q, ses: "bolumler/kpss/ses/s1_sh4-0.wav" });
   assert.equal(ch.durum().soru.ses, "bolumler/kpss/ses/s1_sh4-0.wav");
   // a voice sample (cizgi ses-ornek) too: the person picks a voice by ear
-  ch.sor({ ...Q, ses: "bolumler/kpss/cikti/ses-ornegi-kiz.wav" });
+  ch.sor({ ...Q, ses: "bolumler/kpss/cikti/ses-ornegi-kiz.wav" }, { yerine: true });
   assert.equal(ch.durum().soru.ses, "bolumler/kpss/cikti/ses-ornegi-kiz.wav");
   for (const bad of ["../x/ses/a.wav", "bolumler/kpss/ses/a.mp3", "bolumler/kpss/cikti/a.wav", "bolumler/kpss/cikti/ses-ornegi-../a.wav", "/etc/ses/a.wav", "ses/a.wav"]) {
     assert.throws(() => createChannel().sor({ ...Q, ses: bad }), /ses bir replik sesi/, bad);

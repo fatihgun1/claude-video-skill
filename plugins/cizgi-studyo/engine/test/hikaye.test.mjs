@@ -27,6 +27,16 @@ test("an empty story is valid and has the fields the panel edits", () => {
   assert.deepEqual(Object.keys(s).sort(), ["fikir", "karakterler", "kartlar", "yas"]);
 });
 
+test("the person's wishes (kisi) are kept word for word, each a do, a don't or an ask-first", () => {
+  const s = { ...good(), kisi: [{ metin: "bir oyun gibi davranmayalım", tur: "yapma", yorum: "oyun dili yok: görev, envanter, sayaç yok" }, { metin: "kütüphanede yoksa önce bana sor", tur: "sor" }], seri: "hurda-krali" };
+  assert.deepEqual(validateStory(s, lib).errors, []);
+  const bad = { ...good(), kisi: [{ metin: "x", tur: "belki" }, { tur: "yap" }, "düz yazı"] };
+  const errs = validateStory(bad, lib).errors.join("\n");
+  assert.match(errs, /tur/);
+  assert.match(errs, /metin/);
+  assert.match(errs, /nesne/);
+});
+
 test("a filled story is valid; a character without a rig is a new one still to draw", () => {
   assert.deepEqual(validateStory(good(), lib).errors, []);
 });

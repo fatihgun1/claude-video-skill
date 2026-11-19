@@ -117,6 +117,7 @@
   const lightMatrixEl = byId("isik-m");
   const fade = byId("gecis"); // the dip to black between scenes
   let lightKey = null;
+  const groundProps = byId("yerdekiler"); // every prop lying on the ground: moved by a dolly with the background
   const backgrounds = {};
   for (const bg of D.backgrounds) backgrounds[bg] = byId("bg-" + bg);
   // each scene's decor (scene.dekor): shown with its scene
@@ -162,18 +163,25 @@
     layerEls[bg] = ((D.layers && D.layers[bg]) || []).map((l) => ({ id: l.id, depth: l.derinlik, el: byId("bg-" + bg + "--k-" + l.id) }));
   }
   // Props: a ground copy in the world and a copy inside the holder's hand; one is shown at a time.
+  // A prop handed over has a copy in the taker's hand too (al), one set down a copy where it was put (sonra).
   const props = D.shots.map((shot) =>
     (shot.props || []).map((pr) => ({
       holder: pr.holder,
       grab: pr.grab,
+      release: pr.release,
+      put: pr.put,
+      to: pr.to,
       ground: byId("prop-" + pr.key + "-yer"),
       held: byId("prop-" + pr.key + "-el"),
+      given: pr.to ? byId("prop-" + pr.key + "-al") : null,
+      after: pr.put != null ? byId("prop-" + pr.key + "-sonra") : null,
     })),
   );
   const captions = D.shots.map((shot) =>
     shot.utterances.map((u, i) => {
       const box = byId("altyazi-" + shot.shot_id + "-" + i);
-      return { box, words: box ? Array.prototype.slice.call(box.querySelectorAll(".kelime")) : [] };
+      const words = box ? Array.prototype.slice.call(box.querySelectorAll(".kelime")) : [];
+      return { box, words, pieces: words.map((el) => Number(el.getAttribute("data-parca") || 0)) };
     }),
   );
 
@@ -207,7 +215,10 @@
       // possibly still blending in (so a short action between two others does not pop)
       before = poseFor(shotIdx, member, seg.at - 1e-6);
     } else {
-      const prev = shotIdx > 0 ? D.shots[shotIdx - 1] : null;
+      // only within one moment: across a scene change or a jump in time someone sitting before
+      // would visibly morph up over BLEND seconds
+      const cur = D.shots[shotIdx];
+      const prev = shotIdx > 0 && D.shots[shotIdx - 1].scene_id === cur.scene_id && !cur.zaman_atlama ? D.shots[shotIdx - 1] : null;
       const prevMember = prev && castMember(prev, member.id);
       if (prevMember) before = rawPose(prevMember, prev.end - prev.start);
     }
@@ -358,25 +369,33 @@
     // Shallow focus: close framings soften the background so the eye goes to the subject.
     const blur = (D.cameras.framings[shot.camera.framing] || {}).blur || 0;
     if (dofBlur) dofBlur.setAttribute("stdDeviation", String(blur));
+    // Dolly: the camera moves forward along a perspective background, so the background (and what
+    // lies in it, the scene's decor and the props on the ground) grows around its vanishing point while
+    // the characters keep their size. Decor and ground props stood still and slid before (Faz 4.5).
+    const dollyMove = D.cameras.moves[shot.camera.move || "static"] || {};
+    const dollyVp = D.vanishing && D.vanishing[shot.bg];
+    let dolly = null;
+    if (dollyMove.dolly_to && dollyVp) {
+      const k = C.ease(dollyMove.ease || "linear", (t - shot.start) / (shot.end - shot.start));
+      const s = 1 + (dollyMove.dolly_to - 1) * k;
+      dolly = "translate(" + dollyVp[0] + " " + dollyVp[1] + ") scale(" + s.toFixed(4) + ") translate(" + -dollyVp[0] + " " + -dollyVp[1] + ")";
+    }
+    const setDolly = (el) => { if (!el) return; if (dolly) el.setAttribute("transform", dolly); else el.removeAttribute("transform"); };
+    setDolly(groundProps);
     for (const bg in backgrounds) {
       setShown(backgrounds[bg], bg === shot.bg);
       if (!backgrounds[bg]) continue;
       if (blur > 0 && bg === shot.bg) backgrounds[bg].setAttribute("filter", "url(#dof)");
       else backgrounds[bg].removeAttribute("filter");
-      // Dolly: the camera moves forward along a perspective background, so the background
-      // (and what lies in it) grows around its vanishing point while the characters keep their size.
-      const move = D.cameras.moves[shot.camera.move || "static"] || {};
-      const vp = D.vanishing && D.vanishing[bg];
-      if (bg === shot.bg && move.dolly_to && vp) {
-        const k = C.ease(move.ease || "linear", (t - shot.start) / (shot.end - shot.start));
-        const s = 1 + (move.dolly_to - 1) * k;
-        backgrounds[bg].setAttribute("transform", "translate(" + vp[0] + " " + vp[1] + ") scale(" + s.toFixed(4) + ") translate(" + -vp[0] + " " + -vp[1] + ")");
-      } else backgrounds[bg].removeAttribute("transform");
+      if (bg === shot.bg && dolly) backgrounds[bg].setAttribute("transform", dolly);
+      else backgrounds[bg].removeAttribute("transform");
     }
 
     for (const sid in decorEls) {
-      setShown(decorEls[sid], sid === shot.scene_id);
-      if (sid === shot.scene_id) drawFlow(sid, t);
+      const here = sid === shot.scene_id && !shot.aci; // the decor is placed on the scene's own picture
+      setShown(decorEls[sid], here);
+      if (here) drawFlow(sid, t);
+      if (decorEls[sid]) { if (here && dolly) decorEls[sid].setAttribute("transform", dolly); else decorEls[sid].removeAttribute("transform"); }
       for (const el of farDecor[sid]) {
         if (blur > 0 && sid === shot.scene_id) el.setAttribute("filter", "url(#dof)");
         else el.removeAttribute("filter");
@@ -426,8 +445,13 @@
       list.forEach((pr) => {
         const active = si === idx;
         const attached = !!pr.holder && (pr.grab == null || local >= pr.grab);
-        setShown(pr.ground, active && !attached);
-        setShown(pr.held, active && attached);
+        // let go: put away (gone), handed over (in the taker's hand) or set down (where it was put)
+        const away = pr.release != null && local >= pr.release;
+        const down = pr.put != null && local >= pr.put;
+        setShown(pr.ground, active && !attached && !away && !down);
+        setShown(pr.held, active && attached && !away && !down);
+        if (pr.given) setShown(pr.given, active && away);
+        if (pr.after) setShown(pr.after, active && down);
       }),
     );
 
@@ -438,6 +462,9 @@
         if (!on) return;
         const w = C.wordIndexAt(shot.utterances[li].words, t - shot.utterances[li].start);
         cap.words.forEach((el, wi) => el.classList.toggle("soylenen", wi === w));
+        // a long line shows one two-line piece at a time: the piece of the word being said
+        const piece = cap.pieces[Math.max(0, w)] || 0;
+        cap.words.forEach((el, wi) => { el.style.display = cap.pieces[wi] === piece ? "" : "none"; });
       }),
     );
   }

@@ -8,22 +8,35 @@
 import { readFileSync, statSync } from "node:fs";
 import { decodeWav } from "./dudak.mjs";
 
+const db = (x) => 20 * Math.log10(Math.max(x, 1e-9));
+const fromDb = (d) => 10 ** (d / 20);
+
 // -20 was still "çok kısık" next to the music (Test 16): web video speech sits near -16 dB
 export const TARGET_DB = -16; // speech level (RMS of the voiced parts), full scale 0 dB
 export const PEAK_DB = -1; // the loudest sample may not pass this (the soft limiter holds it)
+// Effects and music at fixed levels too: the library's effects lay 23 dB apart and "onay" rang out
+// over the voices (Faz 5.2). Effects sit a little under speech; the music track is brought here
+// before its own volume, fades and dips.
+export const SFX_TARGET_DB = -20;
+export const MUSIC_TARGET_DB = -18;
+/**
+ * A feeling's loudness, as dB over the common level. Edge's volume for a feeling was undone by the
+ * levelling (every line ends at TARGET_DB), so the feeling is applied after it (Faz 5.6).
+ */
+export const MOOD_DB = Object.freeze({ sakin: -2, neseli: 1, heyecanli: 2, uzgun: -3, kizgin: 3, korkmus: -1 });
+/** The linear gain of a line's feeling (1 without one). */
+export const moodGain = (duygu) => fromDb(MOOD_DB[duygu] || 0);
 const LIMIT_DB = 6; // how far over PEAK_DB the gain may push a peak before the limiter takes it
 const KNEE_DB = -6; // the limiter leaves everything under this alone
 const MAX_GAIN_DB = 24; // a nearly silent take is not blown up into noise
 const VOICED = 0.1; // a 20 ms frame counts as speech above this share of the line's loudest frame
 
-const db = (x) => 20 * Math.log10(Math.max(x, 1e-9));
-const fromDb = (d) => 10 ** (d / 20);
 
 /**
  * The gain (linear) that brings a line's speech to TARGET_DB without its peak passing PEAK_DB.
  * @param {{rate:number, samples:Float32Array}} audio
  */
-export function levelGain({ rate, samples }) {
+export function levelGain({ rate, samples }, target = TARGET_DB) {
   const n = Math.max(1, Math.round(0.02 * rate));
   const frames = [];
   let peak = 0;
@@ -39,7 +52,7 @@ export function levelGain({ rate, samples }) {
   const loudest = Math.max(...frames);
   const voiced = frames.filter((f) => f >= VOICED * loudest);
   const rms = Math.sqrt(voiced.reduce((t, f) => t + f * f, 0) / voiced.length);
-  const want = TARGET_DB - db(rms);
+  const want = target - db(rms);
   const room = PEAK_DB + LIMIT_DB - db(peak); // the rest is the limiter's
   return fromDb(Math.min(want, room, MAX_GAIN_DB));
 }
@@ -86,18 +99,19 @@ const cache = new Map(); // path → {key, buf} (the last volume asked): the pre
  * A line's audio at the common level, as WAV bytes. A file this cannot read comes back unchanged.
  * @param {string} path
  * @param {number} [boost] extra gain over the common level (a volume over 1: HTML audio stops at 1)
+ * @param {number} [target] the level, dB (TARGET_DB for speech, SFX_TARGET_DB for an effect)
  * @returns {Buffer}
  */
-export function levelledWav(path, boost = 1) {
+export function levelledWav(path, boost = 1, target = TARGET_DB) {
   const st = statSync(path);
-  const key = `${st.size}:${st.mtimeMs}:${boost}`;
+  const key = `${st.size}:${st.mtimeMs}:${boost}:${target}`;
   const hit = cache.get(path);
   if (hit?.key === key) return hit.buf;
   const raw = readFileSync(path);
   let buf = raw;
   try {
     const audio = decodeWav(raw);
-    buf = encode(level(audio.samples, levelGain(audio) * Math.max(1, boost)), audio.rate);
+    buf = encode(level(audio.samples, levelGain(audio, target) * Math.max(1, boost)), audio.rate);
   } catch {
     buf = raw; // not a WAV this reads: played as it is
   }

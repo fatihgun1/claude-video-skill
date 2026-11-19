@@ -8,7 +8,7 @@ import { readdirSync, existsSync, statSync, mkdirSync, writeFileSync, realpathSy
 import { join, relative, sep, basename, dirname, isAbsolute } from "node:path";
 import { readText } from "./util.mjs";
 import { validateEpisode, profileOf } from "./validate.mjs";
-import { safeJoin, audioPathFor, readAudioInfo } from "./compile.mjs";
+import { safeJoin, audioPathFor, readAudioInfo, momentsOf } from "./compile.mjs";
 import { buildTimeline } from "./timing.mjs";
 
 export const EPISODE_FILE = "bolum.json";
@@ -97,7 +97,7 @@ function durationOf(episode, episodePath, lib) {
   const dir = join(episodePath, "..");
   try {
     const info = (u, shot, i) => readAudioInfo(safeJoin(dir, audioPathFor(u, shot, i)));
-    return buildTimeline(episode, info, profileOf(episode, lib).timing).duration;
+    return buildTimeline(episode, info, profileOf(episode, lib).timing, momentsOf(lib)).duration;
   } catch {
     return null;
   }

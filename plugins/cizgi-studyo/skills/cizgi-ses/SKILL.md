@@ -1,9 +1,12 @@
 ---
 name: cizgi-ses
+user-invocable: false
 description: Generate the voice track of an approved Çizgi Stüdyo episode with Edge TTS (Microsoft's free online neural voices, needs internet) — ready voices with pitch and rate, feelings, tempo from the profile, exact word timings and lip-sync shapes, one voice job at a time. Use after the senaryo gate, or when lines changed and the audio is out of date.
 ---
 
 # Audio step (ses)
+
+> **Önce oku:** eklentinin ortak kuralları `${CLAUDE_PLUGIN_ROOT}/kurallar.md`. Hangi yoldan başlanırsa başlansın sahne yazmadan, değiştirmeden ya da onaylatmadan önce oku; bu skill ayrıntıları verir.
 
 ```bash
 CLI="node ${CLAUDE_PLUGIN_ROOT}/engine/src/cli.mjs"
@@ -30,7 +33,7 @@ Lip sync: Rhubarb does not know Turkish and kept the mouth moving through pauses
 To let the person hear a line, ask in the panel with `panel_sor` and put the line's audio in the question: `ses: "<episode folder>/ses/<line-key>.wav"` (relative to the panel folder, e.g. `bolumler/kus/ses/s1_sh4-0.wav`). The question then plays it. Do not send the panel to the shot for this: the page moves away and there is nothing to play there.
 
 ## Voices
-- **Every character needs a voice of its own.** Without one, every character speaks with the library's first voice (Kadın). Before the audio step, make sure each speaking person has a `voice`; ask the person in the panel if none is set.
+- **Every character needs a voice of its own.** Without one, every character speaks with the library's first voice (Kadın). Before the audio step, make sure each speaking person has a `voice`; ask the person in the panel if none is set. **The narrator counts as a speaker:** it must not sound like any character (`dogrula` warns `voices: … speak with the same voice`). When the person picks the same ready voice for both, offer a different one for the narrator (with only two Turkish Edge voices, a woman's voice for the narrator separates them best) before speaking, not after.
 - `voice.hazir`: a **ready voice** from `library/sesler/sesler.json`. Each is an Edge voice with pitch and rate presets:
 
   | id | name | Edge voice | preset |
@@ -78,4 +81,4 @@ Paths come from environment variables or from `~/.cizgi-studyo/config.json`:
 If a tool is missing, the command names it. Help the person set it up.
 
 ## Loudness
-The engine brings every line to the same level where it goes into the film and where the panel plays one line (`ses-duzey.mjs`: speech about -20 dB, peaks under -1 dB). If the person still finds the voices quiet or loud next to music and effects, the levels are in the panel's **🔊 Ses düzeyleri** (`mix.lines`, `mix.sfx`, `music.level`).
+The engine brings every line to the same level where it goes into the film and where the panel plays one line (`ses-duzey.mjs`: speech about -16 dB, peaks under -1 dB). Sound effects are brought to -20 dB and the music track to -18 dB before its own volume, so no effect rings out over the voices. A feeling's loudness (`duygu`) is added after the levelling, a few dB (`MOOD_DB`), so it is still heard. `dogrula` warns when a speaker's final speed (voice + character `hiz` + feeling + profile tempo) is under -30%. If the person still finds the voices quiet or loud next to music and effects, the levels are in the panel's **🔊 Ses düzeyleri** (`mix.lines`, `mix.sfx`, `music.level`).

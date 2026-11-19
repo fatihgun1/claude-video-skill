@@ -54,7 +54,8 @@ function tryTake(lockPath, bolum) {
  * Run fn while holding the voice lock.
  * @param {string} bolum the episode, said to whoever waits
  * @param {() => T} fn
- * @param {{lockPath?: string, waitMs?: number, isAlive?: (pid:number) => boolean, log?: (msg:string) => void}} [opts]
+ * @param {{lockPath?: string, waitMs?: number, isAlive?: (pid:number) => boolean, log?: (msg:string) => void, what?: string}} [opts]
+ *   what: the kind of job, said to whoever waits (default: seslendirme)
  * @returns {T}
  * @template T
  */
@@ -76,7 +77,7 @@ export function withVoiceLock(bolum, fn, opts = {}) {
       }
       continue;
     }
-    const what = `başka bir seslendirme sürüyor (bölüm: ${held.bolum || "?"}, süreç ${held.pid})`;
+    const what = `başka bir ${opts.what || "seslendirme"} sürüyor (bölüm: ${held.bolum || "?"}, süreç ${held.pid})`;
     if (Date.now() >= until) throw new Error(`${what}; bitmesini bekleyip yeniden dene`);
     if (!told) log(`${what}; bitmesi bekleniyor`);
     told = true;

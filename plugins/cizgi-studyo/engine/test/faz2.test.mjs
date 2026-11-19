@@ -11,6 +11,7 @@ import { linesOf, lineFingerprint, planAudio, runAudio, readManifest } from "../
 import { storyboard, render, stillTimes } from "../src/uretim.mjs";
 import { loadTools, requireTools, run } from "../src/tools.mjs";
 import { parseArgs, status } from "../src/cli.mjs";
+import { approveEpisode } from "../src/onayla.mjs";
 
 const lib = loadLibrary(fileURLToPath(new URL("../../library", import.meta.url)));
 const TOOLS = { pythonTts: "py-tts", rhubarb: "rhubarb", ffmpeg: "ffmpeg", configPath: "x" };
@@ -32,6 +33,7 @@ function makeEpisode(overrides = {}) {
     language: "tr",
     profile: "pedagoji-0-3",
     characters: [{ id: "pamuk", rig: "pamuk", voice: { hazir: "erkek", perde: -5 } }],
+    narrator_voice: { hazir: "kadin" },
     scenes: [
       {
         scene_id: "s1",
@@ -72,6 +74,10 @@ function fakeRunner() {
         writeFileSync(join(out, "contact-sheet.jpg"), "jpg");
       }
       if (sub === "render") writeFileSync(args[args.indexOf("-o") + 1], "mp4");
+    } else if (cmd === "ffprobe") {
+      // a good render: the timeline's length, a picture and a sound
+      const duration = JSON.parse(readFileSync(join(opts.cwd, "timing.json"), "utf8")).duration;
+      return JSON.stringify({ format: { duration: String(duration) }, streams: [{ codec_type: "video" }, { codec_type: "audio" }] });
     }
     return "";
   };
@@ -205,7 +211,7 @@ test("runAudio speaks every line in one Edge call, tempo as rate, mouth shapes p
     id: "a-0", text: "Merhaba!", voice: "tr-TR-AhmetNeural", rate: "-15%", pitch: "-5Hz", volume: "+0%", out: join(dir, "ses", "a-0.wav"),
   });
   const m = readManifest(path);
-  assert.deepEqual(m.lines["b-0"], { fingerprint: m.lines["b-0"].fingerprint, text: "Alkışla!", ok: true, attempts: 1 });
+  assert.deepEqual(m.lines["b-0"], { fingerprint: m.lines["b-0"].fingerprint, ayar: true, text: "Alkışla!", ok: true, attempts: 1 }); // ayar: the fingerprint counts the voice preset
   assert.ok(existsSync(join(dir, "ses", "b-1.rhubarb.json")) && existsSync(join(dir, "ses", "a-0.words.json")));
   assert.ok(!existsSync(LOCK), "the lock is let go");
 
@@ -261,6 +267,40 @@ test("a 3D render: the same episode drawn in 3D, its own file name, the same gat
   assert.throws(() => render(path, lib, { ...fakeRunner(), d3: true }), /gate "storyboard"/);
 });
 
+test("storyboard, its approval and the final render refuse lines not spoken for the current text", () => {
+  // kpss-ajani: script approved, 19 lines still from the old engine; storyboard + render would ship them
+  const { path, ep } = makeEpisode();
+  approve(path, "senaryo", scriptFingerprint(ep));
+  assert.throws(() => storyboard(path, lib, fakeRunner()), /seslendirilmemiş.*a-0/s);
+  assert.throws(() => approveEpisode(path, "storyboard", lib), /seslendirilmemiş/);
+  runAudio(path, lib, TOOLS, fakeRunner());
+  const sb = storyboard(path, lib, fakeRunner());
+  approve(path, "storyboard", sb.fingerprint);
+  // a feeling changed after the stills: the words (and the script approval) stay, the take is stale
+  const moody = JSON.parse(readFileSync(path, "utf8"));
+  moody.scenes[0].shots[0].utterances[0].duygu = "kizgin";
+  save(path, moody);
+  assert.throws(() => render(path, lib, fakeRunner()), /seslendirilmemiş|content changed/);
+});
+
+test("a final render is checked: a new file, the timeline length, a sound track", () => {
+  // Hurda Kralı 1: the panel showed a 16:9 video for a 9:16 episode, 107 s against a 109 s timeline
+  const { path, ep } = makeEpisode();
+  approve(path, "senaryo", scriptFingerprint(ep));
+  runAudio(path, lib, TOOLS, fakeRunner());
+  approve(path, "storyboard", storyboard(path, lib, fakeRunner()).fingerprint);
+  const broken = (patch) => {
+    const r = fakeRunner();
+    return { ...r, run: (cmd, args, opts) => patch(cmd, args, opts) ?? r.run(cmd, args, opts), formats: ["9:16"] };
+  };
+  const probe = (duration, streams) => JSON.stringify({ format: { duration: String(duration) }, streams: streams.map((codec_type) => ({ codec_type })) });
+  const timelineOf = (opts) => JSON.parse(readFileSync(join(opts.cwd, "timing.json"), "utf8")).duration;
+  assert.throws(() => render(path, lib, broken((cmd, args) => (cmd === "npx" && args[2] === "render" ? "" : undefined))), /yazılmadı|eski/);
+  assert.throws(() => render(path, lib, broken((cmd) => (cmd === "ffprobe" ? probe(3, ["video", "audio"]) : undefined))), /süre/);
+  assert.throws(() => render(path, lib, broken((cmd, args, opts) => (cmd === "ffprobe" ? probe(timelineOf(opts), ["video"]) : undefined))), /ses/);
+  assert.equal(render(path, lib, { ...fakeRunner(), formats: ["9:16"] }).length, 1);
+});
+
 test("stillTimes takes two stills per shot", () => {
   assert.deepEqual(stillTimes([{ start: 0, end: 10 }, { start: 10, end: 15 }]), [4, 8, 12, 14]);
 });
@@ -285,7 +325,7 @@ test("storyboard compiles, checks and photographs both formats; render is gated"
   const r = fakeRunner();
   const videos = render(path, lib, r);
   assert.equal(videos.length, 2);
-  assert.ok(r.calls.every((c) => c.args.includes("looks")));
+  assert.ok(r.calls.filter((c) => c.cmd === "npx").every((c) => c.args.includes("looks")));
 
   const moved = JSON.parse(readFileSync(path, "utf8"));
   moved.scenes[0].shots[0].camera.move = "push_in";
@@ -442,4 +482,79 @@ test("the 3D look is not part of the 2D storyboard approval", () => {
   const { ep } = makeEpisode();
   const before = storyboardFingerprint(ep, null, "lib");
   assert.equal(storyboardFingerprint({ ...ep, stil3d: "pastel" }, null, "lib"), before);
+});
+
+test("a retuned voice preset speaks its lines again; older manifests stay fresh until then (Faz 5.3)", async () => {
+  const { fingerprintsOf } = await import("../src/ses.mjs");
+  const { ep } = makeEpisode();
+  const lines = linesOf(ep);
+  const fps = fingerprintsOf(ep, lib);
+  const [now, older] = fps(lines[0]);
+  const exists = () => true;
+  // written before presets counted: accepted by the older fingerprint
+  assert.equal(planAudio(lines.slice(0, 1), { lines: { [lines[0].key]: { fingerprint: older } } }, fps, exists).todo.length, 0);
+  // written now (ayar): only the current one counts
+  assert.equal(planAudio(lines.slice(0, 1), { lines: { [lines[0].key]: { fingerprint: older, ayar: true } } }, fps, exists).todo.length, 1);
+  assert.equal(planAudio(lines.slice(0, 1), { lines: { [lines[0].key]: { fingerprint: now, ayar: true } } }, fps, exists).todo.length, 0);
+  // the library's preset for this voice changes: a new fingerprint
+  const first = [...lib.voices.keys()][0];
+  const retuned = { ...lib, voices: new Map([...lib.voices].map(([k, v]) => [k, k === first ? { ...v, hiz: (v.hiz || 0) + 10 } : v])) };
+  const line = { ...lines[0], voice: { hazir: first } };
+  assert.notEqual(fingerprintsOf(ep, retuned)(line)[0], fingerprintsOf(ep, lib)(line)[0]);
+});
+
+test("the person's own recording (utterance.audio) is never spoken over; a missing one is stale (Faz 5.4)", () => {
+  const { ep } = makeEpisode();
+  ep.scenes[0].shots[0].utterances[0].audio = "kayit/benim.wav";
+  const lines = linesOf(ep);
+  const own = lines.find((l) => l.own);
+  assert.ok(own && own.path === "kayit/benim.wav");
+  const fp = (l) => lineFingerprint(l, "tr", 1);
+  const plan = planAudio(lines, null, fp, () => true, { force: true });
+  assert.ok(!plan.todo.includes(own) && plan.keep.includes(own));
+  assert.deepEqual(planAudio(lines, null, fp, (p) => p !== own.path).ownMissing, [own]);
+  assert.throws(() => planAudio(lines, null, fp, () => true, { only: own.key }), /own recording/);
+});
+
+test("a preview plays a take made for other words silent, not on the wrong line (Faz 5.5)", async () => {
+  const { compileEpisode } = await import("../src/compile.mjs");
+  const { path, ep } = makeEpisode();
+  const dir = dirname(path);
+  mkdirSync(join(dir, "ses"), { recursive: true });
+  for (const l of linesOf(ep)) writeFileSync(join(dir, l.path), silentWav(2));
+  const out = join(dir, "onizleme");
+  const res = compileEpisode(path, lib, out, { missingAudio: "estimate", stale: ["a-0"] });
+  assert.deepEqual(res.estimated, ["a-0"]);
+  assert.ok(!readFileSync(join(out, "index.html"), "utf8").includes('id="ses-a-0"'), "the stale take is not played");
+});
+
+test("the storyboard gate approves only the episode its stills show (Faz 0.5)", async () => {
+  const { acceptWarnings } = await import("../src/uyari-kabul.mjs");
+  const { path, ep } = makeEpisode();
+  approve(path, "senaryo", scriptFingerprint(ep));
+  runAudio(path, lib, TOOLS, fakeRunner());
+  // the fixture's own open warnings, kept by the person: the gate then looks at the stills
+  const keep = () => {
+    try {
+      approveEpisode(path, "storyboard", lib);
+    } catch (err) {
+      const codes = [...err.message.matchAll(/^- (\S+:\S+:[0-9a-f]{6})/gm)].map((m) => m[1]);
+      if (codes.length) acceptWarnings(path, codes, "test: fixture");
+    }
+  };
+  keep();
+  assert.throws(() => approveEpisode(path, "storyboard", lib), /storyboard kareleri yok/);
+  storyboard(path, lib, fakeRunner());
+  const shown = JSON.parse(readFileSync(join(dirname(path), "storyboard", "parmak-izi.json"), "utf8"));
+  assert.ok(shown.fingerprint);
+  // changed after the stills: the person did not see this
+  const moved = JSON.parse(readFileSync(path, "utf8"));
+  moved.scenes[0].shots[0].camera = { ...moved.scenes[0].shots[0].camera, framing: "medium" };
+  save(path, moved);
+  keep();
+  assert.throws(() => approveEpisode(path, "storyboard", lib), /karelerinden sonra değişti/);
+  // a check that does not pass gives no stills to approve
+  const failing = fakeRunner();
+  const run = failing.run;
+  assert.throws(() => storyboard(path, lib, { ...failing, run: (c, a, o) => (a?.[2] === "check" ? "✗ 2 errors" : run(c, a, o)) }), /did not pass/);
 });
