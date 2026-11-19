@@ -45,7 +45,7 @@ Requirements:
 In Claude Code:
 
 ```
-/plugin marketplace add <github-user>/cizgi-studyo
+/plugin marketplace add fatihgun1/claude-video-skill
 /plugin install cizgi-studyo@cizgi-studyo
 ```
 
